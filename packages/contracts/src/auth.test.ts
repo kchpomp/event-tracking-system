@@ -3,12 +3,20 @@ import { describe, expect, test } from 'bun:test'
 import {
   apiErrorSchema,
   authResponseSchema,
+  internalNotificationHrefSchema,
   loginRequestSchema,
   logoutRequestSchema,
   meResponseSchema,
+  pushMutationResponseSchema,
   refreshRequestSchema,
   refreshResponseSchema,
   registerRequestSchema,
+  registerPushTokenRequestSchema,
+  socialAuthProviderParamsSchema,
+  socialAuthRequestSchema,
+  testPushNotificationRequestSchema,
+  testPushNotificationResponseSchema,
+  unregisterPushTokenRequestSchema,
 } from './index'
 
 const validUser = {
@@ -16,7 +24,19 @@ const validUser = {
   email: 'user@example.com',
   displayName: null,
   createdAt: '2026-05-11T00:00:00.000Z',
-}
+  subscription: {
+    entitlement: 'premium',
+    isActive: false,
+    state: 'inactive',
+    platform: null,
+    productId: null,
+    originalTransactionId: null,
+    transactionId: null,
+    expiresAt: null,
+    willAutoRenew: null,
+    updatedAt: null,
+  },
+} as const
 
 describe('auth contracts', () => {
   test('normalizes registration and login input', () => {
@@ -72,6 +92,36 @@ describe('auth contracts', () => {
     ).toThrow()
   })
 
+  test('normalizes social auth input', () => {
+    expect(socialAuthProviderParamsSchema.parse({ provider: 'apple' })).toEqual({
+      provider: 'apple',
+    })
+    expect(socialAuthProviderParamsSchema.parse({ provider: 'google' })).toEqual({
+      provider: 'google',
+    })
+    expect(
+      socialAuthRequestSchema.parse({
+        idToken: ' provider-token ',
+        displayName: ' Jane ',
+      }),
+    ).toEqual({
+      idToken: 'provider-token',
+      displayName: 'Jane',
+    })
+    expect(
+      socialAuthRequestSchema.parse({
+        idToken: 'provider-token',
+        displayName: '',
+      }),
+    ).toEqual({
+      idToken: 'provider-token',
+      displayName: undefined,
+    })
+
+    expect(() => socialAuthProviderParamsSchema.parse({ provider: 'facebook' })).toThrow()
+    expect(() => socialAuthRequestSchema.parse({ idToken: '' })).toThrow()
+  })
+
   test('allows cookie-backed web refresh and explicit mobile refresh tokens', () => {
     expect(refreshRequestSchema.parse(undefined)).toEqual({})
     expect(refreshRequestSchema.parse({})).toEqual({})
@@ -81,9 +131,22 @@ describe('auth contracts', () => {
     const refreshToken = 'r'.repeat(32)
     expect(refreshRequestSchema.parse({ refreshToken })).toEqual({ refreshToken })
     expect(logoutRequestSchema.parse({ refreshToken })).toEqual({ refreshToken })
+    expect(
+      logoutRequestSchema.parse({
+        expoPushToken: 'ExponentPushToken[logout-token]',
+        expoPushTokens: ['ExponentPushToken[logout-old-token]'],
+        refreshToken,
+      }),
+    ).toEqual({
+      expoPushToken: 'ExponentPushToken[logout-token]',
+      expoPushTokens: ['ExponentPushToken[logout-old-token]'],
+      refreshToken,
+    })
 
     expect(() => refreshRequestSchema.parse({ refreshToken: 'short' })).toThrow()
     expect(() => logoutRequestSchema.parse({ refreshToken: 'short' })).toThrow()
+    expect(() => logoutRequestSchema.parse({ expoPushToken: 'not-a-token' })).toThrow()
+    expect(() => logoutRequestSchema.parse({ expoPushTokens: ['not-a-token'] })).toThrow()
   })
 
   test('validates auth response shapes for web and mobile clients', () => {
@@ -140,5 +203,67 @@ describe('auth contracts', () => {
         },
       }),
     ).toThrow()
+
+    expect(
+      apiErrorSchema.parse({
+        error: {
+          code: 'AUTH_PROVIDER_NOT_CONFIGURED',
+          message: 'Provider is not configured',
+        },
+      }),
+    ).toEqual({
+      error: {
+        code: 'AUTH_PROVIDER_NOT_CONFIGURED',
+        message: 'Provider is not configured',
+      },
+    })
+  })
+
+  test('validates Expo push notification contracts', () => {
+    expect(
+      registerPushTokenRequestSchema.parse({
+        expoPushToken: ' ExponentPushToken[test-token] ',
+        deviceId: 'device-1',
+        platform: 'ios',
+      }),
+    ).toEqual({
+      expoPushToken: 'ExponentPushToken[test-token]',
+      deviceId: 'device-1',
+      platform: 'ios',
+    })
+
+    expect(unregisterPushTokenRequestSchema.parse({})).toEqual({})
+    expect(pushMutationResponseSchema.parse({ ok: true })).toEqual({ ok: true })
+
+    expect(
+      testPushNotificationRequestSchema.parse({
+        title: ' Hello ',
+        body: ' Ready ',
+        href: '/details/components',
+      }),
+    ).toEqual({
+      title: 'Hello',
+      body: 'Ready',
+      href: '/details/components',
+    })
+
+    expect(testPushNotificationRequestSchema.parse(undefined)).toEqual({
+      title: 'Test notification',
+      body: 'Expo Push is configured.',
+      href: '/',
+    })
+
+    expect(
+      testPushNotificationResponseSchema.parse({
+        ok: true,
+        outboxId: '018fd4f2-1f3a-7c88-bc49-333333333333',
+      }),
+    ).toMatchObject({ ok: true })
+
+    expect(() =>
+      registerPushTokenRequestSchema.parse({ expoPushToken: 'not-a-token' }),
+    ).toThrow()
+    expect(() => internalNotificationHrefSchema.parse('https://example.com')).toThrow()
+    expect(() => internalNotificationHrefSchema.parse('//example.com')).toThrow()
   })
 })

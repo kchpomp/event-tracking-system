@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, test } from 'bun:test'
 
 import { loadEnv } from './env'
@@ -19,6 +21,39 @@ describe('loadEnv', () => {
     expect(env.SPACES_UPLOAD_URL_TTL_SECONDS).toBe(900)
     expect(env.SPACES_DOWNLOAD_URL_TTL_SECONDS).toBe(300)
     expect(env.SPACES_PUBLIC_CACHE_CONTROL).toBe('public, max-age=31536000, immutable')
+    expect(env.APPLE_IAP_ENVIRONMENT).toBe('Sandbox')
+    expect(env.APPLE_IAP_PRODUCT_IDS).toEqual([])
+    expect(env.APPLE_AUTH_BUNDLE_ID).toBeUndefined()
+    expect(env.APPLE_AUTH_JWKS_TIMEOUT_MS).toBe(5000)
+    expect(env.GOOGLE_AUTH_CLIENT_IDS).toEqual([])
+  })
+
+  test('parses backend .env.example with optional blank App Store fields', () => {
+    const env = loadEnv(parseEnvExample())
+
+    expect(env.APPLE_IAP_BUNDLE_ID).toBeUndefined()
+    expect(env.APPLE_IAP_APP_APPLE_ID).toBeUndefined()
+    expect(env.APPLE_IAP_ISSUER_ID).toBeUndefined()
+    expect(env.APPLE_AUTH_BUNDLE_ID).toBeUndefined()
+    expect(env.GOOGLE_AUTH_CLIENT_IDS).toEqual([])
+    expect(env.APPLE_IAP_PRODUCT_IDS).toEqual([
+      'com.example.app.premium.monthly',
+      'com.example.app.premium.yearly',
+    ])
+  })
+
+  test('parses social auth provider configuration', () => {
+    const env = loadEnv({
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      JWT_SECRET: '12345678901234567890123456789012',
+      APPLE_AUTH_BUNDLE_ID: 'com.example.app',
+      APPLE_AUTH_JWKS_TIMEOUT_MS: '8000',
+      GOOGLE_AUTH_CLIENT_IDS: 'ios-client-id, web-client-id',
+    })
+
+    expect(env.APPLE_AUTH_BUNDLE_ID).toBe('com.example.app')
+    expect(env.APPLE_AUTH_JWKS_TIMEOUT_MS).toBe(8000)
+    expect(env.GOOGLE_AUTH_CLIENT_IDS).toEqual(['ios-client-id', 'web-client-id'])
   })
 
   test('requires complete DigitalOcean Spaces configuration when storage is enabled', () => {
@@ -107,4 +142,69 @@ describe('loadEnv', () => {
       }),
     ).toThrow('CORS_ORIGINS')
   })
+
+  test('requires complete App Store IAP verification config when enabled', () => {
+    const baseEnv = {
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      JWT_SECRET: '12345678901234567890123456789012',
+    }
+
+    expect(() =>
+      loadEnv({
+        ...baseEnv,
+        APPLE_IAP_BUNDLE_ID: 'com.example.app',
+      }),
+    ).toThrow('APPLE_IAP_ISSUER_ID')
+
+    expect(() =>
+      loadEnv({
+        ...baseEnv,
+        APPLE_IAP_BUNDLE_ID: 'com.example.app',
+        APPLE_IAP_ENVIRONMENT: 'Production',
+        APPLE_IAP_ISSUER_ID: 'issuer-id',
+        APPLE_IAP_KEY_ID: 'key-id',
+        APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
+      }),
+    ).toThrow('APPLE_IAP_APP_APPLE_ID')
+
+    expect(() =>
+      loadEnv({
+        ...baseEnv,
+        APPLE_IAP_BUNDLE_ID: 'com.example.app',
+        APPLE_IAP_ISSUER_ID: 'issuer-id',
+        APPLE_IAP_KEY_ID: 'key-id',
+        APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
+      }),
+    ).toThrow('APPLE_IAP_PRODUCT_IDS')
+
+    const env = loadEnv({
+      ...baseEnv,
+      APPLE_IAP_BUNDLE_ID: 'com.example.app',
+      APPLE_IAP_ISSUER_ID: 'issuer-id',
+      APPLE_IAP_KEY_ID: 'key-id',
+      APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
+      APPLE_IAP_PRODUCT_IDS: 'premium_monthly, premium_yearly',
+    })
+
+    expect(env.APPLE_IAP_PRODUCT_IDS).toEqual(['premium_monthly', 'premium_yearly'])
+  })
 })
+
+function parseEnvExample() {
+  const contents = readFileSync(new URL('../.env.example', import.meta.url), 'utf8')
+  const values: Record<string, string> = {}
+
+  for (const line of contents.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex === -1) continue
+
+    const key = trimmed.slice(0, separatorIndex)
+    const rawValue = trimmed.slice(separatorIndex + 1)
+    values[key] = rawValue.replace(/^"(.*)"$/, '$1')
+  }
+
+  return values
+}

@@ -7,6 +7,8 @@ import {
   refreshRequestSchema,
   refreshResponseSchema,
   registerRequestSchema,
+  socialAuthProviderParamsSchema,
+  socialAuthRequestSchema,
 } from '@web-app-demo/contracts'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import type { Context } from 'hono'
@@ -101,6 +103,47 @@ const loginRoute = createRoute({
     401: {
       content: errorResponseContent,
       description: 'Invalid credentials',
+    },
+  },
+})
+
+const socialAuthRoute = createRoute({
+  method: 'post',
+  path: '/social/{provider}',
+  request: {
+    params: socialAuthProviderParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: socialAuthRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: authResponseContent,
+      description: 'Created session for an existing social auth user',
+    },
+    201: {
+      content: authResponseContent,
+      description: 'Created social auth user and session',
+    },
+    400: {
+      content: errorResponseContent,
+      description: 'Invalid payload',
+    },
+    401: {
+      content: errorResponseContent,
+      description: 'Invalid provider token',
+    },
+    409: {
+      content: errorResponseContent,
+      description: 'Email or provider account already exists',
+    },
+    503: {
+      content: errorResponseContent,
+      description: 'Social auth provider is unavailable or not configured',
     },
   },
 })
@@ -209,6 +252,20 @@ export function createAuthRoutes() {
     return c.json(responseForClient(c, result), 200)
   })
 
+  routes.openapi(socialAuthRoute, async (c) => {
+    const auth = c.get('authService')
+    const env = c.get('env')
+    const result = await auth.socialAuth(
+      c.req.valid('param').provider,
+      c.req.valid('json'),
+      requestMetadata(c),
+    )
+    const { created, ...session } = result
+    setRefreshCookie(c, session.refreshToken, env)
+
+    return c.json(responseForClient(c, session), created ? 201 : 200)
+  })
+
   routes.openapi(refreshRoute, async (c) => {
     const auth = c.get('authService')
     const env = c.get('env')
@@ -232,12 +289,17 @@ export function createAuthRoutes() {
     const body = c.req.valid('json')
     const cookieRefreshToken = getRefreshCookie(c)
     assertTrustedCookieRequest(c, env, body.refreshToken, cookieRefreshToken)
-    await auth.logout(body.refreshToken ?? cookieRefreshToken)
+    const sessionRevoked = await auth.logout({
+      expoPushToken: body.expoPushToken,
+      expoPushTokens: body.expoPushTokens,
+      refreshToken: body.refreshToken ?? cookieRefreshToken,
+    })
     deleteCookie(c, refreshCookieName, {
       path: '/api/auth',
       secure: env.COOKIE_SECURE,
       sameSite: refreshCookieSameSite(env),
     })
+    c.header('X-Auth-Session-Revoked', sessionRevoked ? 'true' : 'false')
 
     return c.body(null, 204)
   })

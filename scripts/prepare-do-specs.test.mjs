@@ -82,6 +82,25 @@ describe('prepare-do-specs', () => {
     expect(spec).not.toContain('REPLACE_WITH_');
   });
 
+  test('propagates Expo Push access token to backend API, worker, and cron env', () => {
+    const result = runPrepareSpecs({
+      EXPO_PUSH_ACCESS_TOKEN: 'expo-push-secret',
+      DO_BACKEND_WORKER_ENABLED: 'true',
+      DO_BACKEND_WORKER_NAME: 'notifications',
+      DO_BACKEND_WORKER_RUN_COMMAND: 'bun run start:worker:notifications',
+      DO_BACKEND_CRON_NAME: 'notifications-process',
+      DO_BACKEND_CRON_TASK: 'notifications:process',
+      DO_BACKEND_CRON_SCHEDULE: '*/15 * * * *',
+    });
+
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+
+    const spec = readFileSync(backendSpecPath, 'utf8');
+    expect(spec.match(/key: EXPO_PUSH_ACCESS_TOKEN/g)).toHaveLength(3);
+    expect(spec.match(/value: "expo-push-secret"/g)).toHaveLength(3);
+  });
+
   test('generates explicit backend API instance sizing overrides', () => {
     const result = runPrepareSpecs({
       DO_API_INSTANCE_SIZE_SLUG: 'apps-s-1vcpu-2gb',

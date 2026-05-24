@@ -8,20 +8,27 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  email        String        @unique
-  passwordHash String        @map("password_hash")
-  displayName  String?       @map("display_name")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  sessions     AuthSession[]
+  id                      String                   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  email                   String                   @unique
+  passwordHash            String?                  @map("password_hash")
+  displayName             String?                  @map("display_name")
+  appleSubject            String?                  @unique @map("apple_subject")
+  googleSubject           String?                  @unique @map("google_subject")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  sessions                AuthSession[]
+  subscriptionEntitlement SubscriptionEntitlement?
+  appStoreTransactions    AppStoreTransaction[]
+  pushTokens              PushToken[]
+  pushNotificationOutbox  PushNotificationOutbox[]
+  pushDeliveries          PushDelivery[]
 
   @@map("users")
 }
 
 model AuthSession {
   id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId           String    @db.Uuid @map("user_id")
+  userId           String    @map("user_id") @db.Uuid
   refreshTokenHash String    @unique(map: "auth_sessions_refresh_token_hash_key") @map("refresh_token_hash")
   expiresAt        DateTime  @map("expires_at")
   revokedAt        DateTime? @map("revoked_at")
@@ -34,4 +41,179 @@ model AuthSession {
   @@index([userId], map: "auth_sessions_user_id_idx")
   @@index([expiresAt], map: "auth_sessions_expires_at_idx")
   @@map("auth_sessions")
+}
+
+enum SubscriptionPlatform {
+  ios
+
+  @@map("subscription_platform")
+}
+
+enum SubscriptionState {
+  inactive
+  pending
+  active
+  billing_grace_period
+  billing_retry
+  expired
+  revoked
+
+  @@map("subscription_state")
+}
+
+model SubscriptionEntitlement {
+  id                    String                @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId                String                @unique @map("user_id") @db.Uuid
+  entitlementKey        String                @default("premium") @map("entitlement_key")
+  platform              SubscriptionPlatform?
+  state                 SubscriptionState     @default(inactive)
+  productId             String?               @map("product_id")
+  originalTransactionId String?               @unique @map("original_transaction_id")
+  transactionId         String?               @map("transaction_id")
+  webOrderLineItemId    String?               @map("web_order_line_item_id")
+  expiresAt             DateTime?             @map("expires_at")
+  willAutoRenew         Boolean?              @map("will_auto_renew")
+  environment           String?
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade, map: "subscription_entitlements_user_id_fkey")
+
+  @@index([state], map: "subscription_entitlements_state_idx")
+  @@index([expiresAt], map: "subscription_entitlements_expires_at_idx")
+  @@map("subscription_entitlements")
+}
+
+model AppStoreTransaction {
+  id                    String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId                String            @map("user_id") @db.Uuid
+  originalTransactionId String            @map("original_transaction_id")
+  transactionId         String            @unique @map("transaction_id")
+  webOrderLineItemId    String?           @map("web_order_line_item_id")
+  productId             String            @map("product_id")
+  state                 SubscriptionState
+  environment           String?
+  appAccountToken       String?           @map("app_account_token")
+  purchaseDate          DateTime?         @map("purchase_date")
+  expiresAt             DateTime?         @map("expires_at")
+  revokedAt             DateTime?         @map("revoked_at")
+  willAutoRenew         Boolean?          @map("will_auto_renew")
+  signedTransactionHash String            @unique @map("signed_transaction_hash")
+  signedRenewalHash     String?           @map("signed_renewal_hash")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade, map: "app_store_transactions_user_id_fkey")
+
+  @@index([userId], map: "app_store_transactions_user_id_idx")
+  @@index([originalTransactionId], map: "app_store_transactions_original_transaction_id_idx")
+  @@index([state], map: "app_store_transactions_state_idx")
+  @@map("app_store_transactions")
+}
+
+model AppStoreWebhook {
+  id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  notificationUuid      String?   @unique @map("notification_uuid")
+  signedPayloadHash     String    @unique @map("signed_payload_hash")
+  notificationType      String?   @map("notification_type")
+  subtype               String?
+  environment           String?
+  originalTransactionId String?   @map("original_transaction_id")
+  transactionId         String?   @map("transaction_id")
+  processedAt           DateTime? @map("processed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([originalTransactionId], map: "app_store_webhooks_original_transaction_id_idx")
+  @@index([processedAt], map: "app_store_webhooks_processed_at_idx")
+  @@map("app_store_webhooks")
+}
+
+enum PushTokenPlatform {
+  android
+  ios
+
+  @@map("push_token_platform")
+}
+
+enum PushNotificationOutboxStatus {
+  pending
+  processing
+  sent
+  failed
+  skipped
+
+  @@map("push_notification_outbox_status")
+}
+
+enum PushDeliveryStatus {
+  pending
+  sent
+  delivered
+  failed
+  skipped
+
+  @@map("push_delivery_status")
+}
+
+model PushToken {
+  id            String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId        String             @map("user_id") @db.Uuid
+  expoPushToken String             @unique @map("expo_push_token")
+  platform      PushTokenPlatform?
+  deviceId      String?            @map("device_id")
+  disabledAt    DateTime?          @map("disabled_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade, map: "push_tokens_user_id_fkey")
+
+  @@index([userId, disabledAt], map: "push_tokens_user_id_disabled_at_idx")
+  @@map("push_tokens")
+}
+
+model PushNotificationOutbox {
+  id           String                       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId       String                       @map("user_id") @db.Uuid
+  dedupeKey    String                       @map("dedupe_key")
+  title        String
+  body         String
+  data         Json?
+  status       PushNotificationOutboxStatus @default(pending)
+  scheduledFor DateTime                     @default(now()) @map("scheduled_for")
+  attempts     Int                          @default(0)
+  lastError    String?                      @map("last_error")
+  processedAt  DateTime?                    @map("processed_at")
+  createdAt    DateTime                     @default(now()) @map("created_at")
+  updatedAt    DateTime                     @updatedAt @map("updated_at")
+  user         User                         @relation(fields: [userId], references: [id], onDelete: Cascade, map: "push_notification_outbox_user_id_fkey")
+  deliveries   PushDelivery[]
+
+  @@unique([userId, dedupeKey], map: "push_notification_outbox_user_id_dedupe_key_key")
+  @@index([status, scheduledFor], map: "push_notification_outbox_status_scheduled_for_idx")
+  @@index([userId], map: "push_notification_outbox_user_id_idx")
+  @@map("push_notification_outbox")
+}
+
+model PushDelivery {
+  id                   String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  outboxId             String                 @map("outbox_id") @db.Uuid
+  userId               String                 @map("user_id") @db.Uuid
+  pushTokenId          String?                @map("push_token_id") @db.Uuid
+  expoPushToken        String?                @map("expo_push_token")
+  status               PushDeliveryStatus     @default(pending)
+  ticketId             String?                @map("ticket_id")
+  providerStatus       String?                @map("provider_status")
+  providerErrorCode    String?                @map("provider_error_code")
+  errorMessage         String?                @map("error_message")
+  receiptCheckAttempts Int                    @default(0) @map("receipt_check_attempts")
+  receiptNextCheckAt   DateTime?              @map("receipt_next_check_at")
+  receiptCheckedAt     DateTime?              @map("receipt_checked_at")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  outbox               PushNotificationOutbox @relation(fields: [outboxId], references: [id], onDelete: Cascade, map: "push_deliveries_outbox_id_fkey")
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade, map: "push_deliveries_user_id_fkey")
+
+  @@unique([outboxId, pushTokenId], map: "push_deliveries_outbox_id_push_token_id_key")
+  @@index([ticketId, status], map: "push_deliveries_ticket_id_status_idx")
+  @@index([status, receiptNextCheckAt], map: "push_deliveries_status_receipt_next_check_at_idx")
+  @@index([userId, createdAt], map: "push_deliveries_user_id_created_at_idx")
+  @@map("push_deliveries")
 }

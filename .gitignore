@@ -23,6 +23,31 @@ bun-debug.log*
 .env
 .env.*
 !.env.example
+!.env*.example
+.envrc
+
+# Local credentials and secret material
+.npmrc
+.pypirc
+.netrc
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.asc
+*.gpg
+credentials*.json
+service-account*.json
+*ServiceAccount*.json
+google-services.json
+GoogleService-Info.plist
+backend/certs/
+.aws/
+.gcloud/
 
 # Prisma generated client
 backend/src/generated/prisma/

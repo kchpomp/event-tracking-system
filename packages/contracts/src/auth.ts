@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+import { subscriptionSnapshotSchema } from './iap'
+import { expoPushTokenSchema } from './notifications'
+
 const displayNameSchema = z
   .union([z.string().trim().min(2).max(80), z.literal('')])
   .optional()
@@ -20,6 +23,7 @@ export const userSchema = z.object({
   email: emailSchema,
   displayName: z.string().nullable(),
   createdAt: z.string().datetime(),
+  subscription: subscriptionSnapshotSchema,
 })
 
 export const registerRequestSchema = z.object({
@@ -33,6 +37,17 @@ export const loginRequestSchema = z.object({
   password: passwordSchema,
 })
 
+export const socialAuthProviderSchema = z.enum(['apple', 'google'])
+
+export const socialAuthProviderParamsSchema = z.object({
+  provider: socialAuthProviderSchema,
+})
+
+export const socialAuthRequestSchema = z.object({
+  idToken: z.string().trim().min(1).max(4096),
+  displayName: displayNameSchema,
+})
+
 export const refreshRequestSchema = z
   .object({
     refreshToken: z.string().min(32).optional(),
@@ -42,6 +57,8 @@ export const refreshRequestSchema = z
 
 export const logoutRequestSchema = z
   .object({
+    expoPushToken: expoPushTokenSchema.optional(),
+    expoPushTokens: z.array(expoPushTokenSchema).max(20).optional(),
     refreshToken: z.string().min(32).optional(),
   })
   .optional()
@@ -66,6 +83,9 @@ export type UserDto = z.infer<typeof userSchema>
 export type RegisterRequest = z.input<typeof registerRequestSchema>
 export type RegisterPayload = z.output<typeof registerRequestSchema>
 export type LoginRequest = z.infer<typeof loginRequestSchema>
+export type SocialAuthProvider = z.infer<typeof socialAuthProviderSchema>
+export type SocialAuthRequest = z.input<typeof socialAuthRequestSchema>
+export type SocialAuthPayload = z.output<typeof socialAuthRequestSchema>
 export type RefreshRequest = z.infer<typeof refreshRequestSchema>
 export type LogoutRequest = z.infer<typeof logoutRequestSchema>
 export type AuthResponse = z.infer<typeof authResponseSchema>

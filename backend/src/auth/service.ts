@@ -1,16 +1,21 @@
 import type {
   LoginRequest,
+  LogoutRequest,
   RegisterPayload,
+  SocialAuthPayload,
+  SocialAuthProvider,
   UserDto,
 } from '@web-app-demo/contracts'
 
 import type { DbClient } from '../db'
 import type { AppEnv } from '../env'
 import { AppError } from '../http/errors'
+import { inactiveSubscriptionSnapshot, toSubscriptionSnapshot, type EntitlementRecord } from '../iap/service'
 import { Prisma } from '../generated/prisma/client'
 import { signAccessToken, verifyAccessToken } from './access-tokens'
 import { hashPassword, verifyPassword } from './passwords'
 import { createRefreshToken, hashRefreshToken } from './refresh-tokens'
+import { verifySocialIdentity } from './social-providers'
 
 type SessionMetadata = {
   userAgent?: string
@@ -22,6 +27,7 @@ type UserRecord = {
   email: string
   displayName: string | null
   createdAt: Date
+  subscriptionEntitlement?: EntitlementRecord | null
 }
 
 export class AuthService {
@@ -64,9 +70,16 @@ export class AuthService {
   async login(input: LoginRequest, metadata: SessionMetadata) {
     const user = await this.db.user.findUnique({
       where: { email: input.email },
+      include: {
+        subscriptionEntitlement: true,
+      },
     })
 
     if (!user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Invalid email or password')
+    }
+
+    if (!user.passwordHash) {
       throw new AppError(401, 'UNAUTHORIZED', 'Invalid email or password')
     }
 
@@ -76,6 +89,86 @@ export class AuthService {
     }
 
     return this.issueSession(user, metadata)
+  }
+
+  async socialAuth(
+    provider: SocialAuthProvider,
+    input: SocialAuthPayload,
+    metadata: SessionMetadata,
+  ) {
+    const identity = await verifySocialIdentity(provider, input.idToken, this.env)
+    const existingBySubject = await this.findUserByProviderSubject(provider, identity.subject)
+
+    if (existingBySubject) {
+      return {
+        ...(await this.issueSession(existingBySubject, metadata)),
+        created: false,
+      }
+    }
+
+    const email = normalizeSocialEmail(identity.email)
+    if (!email) {
+      throw new AppError(
+        401,
+        'AUTH_PROVIDER_EMAIL_REQUIRED',
+        `${providerDisplayName(provider)} did not provide an email address`,
+      )
+    }
+
+    const existingByEmail = await this.db.user.findUnique({
+      where: { email },
+      select: { id: true },
+    })
+
+    if (existingByEmail) {
+      throw new AppError(
+        409,
+        'AUTH_EMAIL_ALREADY_EXISTS',
+        'An account with this email already exists',
+      )
+    }
+
+    const displayName = input.displayName ?? identity.displayName
+    let created = true
+    const user = await this.db.user
+      .create({
+        data: {
+          email,
+          passwordHash: null,
+          displayName,
+          ...(provider === 'apple'
+            ? { appleSubject: identity.subject }
+            : { googleSubject: identity.subject }),
+        },
+      })
+      .catch(async (error: unknown) => {
+        if (!isUniqueConstraintError(error)) throw error
+
+        const existingBySubjectAfterRace = await this.findUserByProviderSubject(provider, identity.subject)
+        if (existingBySubjectAfterRace) {
+          created = false
+          return existingBySubjectAfterRace
+        }
+
+        if (isProviderSubjectUniqueConstraint(error)) {
+          throw new AppError(
+            409,
+            'AUTH_PROVIDER_ACCOUNT_ALREADY_LINKED',
+            `${providerDisplayName(provider)} account is already linked`,
+          )
+        }
+
+        throw new AppError(
+          409,
+          'AUTH_EMAIL_ALREADY_EXISTS',
+          'An account with this email already exists',
+        )
+      })
+
+    return {
+      ...(await this.issueSession(user, metadata)),
+      created,
+    }
   }
 
   async refresh(refreshToken: string | undefined, metadata: SessionMetadata) {
@@ -94,7 +187,11 @@ export class AuthService {
         },
       },
       include: {
-        user: true,
+        user: {
+          include: {
+            subscriptionEntitlement: true,
+          },
+        },
       },
     })
 
@@ -167,7 +264,11 @@ export class AuthService {
         },
       },
       include: {
-        user: true,
+        user: {
+          include: {
+            subscriptionEntitlement: true,
+          },
+        },
       },
     })
 
@@ -180,17 +281,53 @@ export class AuthService {
     }
   }
 
-  async logout(refreshToken: string | undefined) {
-    if (!refreshToken) return
+  async logout(input: LogoutRequest = {}) {
+    if (!input.refreshToken) return false
 
-    await this.db.authSession.updateMany({
-      where: {
-        refreshTokenHash: hashRefreshToken(refreshToken),
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
+    const refreshTokenHash = hashRefreshToken(input.refreshToken)
+    const now = new Date()
+    return this.db.$transaction(async (tx) => {
+      const session = await tx.authSession.findUnique({
+        where: {
+          refreshTokenHash,
+          revokedAt: null,
+          expiresAt: {
+            gt: now,
+          },
+        },
+        select: {
+          userId: true,
+        },
+      })
+
+      if (!session) return false
+
+      const expoPushTokens = logoutExpoPushTokens(input)
+      if (expoPushTokens.length > 0) {
+        await tx.pushToken.deleteMany({
+          where: {
+            expoPushToken: {
+              in: expoPushTokens,
+            },
+            userId: session.userId,
+          },
+        })
+      }
+
+      await tx.authSession.updateMany({
+        where: {
+          refreshTokenHash,
+          revokedAt: null,
+          expiresAt: {
+            gt: now,
+          },
+        },
+        data: {
+          revokedAt: now,
+        },
+      })
+
+      return true
     })
   }
 
@@ -225,10 +362,63 @@ export class AuthService {
   private refreshExpiresAt() {
     return new Date(Date.now() + this.env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000)
   }
+
+  private findUserByProviderSubject(provider: SocialAuthProvider, subject: string) {
+    if (provider === 'apple') {
+      return this.db.user.findUnique({
+        where: { appleSubject: subject },
+        include: {
+          subscriptionEntitlement: true,
+        },
+      })
+    }
+
+    return this.db.user.findUnique({
+      where: { googleSubject: subject },
+      include: {
+        subscriptionEntitlement: true,
+      },
+    })
+  }
 }
 
-function isUniqueConstraintError(error: unknown) {
+function logoutExpoPushTokens(input: LogoutRequest) {
+  return [
+    ...new Set(
+      [input.expoPushToken, ...(input.expoPushTokens ?? [])].filter(
+        (token): token is string => Boolean(token),
+      ),
+    ),
+  ]
+}
+
+function isUniqueConstraintError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+}
+
+function isProviderSubjectUniqueConstraint(error: unknown) {
+  if (!isUniqueConstraintError(error)) return false
+
+  const target = error.meta?.target
+  const fields = Array.isArray(target) ? target : typeof target === 'string' ? [target] : []
+  return fields.some((field) =>
+    [
+      'appleSubject',
+      'googleSubject',
+      'apple_subject',
+      'google_subject',
+      'users_apple_subject_key',
+      'users_google_subject_key',
+    ].includes(field),
+  )
+}
+
+function providerDisplayName(provider: SocialAuthProvider) {
+  return provider === 'apple' ? 'Apple' : 'Google'
+}
+
+function normalizeSocialEmail(email: string | undefined) {
+  return email?.trim().toLowerCase() || undefined
 }
 
 export function toUserDto(user: UserRecord): UserDto {
@@ -237,5 +427,8 @@ export function toUserDto(user: UserRecord): UserDto {
     email: user.email,
     displayName: user.displayName,
     createdAt: user.createdAt.toISOString(),
+    subscription: user.subscriptionEntitlement
+      ? toSubscriptionSnapshot(user.subscriptionEntitlement)
+      : inactiveSubscriptionSnapshot(),
   }
 }

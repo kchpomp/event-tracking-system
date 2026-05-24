@@ -1,12 +1,12 @@
 # Architecture
 
-This repository defines a golden path for web and backend products: shared contracts, one backend, one browser app, a static landing project, and little custom infrastructure. The runnable mobile app lives on the `mobile` branch and extends this architecture only when mobile is active.
+This repository defines a golden path for web/mobile products: shared contracts, one backend, two app clients, a static landing project, and little custom infrastructure.
 
 ## Contracts
 
-`packages/contracts` is the source of truth for API payloads, DTOs, and error shapes. New endpoints should start with Zod schemas in contracts. The backend then uses those schemas for request validation, while web uses them in TanStack Form and API clients.
+`packages/contracts` is the source of truth for API payloads, DTOs, and error shapes. New endpoints should start with Zod schemas in contracts. The backend then uses those schemas for request validation, while web and mobile use them in TanStack Form and API clients.
 
-Do not hand-copy API shapes into clients. When a contract changes, validate producer and consumers in one pass: backend route/service and web API client/form. On the `mobile` branch, include the mobile API client/form in that same pass.
+Do not hand-copy API shapes into clients. When a contract changes, validate producer and consumers in one pass: backend route/service, web API client/form, and mobile API client/form.
 
 ## Backend
 
@@ -24,6 +24,7 @@ Hono route -> Zod validation -> auth/session guard -> feature service -> Prisma 
 - `src/env.ts` validates environment variables with Zod.
 - `src/db.ts` creates the Prisma client.
 - `src/auth/*` owns the auth feature: routes, service logic, JWT helpers, password hashing, and refresh-token hashing.
+- `src/notifications/*` owns Expo Push token registration, durable push outbox processing, Expo ticket/receipt handling, and stale-token cleanup.
 
 Routes should stay thin. Do not put business logic into Hono handlers, UI clients, or child components when the decision belongs in a backend service.
 
@@ -47,13 +48,14 @@ Auth v1 is custom JWT-based auth:
 - Access tokens are short-lived JWTs signed and verified with `jose`.
 - Refresh tokens are opaque random tokens; only their SHA-256 hash is stored in PostgreSQL.
 - Web keeps the refresh token in an HttpOnly cookie and keeps the access token in memory. Local HTTP uses `SameSite=Lax`; HTTPS production uses `Secure` and `SameSite=None` so browser auth works across separate web/API origins.
-The `mobile` branch adds native token storage for Expo.
+- Mobile keeps the refresh token in `expo-secure-store` and keeps the access token in memory.
+- Mobile social auth uses Apple/Google provider subjects as stable identity keys. Social auth does not auto-link to existing password accounts by email; products that need linking should add an explicit authenticated account-linking flow.
 
 Refresh-token rotation creates a new session and revokes the previous one. `/api/auth/me` checks both the JWT and the active database session.
 
 ## Frontend
 
-Web follows these client rules:
+Web and mobile follow the same client rules:
 
 - TanStack Query owns server state.
 - TanStack Form owns form state.
@@ -62,11 +64,11 @@ Web follows these client rules:
 
 Do not create a new form, query, auth, or API abstraction until the existing pattern stops solving the current problem.
 
-`landing` is a separate Astro workspace for a static landing page. It does not own the auth flow and should not duplicate the browser client from `web`. If the landing project starts reading API data or shared DTOs, connect `@web-app-demo/contracts` and validate producer/consumer sides the same way as `web`.
+`landing` is a separate Astro workspace for a static landing page. It does not own the auth flow and should not duplicate the browser client from `web`. If the landing project starts reading API data or shared DTOs, connect `@web-app-demo/contracts` and validate producer/consumer sides the same way as `web` and `mobile`.
 
 ## Testing
 
-Backend unit/integration tests verify contracts and auth behavior at the owning layer. Web E2E uses Playwright and starts a real backend + Vite through `webServer`. Mobile E2E lives on the `mobile` branch.
+Backend unit/integration tests verify contracts and auth behavior at the owning layer. Web E2E uses Playwright and starts a real backend + Vite through `webServer`. Mobile E2E uses Maestro and stable React Native `testID` selectors.
 
 Client E2E in this template is a happy-path smoke layer, not the place for large validation matrices. Keep negative payloads, password/JWT/session rules, and error-shape checks in backend tests. Add fast client-level tests for form validation and API state edge cases when those surfaces grow.
 
@@ -118,3 +120,5 @@ For framework and API questions, consult the current upstream documentation link
 - [TanStack Query React docs](https://tanstack.com/query/latest/docs/framework/react/overview)
 - [TanStack Form React docs](https://tanstack.com/form/latest/docs/framework/react/quick-start)
 - [TanStack Router docs](https://tanstack.com/router/latest/docs/overview)
+- [Expo docs](https://docs.expo.dev/)
+- [Expo Router docs](https://docs.expo.dev/router/introduction/)

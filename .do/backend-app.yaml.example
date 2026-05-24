@@ -64,6 +64,7 @@ services:
         value: "true"
         scope: RUN_TIME
         type: GENERAL
+REPLACE_WITH_OPTIONAL_EXPO_PUSH_ACCESS_TOKEN_ENV
 REPLACE_WITH_OPTIONAL_BACKEND_WORKERS
 jobs:
   - name: migrate

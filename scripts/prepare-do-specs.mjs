@@ -104,6 +104,7 @@ function commonReplacements() {
     REPLACE_WITH_DO_DB_USER: dbUser,
     REPLACE_WITH_DO_API_INSTANCE_SIZE_SLUG: apiServiceInstanceSizeSlug,
     REPLACE_WITH_DO_API_INSTANCE_COUNT: String(apiServiceInstanceCount),
+    REPLACE_WITH_OPTIONAL_EXPO_PUSH_ACCESS_TOKEN_ENV: optionalExpoPushAccessTokenEnvBlock('      '),
   }
 }
 
@@ -135,6 +136,7 @@ function printUsage() {
   console.error('')
   console.error('Optional deployment settings:')
   console.error('  API sizing: DO_API_INSTANCE_SIZE_SLUG, DO_API_INSTANCE_COUNT')
+  console.error('  Expo Push security: EXPO_PUSH_ACCESS_TOKEN')
   console.error('  worker: DO_BACKEND_WORKER_ENABLED=true, DO_BACKEND_WORKER_RUN_COMMAND')
   console.error('  cron: DO_BACKEND_CRON_NAME, DO_BACKEND_CRON_TASK, DO_BACKEND_CRON_SCHEDULE')
 }
@@ -348,7 +350,7 @@ workers:
       - key: JWT_SECRET
         value: ${yamlString(requiredEnv('JWT_SECRET'))}
         scope: RUN_TIME
-        type: SECRET`
+        type: SECRET${optionalExpoPushAccessTokenEnvBlock('      ')}`
 }
 
 function requiredWorkerRunCommand(name) {
@@ -404,7 +406,19 @@ function optionalBackendCronJobsBlock() {
       - key: JWT_SECRET
         value: ${yamlString(requiredEnv('JWT_SECRET'))}
         scope: RUN_TIME
-        type: SECRET`
+        type: SECRET${optionalExpoPushAccessTokenEnvBlock('      ')}`
+}
+
+function optionalExpoPushAccessTokenEnvBlock(indent) {
+  const accessToken = process.env.EXPO_PUSH_ACCESS_TOKEN?.trim()
+  if (!accessToken) return ''
+
+  assertSafeYamlString('EXPO_PUSH_ACCESS_TOKEN', accessToken)
+  return `
+${indent}- key: EXPO_PUSH_ACCESS_TOKEN
+${indent}  value: ${yamlString(accessToken)}
+${indent}  scope: RUN_TIME
+${indent}  type: SECRET`
 }
 
 function optionalBooleanEnv(name) {

@@ -4,11 +4,11 @@ Use this document only after the user has asked for deployment. Read the root [R
 
 The default production path is DigitalOcean App Platform plus DigitalOcean Managed PostgreSQL. Do not ask the user to choose a cloud provider during first-run setup. Ask for product-facing release details instead:
 
-- which active surfaces should be released now: backend/API, web, landing, or full-stack;
-- production domains/URLs for API, web, and landing;
+- which active surfaces should be released now: backend/API, web, landing, mobile, or full-stack;
+- production domains/URLs for API, web, landing, and the mobile API endpoint;
 - whether uploads, images, media, exports, or downloads need DigitalOcean Spaces in this release;
 - whether real-time chat, presence, collaboration, live notifications, or WebSocket-style updates must work across multiple backend instances;
-- whether mobile is active; if yes, switch to the `mobile` branch before mobile release planning;
+- whether mobile work includes EAS builds only or App Store / Google Play submission;
 - whether an external CDN is required for advanced bot, rate-limit, or geographic traffic controls.
 
 Local setup from `README.md` and [LOCAL_DATABASE.md](LOCAL_DATABASE.md) does not require cloud credentials.
@@ -28,7 +28,7 @@ REFRESH_TOKEN_TTL_DAYS=30
 COOKIE_SECURE=true
 ```
 
-`CORS_ORIGINS` must include every browser origin that calls the API with credentials. Use exact origins only, for example `https://web.example.com`; do not use wildcards, empty values, or paths.
+`CORS_ORIGINS` must include every browser origin that calls the API with credentials. Use exact origins only, for example `https://web.example.com`; do not use wildcards, empty values, or paths. Native mobile apps do not need CORS, but Expo web previews or browser-based mobile previews do.
 
 `JWT_SECRET` belongs in the production backend runtime env. Generate it with `openssl rand -hex 32`; that command creates 32 random bytes encoded as 64 hex characters. Do not use the placeholder from `.env.example`, repeated characters, or human phrases.
 
@@ -130,7 +130,7 @@ doctl apps spec validate .scratch/deploy/landing-static-app.yaml
 doctl apps create --spec .scratch/deploy/landing-static-app.yaml
 ```
 
-Static Sites build from the connected Git branch, not from local `dist` folders. The branch must contain the full web/backend monorepo: root `package.json`, `bun.lock`, `backend`, `web`, `landing`, and `packages/contracts`.
+Static Sites build from the connected Git branch, not from local `dist` folders. The branch must contain the full monorepo: root `package.json`, `bun.lock`, `backend`, `web`, `landing`, `mobile`, and `packages/contracts`.
 
 ## Backend API
 
@@ -174,7 +174,8 @@ Do not run `prisma migrate dev` in production and do not hand-write migration SQ
 The backend ships as one Docker image with separate entrypoints:
 
 - API service: `bun run start:api`
-- long-running worker: `bun run start:worker`
+- placeholder worker: `bun run start:worker`
+- push notification worker: `bun run start:worker:notifications`
 - one-shot cron runner: `bun run start:cron -- <task>`
 
 Keep API, worker, and cron in the same backend workspace so they share Prisma schema, generated Prisma client, env validation, contracts, and feature services. Do not create a second backend package or repository just to run background code.
@@ -182,20 +183,20 @@ Keep API, worker, and cron in the same backend workspace so they share Prisma sc
 DigitalOcean App Platform supports non-routable worker components and scheduled job components in the same app spec. The committed backend template always includes the API service and `migrate` pre-deploy job. Optional worker and scheduled jobs are inserted by the generator only when explicitly configured:
 
 ```bash
-# Add one worker component only after adding a real long-running handler.
+# Add the push notification worker after Expo Push is active.
 export DO_BACKEND_WORKER_ENABLED=true
-export DO_BACKEND_WORKER_RUN_COMMAND="bun run start:worker:real-handler"
+export DO_BACKEND_WORKER_RUN_COMMAND="bun run start:worker:notifications"
 
-# Add one scheduled job component.
-export DO_BACKEND_CRON_NAME=daily-maintenance
-export DO_BACKEND_CRON_TASK=noop
-export DO_BACKEND_CRON_SCHEDULE="0 3 * * *"
+# Optional scheduled recovery job for push outbox and receipts.
+export DO_BACKEND_CRON_NAME=notifications-process
+export DO_BACKEND_CRON_TASK=notifications:process
+export DO_BACKEND_CRON_SCHEDULE="*/15 * * * *"
 export DO_BACKEND_CRON_TIME_ZONE=UTC
 
 bun run deploy:do:specs backend-final
 ```
 
-Use worker components only after a real long-running handler exists. The generator requires `DO_BACKEND_WORKER_RUN_COMMAND` and refuses the template placeholder `bun run start:worker`, because that placeholder exits immediately and should not be deployed as an App Platform worker. Use scheduled jobs only for concrete product tasks, and keep the schedule at DigitalOcean's supported cadence of at least 15 minutes. Both optional components use `backend/Dockerfile`, the repository-root build context, and the same managed PostgreSQL binding as the API. Add Spaces or other runtime secrets to those components when the specific background task needs them.
+Use worker components only after a real long-running handler exists. The notification worker is a real handler once the app sends push notifications; the generator still refuses the template placeholder `bun run start:worker`, because that placeholder exits immediately and should not be deployed as an App Platform worker. Use scheduled jobs only for concrete product tasks, and keep the schedule at DigitalOcean's supported cadence of at least 15 minutes. Both optional components use `backend/Dockerfile`, the repository-root build context, and the same managed PostgreSQL binding as the API. Add `EXPO_PUSH_ACCESS_TOKEN` to API, worker, and cron env only when Expo push security is enabled.
 
 ## Real-Time And Horizontal Scaling
 
@@ -298,9 +299,39 @@ Use an external CDN only for explicit advanced needs such as custom WAF rules, b
 - use HTTPS on port `443`;
 - do not forward the original custom-domain `Host` header to App Platform.
 
-## Mobile Releases
+## Expo / EAS
 
-The default branch does not contain the runnable Expo app. Mobile release work, including Expo/EAS env, development builds, production builds, and App Store / Google Play guidance, lives on the `mobile` branch.
+Mobile deployment is separate from DigitalOcean hosting. Use the deployed API URL as the mobile public API endpoint:
+
+```bash
+bunx eas-cli env:create --name EXPO_PUBLIC_API_URL --value https://api.example.com --environment production
+```
+
+Development build:
+
+```bash
+bunx eas-cli build --profile development --platform android
+bunx eas-cli build --profile development --platform ios
+```
+
+Production build:
+
+```bash
+bunx eas-cli build --profile production --platform all
+```
+
+### Expo Push deployment checklist
+
+The repository includes mobile token registration, backend token storage, durable outbox delivery, Expo ticket/receipt tracking, retries, and dead-token cleanup. Deployment still needs project-specific Expo credentials:
+
+1. In the installed project, set `expo.owner`, production app identifiers, and EAS `extra.eas.projectId`; do not commit those template-wide before a real Expo owner/project is chosen.
+2. Configure APNs and FCM credentials in Expo/EAS. Keep native credential files and service-account JSON out of git and deployment logs.
+3. Set the production mobile API URL with `EXPO_PUBLIC_API_URL` so the installed build can register tokens against the deployed backend.
+4. If Expo Push Security is enabled, set the same `EXPO_PUSH_ACCESS_TOKEN` on the backend API, notification worker, and scheduled notification cron. Do not expose it through any `EXPO_PUBLIC_*` variable.
+5. Deploy `bun run start:worker:notifications` as a backend worker for continuous push delivery, or schedule `bun run start:cron -- notifications:process` as the recovery/fallback path after the product starts sending notifications.
+6. Install the development or production build on a physical device, sign in, and call authenticated `POST /api/notifications/test-push` to verify token registration, outbox processing, Expo ticket/receipt polling, and dead-token cleanup.
+
+Apple App Store release work requires Apple Developer Program access. Google Play release work requires a Google Play Developer account.
 
 ## Validation
 
@@ -363,3 +394,7 @@ For deployment questions, consult current upstream docs first. This document cap
 - Yandex Cloud alternative runbook: https://yandex.cloud/en/docs/
 - Docker Compose: https://docs.docker.com/compose/
 - Prisma migrations: https://www.prisma.io/docs/orm/prisma-migrate
+- Expo EAS: https://docs.expo.dev/eas/
+- EAS Build: https://docs.expo.dev/build/introduction/
+- Expo Push setup: https://docs.expo.dev/push-notifications/push-notifications-setup/
+- Expo Push sending API: https://docs.expo.dev/push-notifications/sending-notifications/

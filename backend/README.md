@@ -29,7 +29,9 @@ bun run --cwd backend test:unit
 bun run --cwd backend test:integration
 bun run --cwd backend start:api
 bun run --cwd backend start:worker
+bun run --cwd backend start:worker:notifications
 bun run --cwd backend start:cron -- noop
+bun run --cwd backend start:cron -- notifications:process
 bun run --cwd backend smoke:docker
 bun run --cwd backend prisma:validate
 bun run --cwd backend prisma:generate
@@ -55,7 +57,11 @@ Keep an explicit username and password in Prisma connection URLs even on local n
 
 `COOKIE_SECURE=false` is appropriate for local HTTP; production should use `COOKIE_SECURE=true` with exact HTTPS origins in `CORS_ORIGINS`. Production browser auth uses `SameSite=None; Secure` refresh cookies, so wildcard, empty, or path-bearing CORS origins are invalid. Cookie-backed `refresh` and `logout` requests also require a trusted `Origin` in production cookie mode.
 
+Mobile social auth is optional. Configure `APPLE_AUTH_BUNDLE_ID`, `APPLE_AUTH_JWKS_TIMEOUT_MS`, and `GOOGLE_AUTH_CLIENT_IDS` only when the Expo app should offer Apple or Google sign-in. These values are provider identifiers, not secrets. Full setup: [../docs/SOCIAL_AUTH.md](../docs/SOCIAL_AUTH.md).
+
 DigitalOcean Spaces env is optional. Leave `SPACES_*` blank until the product needs uploads, media, exports, or downloads. When storage is active, configure the complete Spaces group in `backend/.env` and follow [../docs/STORAGE.md](../docs/STORAGE.md).
+
+Expo Push is optional at first run, but the backend foundation is ready. APNs and FCM credentials are configured in Expo/EAS for the mobile project; the backend only needs `EXPO_PUSH_ACCESS_TOKEN` when Expo push security is enabled. Product code should call `enqueuePushNotification` from `src/notifications/service.ts` after committing the domain event, using a stable per-user `dedupeKey`, `title`, `body`, and optional `data.href`.
 
 ## Runtime Entrypoints
 
@@ -63,9 +69,18 @@ The backend is one workspace with one Prisma schema and one Dockerfile, but it h
 
 - API: `bun run start:api`, backed by `src/index.ts`.
 - Worker: `bun run start:worker`, backed by `src/worker.ts`. It is intentionally empty until a real long-running background handler is added, and deployment generation refuses to deploy this placeholder command as an App Platform worker.
-- Cron: `bun run start:cron -- <task>`, backed by `src/cron.ts`. Current local validation tasks are `noop` and `db:ping`.
+- Notification worker: `bun run start:worker:notifications`, backed by `src/worker.ts notifications`, drains pending push outbox rows and checks Expo receipts continuously.
+- Cron: `bun run start:cron -- <task>`, backed by `src/cron.ts`. Current tasks are `noop`, `db:ping`, and `notifications:process`.
 
 All entrypoints use `src/runtime.ts` for env loading, Prisma creation, and cleanup, so backend services can be shared without duplicating Prisma schema or database setup.
+
+## Push Notifications API
+
+- `POST /api/notifications/push-token` registers the current user's Expo push token.
+- `POST /api/notifications/push-token/unregister` removes one token, or all current-user tokens if no token is provided.
+- `POST /api/notifications/test-push` queues and processes a test push for the current user. Use it after the native app has registered a token and Expo credentials are configured.
+
+Push delivery is durable: `PushNotificationOutbox` stores the queued message, `PushDelivery` stores Expo ticket/receipt state, delayed receipts are checked with backoff, transient Expo failures are retried, and `DeviceNotRegistered` disables stale tokens.
 
 Primary keys use database-generated UUIDv7 values in PostgreSQL (`@default(dbgenerated("uuidv7()")) @db.Uuid`). Use UUIDv7 consistently for new primary keys and foreign-key references that point at them; do not introduce new `cuid()`, `uuid()`, `serial`, or `bigserial` IDs into this template. PostgreSQL 18+ is required anywhere the backend schema is applied so IDs are generated consistently through Prisma, raw SQL, imports, and future non-Prisma writers.
 
@@ -77,6 +92,8 @@ Production deployment for the backend uses DigitalOcean App Platform with Digita
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/social/apple`
+- `POST /api/auth/social/google`
 - `POST /api/auth/refresh`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
@@ -84,6 +101,8 @@ Production deployment for the backend uses DigitalOcean App Platform with Digita
 - `GET /health`
 
 Passwords are hashed through `Bun.password` with Argon2id. Access tokens are short-lived JWTs through `jose`. Refresh tokens are opaque random tokens; only a SHA-256 hash is stored in the database. Refresh rotates the token and revokes the previous session.
+
+Social auth users use the provider subject as the stable identity key. The backend does not automatically link social identities to existing password accounts by email; if the email already exists, social signup returns `AUTH_EMAIL_ALREADY_EXISTS`.
 
 ## Architecture
 
@@ -105,6 +124,7 @@ For backend framework, ORM, auth, validation, and runtime questions, consult the
 - [PostgreSQL docs](https://www.postgresql.org/docs/)
 - [Zod docs](https://zod.dev/)
 - [jose documentation](https://github.com/panva/jose)
+- [Google Auth Library for Node.js](https://docs.cloud.google.com/nodejs/docs/reference/google-auth-library/latest/google-auth-library/oauth2client)
 - [Docker Compose docs](https://docs.docker.com/compose/)
 - [PostgreSQL Docker Official Image](https://hub.docker.com/_/postgres)
 - [DigitalOcean Spaces docs](https://docs.digitalocean.com/products/spaces/)

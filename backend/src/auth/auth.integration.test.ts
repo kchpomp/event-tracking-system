@@ -1,8 +1,9 @@
-import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
 import { createApp } from '../app'
 import { createPrisma } from '../db'
 import type { AppEnv } from '../env'
+import { socialAuthProviderDeps } from './social-providers'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 
@@ -21,13 +22,27 @@ maybeDescribe('auth API integration', () => {
     SPACES_UPLOAD_URL_TTL_SECONDS: 900,
     SPACES_DOWNLOAD_URL_TTL_SECONDS: 300,
     SPACES_PUBLIC_CACHE_CONTROL: 'public, max-age=31536000, immutable',
+    APPLE_IAP_ENVIRONMENT: 'Sandbox',
+    APPLE_IAP_PRODUCT_IDS: [],
+    APPLE_AUTH_JWKS_TIMEOUT_MS: 5000,
+    GOOGLE_AUTH_CLIENT_IDS: [],
   }
   const prisma = createPrisma(databaseUrl!)
   const app = createApp({ env, prisma })
+  const originalVerifyGoogleIdToken = socialAuthProviderDeps.verifyGoogleIdToken
+  const originalVerifyAppleIdToken = socialAuthProviderDeps.verifyAppleIdToken
 
   beforeEach(async () => {
+    socialAuthProviderDeps.verifyGoogleIdToken = originalVerifyGoogleIdToken
+    socialAuthProviderDeps.verifyAppleIdToken = originalVerifyAppleIdToken
+    await prisma.pushToken.deleteMany()
     await prisma.authSession.deleteMany()
     await prisma.user.deleteMany()
+  })
+
+  afterEach(() => {
+    socialAuthProviderDeps.verifyGoogleIdToken = originalVerifyGoogleIdToken
+    socialAuthProviderDeps.verifyAppleIdToken = originalVerifyAppleIdToken
   })
 
   afterAll(async () => {
@@ -103,6 +118,113 @@ maybeDescribe('auth API integration', () => {
       body: JSON.stringify({ refreshToken: refreshBody.refreshToken }),
     })
     expect(revokedRefresh.status).toBe(401)
+  })
+
+  test('logout removes submitted Expo push tokens under refresh-token authority', async () => {
+    const register = await app.request('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        email: 'logout-push@example.com',
+        password: 'password123',
+      }),
+    })
+    const registerBody = await register.json()
+    await prisma.pushToken.createMany({
+      data: [
+        {
+          expoPushToken: 'ExponentPushToken[logout-token]',
+          userId: registerBody.user.id,
+        },
+        {
+          expoPushToken: 'ExponentPushToken[logout-old-token]',
+          userId: registerBody.user.id,
+        },
+      ],
+    })
+
+    const logout = await app.request('/api/auth/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        expoPushToken: 'ExponentPushToken[logout-token]',
+        expoPushTokens: ['ExponentPushToken[logout-old-token]'],
+        refreshToken: registerBody.refreshToken,
+      }),
+    })
+    expect(logout.status).toBe(204)
+    expect(logout.headers.get('X-Auth-Session-Revoked')).toBe('true')
+    expect(
+      await prisma.pushToken.count({
+        where: {
+          expoPushToken: 'ExponentPushToken[logout-token]',
+        },
+      }),
+    ).toBe(0)
+    expect(
+      await prisma.pushToken.count({
+        where: {
+          expoPushToken: 'ExponentPushToken[logout-old-token]',
+        },
+      }),
+    ).toBe(0)
+  })
+
+  test('logout does not remove push tokens when refresh authority is stale', async () => {
+    const register = await app.request('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        email: 'stale-logout-push@example.com',
+        password: 'password123',
+      }),
+    })
+    const registerBody = await register.json()
+    await prisma.pushToken.create({
+      data: {
+        expoPushToken: 'ExponentPushToken[stale-logout-token]',
+        userId: registerBody.user.id,
+      },
+    })
+
+    const firstLogout = await app.request('/api/auth/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        refreshToken: registerBody.refreshToken,
+      }),
+    })
+    expect(firstLogout.status).toBe(204)
+
+    const staleAuthorityLogout = await app.request('/api/auth/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        expoPushToken: 'ExponentPushToken[stale-logout-token]',
+        refreshToken: registerBody.refreshToken,
+      }),
+    })
+    expect(staleAuthorityLogout.status).toBe(204)
+    expect(staleAuthorityLogout.headers.get('X-Auth-Session-Revoked')).toBe('false')
+    expect(
+      await prisma.pushToken.count({
+        where: {
+          expoPushToken: 'ExponentPushToken[stale-logout-token]',
+        },
+      }),
+    ).toBe(1)
   })
 
   test('allows only one concurrent refresh rotation for the same token', async () => {
@@ -334,6 +456,301 @@ maybeDescribe('auth API integration', () => {
       }),
     })
     expect(invalidLogin.status).toBe(401)
+  })
+
+  test('social Google auth creates a social-only user and mobile session', async () => {
+    const socialApp = createApp({
+      env: {
+        ...env,
+        GOOGLE_AUTH_CLIENT_IDS: ['google-ios-client-id', 'google-web-client-id'],
+      },
+      prisma,
+    })
+    socialAuthProviderDeps.verifyGoogleIdToken = async () => ({
+      provider: 'google',
+      subject: 'google-subject-1',
+      email: 'Social@Example.com',
+      displayName: 'Social User',
+    })
+
+    const response = await socialApp.request('/api/auth/social/google', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        idToken: 'google-id-token',
+      }),
+    })
+    const body = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(body.user.email).toBe('social@example.com')
+    expect(body.user.displayName).toBe('Social User')
+    expect(body.accessToken).toBeString()
+    expect(body.refreshToken).toBeString()
+
+    const user = await prisma.user.findUnique({
+      where: { email: 'social@example.com' },
+      select: {
+        googleSubject: true,
+        passwordHash: true,
+      },
+    })
+    expect(user).toEqual({
+      googleSubject: 'google-subject-1',
+      passwordHash: null,
+    })
+  })
+
+  test('social Google auth returns an existing user by provider subject', async () => {
+    const socialApp = createApp({
+      env: {
+        ...env,
+        GOOGLE_AUTH_CLIENT_IDS: ['google-ios-client-id'],
+      },
+      prisma,
+    })
+    const user = await prisma.user.create({
+      data: {
+        email: 'returning-google@example.com',
+        passwordHash: null,
+        googleSubject: 'google-returning-subject',
+      },
+      select: { id: true },
+    })
+    socialAuthProviderDeps.verifyGoogleIdToken = async () => ({
+      provider: 'google',
+      subject: 'google-returning-subject',
+    })
+
+    const response = await socialApp.request('/api/auth/social/google', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        idToken: 'google-id-token',
+      }),
+    })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.user.id).toBe(user.id)
+    expect(body.user.email).toBe('returning-google@example.com')
+    expect(body.refreshToken).toBeString()
+  })
+
+  test('concurrent first-time social auth requests sign into the same provider user', async () => {
+    const socialApp = createApp({
+      env: {
+        ...env,
+        GOOGLE_AUTH_CLIENT_IDS: ['google-ios-client-id'],
+      },
+      prisma,
+    })
+    let verificationCalls = 0
+    let releaseVerificationBarrier: () => void = () => undefined
+    const verificationBarrier = new Promise<void>((resolve) => {
+      releaseVerificationBarrier = resolve
+    })
+    socialAuthProviderDeps.verifyGoogleIdToken = async () => {
+      verificationCalls += 1
+      if (verificationCalls === 2) releaseVerificationBarrier()
+      await verificationBarrier
+
+      return {
+        provider: 'google',
+        subject: 'google-concurrent-subject',
+        email: 'google-concurrent@example.com',
+      }
+    }
+    const request = () =>
+      socialApp.request('/api/auth/social/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Platform': 'mobile',
+        },
+        body: JSON.stringify({
+          idToken: 'google-id-token',
+        }),
+      })
+
+    const [first, second] = await Promise.all([request(), request()])
+    const firstBody = await first.json()
+    const secondBody = await second.json()
+
+    expect([first.status, second.status].sort((left, right) => left - right)).toEqual([200, 201])
+    expect(firstBody.user.id).toBe(secondBody.user.id)
+    expect(firstBody.refreshToken).toBeString()
+    expect(secondBody.refreshToken).toBeString()
+    expect(
+      await prisma.user.count({
+        where: {
+          googleSubject: 'google-concurrent-subject',
+        },
+      }),
+    ).toBe(1)
+  })
+
+  test('social Apple auth creates a user and later works when Apple omits email', async () => {
+    const socialApp = createApp({
+      env: {
+        ...env,
+        APPLE_AUTH_BUNDLE_ID: 'com.webappdemo.mobile',
+      },
+      prisma,
+    })
+    socialAuthProviderDeps.verifyAppleIdToken = async () => ({
+      provider: 'apple',
+      subject: 'apple-stable-subject',
+      email: 'apple-user@example.com',
+    })
+
+    const initial = await socialApp.request('/api/auth/social/apple', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        idToken: 'apple-first-token',
+      }),
+    })
+    const initialBody = await initial.json()
+
+    expect(initial.status).toBe(201)
+    expect(initialBody.user.email).toBe('apple-user@example.com')
+
+    socialAuthProviderDeps.verifyAppleIdToken = async () => ({
+      provider: 'apple',
+      subject: 'apple-stable-subject',
+    })
+
+    const returning = await socialApp.request('/api/auth/social/apple', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        idToken: 'apple-returning-token',
+      }),
+    })
+    const returningBody = await returning.json()
+
+    expect(returning.status).toBe(200)
+    expect(returningBody.user.id).toBe(initialBody.user.id)
+    expect(returningBody.refreshToken).toBeString()
+  })
+
+  test('social Apple auth rejects new users when Apple does not provide email', async () => {
+    const socialApp = createApp({
+      env: {
+        ...env,
+        APPLE_AUTH_BUNDLE_ID: 'com.webappdemo.mobile',
+      },
+      prisma,
+    })
+    socialAuthProviderDeps.verifyAppleIdToken = async () => ({
+      provider: 'apple',
+      subject: 'apple-no-email-subject',
+    })
+
+    const response = await socialApp.request('/api/auth/social/apple', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        idToken: 'apple-token',
+      }),
+    })
+    const body = await response.json()
+
+    expect(response.status).toBe(401)
+    expect(body.error.code).toBe('AUTH_PROVIDER_EMAIL_REQUIRED')
+  })
+
+  test('social auth does not auto-link to an existing password account by email', async () => {
+    const socialApp = createApp({
+      env: {
+        ...env,
+        GOOGLE_AUTH_CLIENT_IDS: ['google-ios-client-id'],
+      },
+      prisma,
+    })
+    await prisma.user.create({
+      data: {
+        email: 'existing-password@example.com',
+        passwordHash: 'hashed-password',
+      },
+    })
+    socialAuthProviderDeps.verifyGoogleIdToken = async () => ({
+      provider: 'google',
+      subject: 'google-new-subject',
+      email: 'existing-password@example.com',
+    })
+
+    const response = await socialApp.request('/api/auth/social/google', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Platform': 'mobile',
+      },
+      body: JSON.stringify({
+        idToken: 'google-id-token',
+      }),
+    })
+    const body = await response.json()
+
+    expect(response.status).toBe(409)
+    expect(body.error.code).toBe('AUTH_EMAIL_ALREADY_EXISTS')
+  })
+
+  test('social auth returns configuration and token verification errors', async () => {
+    const missingGoogleConfig = await app.request('/api/auth/social/google', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        idToken: 'google-id-token',
+      }),
+    })
+    const missingGoogleConfigBody = await missingGoogleConfig.json()
+
+    expect(missingGoogleConfig.status).toBe(503)
+    expect(missingGoogleConfigBody.error.code).toBe('AUTH_PROVIDER_NOT_CONFIGURED')
+
+    const socialApp = createApp({
+      env: {
+        ...env,
+        GOOGLE_AUTH_CLIENT_IDS: ['google-ios-client-id'],
+      },
+      prisma,
+    })
+    socialAuthProviderDeps.verifyGoogleIdToken = async () => {
+      throw new Error('invalid token')
+    }
+
+    const invalidGoogleToken = await socialApp.request('/api/auth/social/google', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        idToken: 'google-id-token',
+      }),
+    })
+    const invalidGoogleTokenBody = await invalidGoogleToken.json()
+
+    expect(invalidGoogleToken.status).toBe(401)
+    expect(invalidGoogleTokenBody.error.code).toBe('AUTH_INVALID_PROVIDER_TOKEN')
   })
 
   test('returns one created user and one conflict for concurrent duplicate registration', async () => {
