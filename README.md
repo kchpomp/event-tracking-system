@@ -1,5 +1,9 @@
 # Vibe Coding Template
 
+<p align="center">
+  <img src="docs/assets/vibe_tmpl_schema.png" alt="Vibe Coding Template architecture schema" width="100%">
+</p>
+
 A full-stack starter for web and mobile products: one repository with a Bun/Hono backend, a React browser client, an Expo mobile app, an Astro landing project, and shared API contracts. The goal is to give agents and developers clear architectural boundaries so new features keep following the same shape.
 
 ## Agent Intake Checklist Before Installing
