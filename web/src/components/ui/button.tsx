@@ -32,6 +32,9 @@ const buttonVariants = cva(
         "icon-sm": "size-8",
         "icon-lg": "size-10",
       },
+      fullWidth: {
+        true: "w-full",
+      },
     },
     defaultVariants: {
       variant: "default",
@@ -44,6 +47,7 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  fullWidth,
   asChild = false,
   ...props
 }: React.ComponentProps<"button"> &
@@ -61,7 +65,7 @@ function Button({
         data-slot="button"
         data-variant={variant}
         data-size={size}
-        className={cn(buttonVariants({ variant, size }), className)}
+        className={cn(buttonVariants({ variant, size, fullWidth }), className)}
         {...props}
       />
     </Typography>

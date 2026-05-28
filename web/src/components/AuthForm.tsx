@@ -53,7 +53,7 @@ export function AuthForm() {
   }
 
   return (
-    <Card className="w-full" aria-label="Authentication">
+    <Card aria-label="Authentication">
       <CardHeader>
         <CardTitle>Account access</CardTitle>
         <CardDescription>
@@ -68,17 +68,26 @@ export function AuthForm() {
               setMode(nextMode)
             }
           }}
-          className="mb-6"
         >
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList layout="equal">
             <TabsTrigger value="register">Register</TabsTrigger>
             <TabsTrigger value="login">Login</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="register" forceMount hidden={mode !== 'register'} className="mt-6">
+          <TabsContent
+            value="register"
+            forceMount
+            hidden={mode !== 'register'}
+            spacing="comfortable"
+          >
             {mode === 'register' && <RegisterForm draft={draft} onDraftChange={updateDraft} />}
           </TabsContent>
-          <TabsContent value="login" forceMount hidden={mode !== 'login'} className="mt-6">
+          <TabsContent
+            value="login"
+            forceMount
+            hidden={mode !== 'login'}
+            spacing="comfortable"
+          >
             {mode === 'login' && <LoginForm draft={draft} onDraftChange={updateDraft} />}
           </TabsContent>
         </Tabs>
@@ -136,7 +145,7 @@ function RegisterForm({
         void form.handleSubmit()
       }}
     >
-      <FieldGroup className="gap-4">
+      <FieldGroup density="compact">
         <form.Field
           name="displayName"
           children={(field) => (
@@ -223,7 +232,7 @@ function RegisterForm({
         <form.Subscribe
           selector={(state) => state.isSubmitting}
           children={(isSubmitting) => (
-            <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" size="lg" fullWidth disabled={isSubmitting}>
               {isSubmitting ? 'Working...' : 'Create account'}
             </Button>
           )}
@@ -283,7 +292,7 @@ function LoginForm({
         void form.handleSubmit()
       }}
     >
-      <FieldGroup className="gap-4">
+      <FieldGroup density="compact">
         <form.Field
           name="email"
           children={(field) => (
@@ -344,7 +353,7 @@ function LoginForm({
         <form.Subscribe
           selector={(state) => state.isSubmitting}
           children={(isSubmitting) => (
-            <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" size="lg" fullWidth disabled={isSubmitting}>
               {isSubmitting ? 'Working...' : 'Login'}
             </Button>
           )}
