@@ -5,6 +5,8 @@ const {
   buildSubscriptionPurchaseRequest,
   extractSignedTransactionInfo,
   friendlyIapErrorMessage,
+  iapDiagnosticPayload,
+  iapErrorMessage,
   ingestAndFinishPurchase,
   introOfferLabel,
   isNetworkIapError,
@@ -13,8 +15,10 @@ const {
   isUserCancelledPurchaseError,
   purchaseButtonLabel,
   retryIapOperation,
+  shouldSuppressPostSuccessError,
   validateAppStorePurchaseForIngest,
 } = await import('../src/lib/iap-utils');
+const { ApiRequestError } = await import('../src/lib/api');
 
 const activeSubscription = {
   entitlement: 'premium' as const,
@@ -191,6 +195,67 @@ test('classifies retryable IAP errors and returns friendly messages', async () =
     ),
   ).rejects.toEqual({ code: 'billing-unavailable' });
   expect(attempts).toBe(1);
+});
+
+test('maps backend IAP errors and StoreKit errors to user-facing messages', () => {
+  expect(iapErrorMessage(new ApiRequestError(503, 'IAP_NOT_CONFIGURED', 'server not configured'))).toBe(
+    'Subscriptions are not configured on the server yet.',
+  );
+  expect(iapErrorMessage(new ApiRequestError(400, 'IAP_INVALID_TRANSACTION', 'invalid'))).toContain(
+    'could not be verified',
+  );
+  expect(iapErrorMessage(new ApiRequestError(409, 'IAP_OWNERSHIP_MISMATCH', 'owned elsewhere'))).toContain(
+    'linked to another account',
+  );
+  expect(iapErrorMessage(new ApiRequestError(500, 'INTERNAL_ERROR', 'backend failed'))).toBe('backend failed');
+  expect(iapErrorMessage({ code: 'network-error' })).toContain('temporarily unavailable');
+});
+
+test('builds structured IAP diagnostics without depending on React provider state', () => {
+  expect(
+    iapDiagnosticPayload(
+      {
+        code: 'network-error',
+        debugMessage: 'StoreKit request timed out',
+        message: 'Network down',
+        platform: 'ios',
+        productId: 'premium_monthly',
+        responseCode: 2,
+        underlyingError: new Error('NSURLErrorDomain -1009'),
+      },
+      'android',
+    ),
+  ).toEqual({
+    code: 'network-error',
+    debugMessage: 'StoreKit request timed out',
+    message: 'Network down',
+    network: true,
+    platform: 'ios',
+    productId: 'premium_monthly',
+    responseCode: 2,
+    retryable: true,
+    underlyingError: 'NSURLErrorDomain -1009',
+  });
+  expect(iapDiagnosticPayload('plain diagnostic', 'ios')).toEqual({
+    code: null,
+    debugMessage: undefined,
+    message: 'plain diagnostic',
+    network: false,
+    platform: 'ios',
+    productId: undefined,
+    responseCode: undefined,
+    retryable: false,
+    underlyingError: undefined,
+  });
+});
+
+test('suppresses short-lived StoreKit noise after successful purchase', () => {
+  const lastPurchaseSuccessAt = 1_000;
+
+  expect(shouldSuppressPostSuccessError({ code: 'service-error' }, lastPurchaseSuccessAt, 5_999)).toBe(true);
+  expect(shouldSuppressPostSuccessError({ code: 'service-error' }, lastPurchaseSuccessAt, 6_000)).toBe(false);
+  expect(shouldSuppressPostSuccessError({ code: 'network-error' }, lastPurchaseSuccessAt, 2_000)).toBe(false);
+  expect(shouldSuppressPostSuccessError({ code: 'service-error' }, null, 2_000)).toBe(false);
 });
 
 test('validates App Store purchases before backend ingest', () => {

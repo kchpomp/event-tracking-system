@@ -6,7 +6,7 @@ import type { DbClient } from './db'
 import type { AppEnv } from './env'
 import { createAuthRoutes } from './auth/routes'
 import { AuthService } from './auth/service'
-import { errorResponse, handleError } from './http/errors'
+import { errorResponse, handleError, validationErrorHook } from './http/errors'
 import { createAppStoreSubscriptionVerifier, type AppStoreSubscriptionVerifier } from './iap/apple-verifier'
 import { createAppStoreWebhookRoutes, createIapRoutes } from './iap/routes'
 import { createNotificationRoutes } from './notifications/routes'
@@ -33,14 +33,7 @@ export function createApp({ env, iapVerifier, prisma }: CreateAppOptions) {
   const appStoreIapVerifier = iapVerifier ?? createAppStoreSubscriptionVerifier(env)
   const storageService = createStorageServiceFromEnv(env)
   const app = new OpenAPIHono<AppBindings>({
-    defaultHook: (result, c) => {
-      if (!result.success) {
-        return c.json(
-          errorResponse('VALIDATION_ERROR', 'Invalid request payload', result.error.issues),
-          400,
-        )
-      }
-    },
+    defaultHook: validationErrorHook,
   })
 
   app.use(secureHeaders())

@@ -10,20 +10,17 @@ import {
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { ApiRequestError } from './api';
 import { useAuth } from './auth';
 import { trackIapDiagnostic } from './iap-diagnostics';
 import {
   buildReconcilePayloadFromPurchases,
   buildSubscriptionPurchaseRequest,
-  friendlyIapErrorMessage,
-  getIapErrorCode,
+  iapDiagnosticPayload,
+  iapErrorMessage,
   ingestAndFinishPurchase,
-  isNetworkIapError,
-  isPostSuccessNoiseError,
-  isRetryableIapError,
   isUserCancelledPurchaseError,
   retryIapOperation,
+  shouldSuppressPostSuccessError,
   sortProductsByConfiguredOrder,
   validateAppStorePurchaseForIngest,
 } from './iap-utils';
@@ -193,7 +190,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
         lastPurchaseSuccessAtRef.current = Date.now();
       } catch (caughtError) {
         reportIapDiagnostic('purchase-ingest-error', caughtError);
-        setError(messageForIapError(caughtError));
+        setError(iapErrorMessage(caughtError));
       } finally {
         purchaseRequestInFlightRef.current = false;
         processingTransactionsRef.current.delete(validation.transactionKey);
@@ -215,7 +212,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
           return;
         }
         reportIapDiagnostic('purchase-error', purchaseError);
-        setError(messageForIapError(purchaseError));
+        setError(iapErrorMessage(purchaseError));
       }
     },
     onError: (caughtError) => {
@@ -223,7 +220,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
         return;
       }
       reportIapDiagnostic('iap-error', caughtError);
-      setError(messageForIapError(caughtError));
+      setError(iapErrorMessage(caughtError));
     },
   });
   iapRef.current = iap;
@@ -250,7 +247,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
       await retryIapOperation(() => fetchProducts({ skus: iosProductIds, type: 'subs' }));
     } catch (caughtError) {
       reportIapDiagnostic('product-fetch-error', caughtError);
-      setError(messageForIapError(caughtError));
+      setError(iapErrorMessage(caughtError));
     } finally {
       setIsLoadingProducts(false);
     }
@@ -391,11 +388,11 @@ function IosIapProvider({ children }: PropsWithChildren) {
             availablePurchases.length === 0 &&
             !subscription?.isActive
           ) {
-            setError(messageForIapError(pendingReconciliation.restoreError));
+            setError(iapErrorMessage(pendingReconciliation.restoreError));
           } else if (!subscription && availablePurchases.length === 0) {
             setError(
               pendingReconciliation.restoreError
-                ? messageForIapError(pendingReconciliation.restoreError)
+                ? iapErrorMessage(pendingReconciliation.restoreError)
                 : pendingReconciliation.hasKnownOriginalTransaction
                   ? 'Apple did not return an active subscription for this account. Please try again.'
                   : 'No restorable App Store subscription was found for this account.',
@@ -407,7 +404,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
           pendingReconciliation.kind === 'restore' ? 'restore-error' : 'subscription-sync-error',
           caughtError,
         );
-        setError(messageForIapError(caughtError));
+        setError(iapErrorMessage(caughtError));
       } finally {
         if (pendingReconciliation.kind === 'restore') {
           setIsRestoring(false);
@@ -464,7 +461,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
       }
     } catch (caughtError) {
       reportIapDiagnostic('subscription-sync-error', caughtError);
-      setError(messageForIapError(caughtError));
+      setError(iapErrorMessage(caughtError));
     } finally {
       if (!waitingForAvailablePurchasesState) {
         setIsSyncing(false);
@@ -498,7 +495,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
       setIsPurchasing(false);
       if (!isUserCancelledPurchaseError(caughtError)) {
         reportIapDiagnostic('purchase-request-error', caughtError);
-        setError(messageForIapError(caughtError));
+        setError(iapErrorMessage(caughtError));
       }
     }
   }, [connected, requestPurchase, selectedProductId, subscriptions, user]);
@@ -546,7 +543,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
     } catch (caughtError) {
       pendingAvailablePurchasesReconciliationRef.current = null;
       reportIapDiagnostic('restore-error', caughtError);
-      setError(messageForIapError(caughtError));
+      setError(iapErrorMessage(caughtError));
     } finally {
       if (!waitingForAvailablePurchasesState) {
         setIsRestoring(false);
@@ -581,7 +578,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
         return;
       }
       reportIapDiagnostic('offer-code-redemption-error', caughtError);
-      setError(messageForIapError(caughtError));
+      setError(iapErrorMessage(caughtError));
     } finally {
       setIsRedeemingOfferCode(false);
     }
@@ -602,7 +599,7 @@ function IosIapProvider({ children }: PropsWithChildren) {
       if (isUserCancelledPurchaseError(caughtError)) {
         return;
       }
-      setError(messageForIapError(caughtError));
+      setError(iapErrorMessage(caughtError));
     } finally {
       setIsManagingSubscriptions(false);
     }
@@ -740,83 +737,6 @@ function purchaseQueueKey(purchase: Purchase) {
   return purchase.transactionId?.trim() || purchase.purchaseToken?.trim() || null;
 }
 
-function messageForIapError(error: unknown) {
-  if (error instanceof ApiRequestError) {
-    switch (error.code) {
-      case 'IAP_NOT_CONFIGURED':
-        return 'Subscriptions are not configured on the server yet.';
-      case 'IAP_INVALID_TRANSACTION':
-        return 'The App Store transaction could not be verified. Use Restore purchases or try again.';
-      case 'IAP_OWNERSHIP_MISMATCH':
-        return 'This App Store purchase is linked to another account.';
-      default:
-        return error.message;
-    }
-  }
-
-  return friendlyIapErrorMessage(error);
-}
-
-function shouldSuppressPostSuccessError(error: unknown, lastPurchaseSuccessAt: number | null) {
-  return (
-    Boolean(lastPurchaseSuccessAt) &&
-    isPostSuccessNoiseError(error) &&
-    Date.now() - Number(lastPurchaseSuccessAt) < 5_000
-  );
-}
-
 function reportIapDiagnostic(event: string, error: unknown) {
-  const code = typeof error === 'string' ? null : getIapErrorCode(error);
-  const network = typeof error === 'string' ? false : isNetworkIapError(error);
-  const retryable = typeof error === 'string' ? false : isRetryableIapError(error);
-  const debugMessage = diagnosticStringField(error, 'debugMessage');
-  const message = diagnosticMessage(error);
-  const platform = diagnosticStringField(error, 'platform') ?? Platform.OS;
-  const productId = diagnosticStringField(error, 'productId');
-  const responseCode = diagnosticNumberField(error, 'responseCode');
-  const underlyingError = diagnosticStringField(error, 'underlyingError');
-  trackIapDiagnostic(event, {
-    code,
-    debugMessage,
-    message,
-    network,
-    platform,
-    productId,
-    responseCode,
-    retryable,
-    underlyingError,
-  });
-}
-
-function diagnosticMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  if (!isRecord(error)) return undefined;
-
-  return diagnosticString(error.message);
-}
-
-function diagnosticStringField(error: unknown, field: 'debugMessage' | 'platform' | 'productId' | 'underlyingError') {
-  if (!isRecord(error)) return undefined;
-
-  return diagnosticString(error[field]);
-}
-
-function diagnosticString(value: unknown) {
-  if (value instanceof Error) return value.message;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-
-  return undefined;
-}
-
-function diagnosticNumberField(error: unknown, field: 'responseCode') {
-  if (!isRecord(error)) return undefined;
-
-  const value = error[field];
-  return typeof value === 'number' ? value : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object';
+  trackIapDiagnostic(event, iapDiagnosticPayload(error, Platform.OS));
 }

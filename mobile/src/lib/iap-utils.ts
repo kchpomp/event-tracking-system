@@ -2,6 +2,9 @@ import type { SubscriptionSnapshot } from '@web-app-demo/contracts';
 import type { ExpoPurchaseError, ProductSubscription, Purchase, RequestPurchaseProps } from 'expo-iap';
 import { ErrorCode } from 'expo-iap/build/types';
 
+import { ApiRequestError } from './api';
+import type { IapDiagnosticPayload } from './iap-diagnostics';
+
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const nonRetryableRecoverableErrorCodes = new Set<ErrorCode>([
   ErrorCode.BillingUnavailable,
@@ -145,6 +148,53 @@ export function friendlyIapErrorMessage(error: unknown) {
   }
 }
 
+export function iapErrorMessage(error: unknown) {
+  if (error instanceof ApiRequestError) {
+    switch (error.code) {
+      case 'IAP_NOT_CONFIGURED':
+        return 'Subscriptions are not configured on the server yet.';
+      case 'IAP_INVALID_TRANSACTION':
+        return 'The App Store transaction could not be verified. Use Restore purchases or try again.';
+      case 'IAP_OWNERSHIP_MISMATCH':
+        return 'This App Store purchase is linked to another account.';
+      default:
+        return error.message;
+    }
+  }
+
+  return friendlyIapErrorMessage(error);
+}
+
+export function shouldSuppressPostSuccessError(
+  error: unknown,
+  lastPurchaseSuccessAt: number | null,
+  now = Date.now(),
+) {
+  return (
+    Boolean(lastPurchaseSuccessAt) &&
+    isPostSuccessNoiseError(error) &&
+    now - Number(lastPurchaseSuccessAt) < 5_000
+  );
+}
+
+export function iapDiagnosticPayload(error: unknown, platform: string): IapDiagnosticPayload {
+  const code = typeof error === 'string' ? null : getIapErrorCode(error);
+  const network = typeof error === 'string' ? false : isNetworkIapError(error);
+  const retryable = typeof error === 'string' ? false : isRetryableIapError(error);
+
+  return {
+    code,
+    debugMessage: diagnosticStringField(error, 'debugMessage'),
+    message: diagnosticMessage(error),
+    network,
+    platform: diagnosticStringField(error, 'platform') ?? platform,
+    productId: diagnosticStringField(error, 'productId'),
+    responseCode: diagnosticNumberField(error, 'responseCode'),
+    retryable,
+    underlyingError: diagnosticStringField(error, 'underlyingError'),
+  };
+}
+
 export async function retryIapOperation<T>(
   operation: () => Promise<T>,
   options: { attempts?: number; baseDelayMs?: number; delayMs?: number; sleep?: (ms: number) => Promise<void> } = {},
@@ -257,6 +307,39 @@ export function getIapErrorCode(error: unknown): ErrorCode | null {
 
 function normalizedProductIndex(index: number) {
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function diagnosticMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (!isRecord(error)) return undefined;
+
+  return diagnosticString(error.message);
+}
+
+function diagnosticStringField(error: unknown, field: 'debugMessage' | 'platform' | 'productId' | 'underlyingError') {
+  if (!isRecord(error)) return undefined;
+
+  return diagnosticString(error[field]);
+}
+
+function diagnosticString(value: unknown) {
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+
+  return undefined;
+}
+
+function diagnosticNumberField(error: unknown, field: 'responseCode') {
+  if (!isRecord(error)) return undefined;
+
+  const value = error[field];
+  return typeof value === 'number' ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
 }
 
 function uniqueStrings(values: string[]) {
