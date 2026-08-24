@@ -52,8 +52,10 @@ bun run mobile:template:check -- --published
 The default check allows a clean candidate ahead of `origin/mobile`; `--published` additionally
 requires `HEAD` to equal that remote ref. Both require the `mobile` branch to contain current
 `origin/master`, the runnable mobile/IAP files, the cross-surface contract, equivalent agent
-instructions, and the mobile branch's `available` payments/push/social capability rows. They run local
-documentation/deployment tests, contracts, backend unit tests, mobile tests, and mobile typecheck.
+instructions, and exactly the payments/push/social capability rows in the `available` state. They run the
+canonical `bun run check` gate across the synchronized mobile workspace — including template and
+architecture checks, typecheck, lint, and all tests with backend integration — followed by the
+Maestro flow-policy audit.
 If the command is missing or fails, stop setup or template-line publication and ask the template
 maintainer to synchronize the mobile line; do not improvise conflict resolution in a new product
 checkout. After first-run setup changes capabilities to
