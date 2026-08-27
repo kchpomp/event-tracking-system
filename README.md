@@ -232,6 +232,10 @@ depends on the Terraform CLI rather than the normal application toolchain.
 - `bun run dev:backend` - start the backend API.
 - `bun run dev:webapp` - start the Vite CSR webapp.
 - `bun run dev:website` - start the Astro website project.
+- `bun run storybook:webapp` - open the webapp component catalog on port `6006`.
+- `bun run storybook:website` - open the website component catalog on port `6007`.
+- `bun run storybook:build` - statically build both local component catalogs; use
+  `storybook:build:webapp` or `storybook:build:website` for one surface.
 - `bun run dev:backend:s3` - start the backend against the local S3 container instead of the disk.
 - `bun run check` - canonical task-completion gate: template invariants, architecture, typecheck,
   lint, and all tests; requires Docker for backend integration.
