@@ -1,8 +1,8 @@
-# Mobile Template
+# Мобильный шаблон
 
-The runnable Expo mobile app is intentionally not part of `master`.
+Рабочее Expo-приложение находится в ветке `mobile`, а не в `master`.
 
-Use the `mobile` branch when a project needs the mobile template:
+Для нового проекта:
 
 ```bash
 git clone <repo-url>
@@ -13,7 +13,7 @@ bun install --frozen-lockfile
 bun run mobile:template:check -- --published
 ```
 
-or, from an existing checkout:
+Для существующего репозитория:
 
 ```bash
 git fetch origin
@@ -22,19 +22,13 @@ bun install --frozen-lockfile
 bun run mobile:template:check -- --published
 ```
 
-The `mobile` branch contains the Expo app, development-build setup, Maestro E2E runner, switched-off but working App Store and Google Play subscription paths, Expo Push notifications, and mobile social auth integration.
+Ветка содержит Expo-приложение, настройку development build, Maestro E2E, Expo Push и вход через социальные аккаунты. Рабочие подписки App Store и Google Play включены в код, но отключены настройкой.
 
-Read [../docs/WEB_SURFACES.md](../docs/WEB_SURFACES.md) before payment work. Mobile owns its native
-payment experience separately from browser checkout. App Store/Google Play purchases are already
-the default digital-subscription foundation on the mobile branch. When the product needs another
-policy-compliant path, the mobile app may also implement direct or saved-card payments, Apple Pay,
-or Google Pay without routing through `website` or `webapp`. Re-check current store rules for the
-product type, storefront, and region before choosing the payment transport.
+До работы с платежами прочитай [docs/WEB_SURFACES.md](../docs/WEB_SURFACES.md). Mobile использует отдельный нативный интерфейс оплаты. Основа цифровых подписок — покупки App Store/Google Play. По требованиям продукта можно добавить оплату новой или сохранённой картой, Apple Pay и Google Pay. Не направляй эти платежи через `website` или `webapp`. Перед выбором способа оплаты проверь текущие правила магазина для типа продукта, витрины и региона.
 
-Keep general web, backend, infrastructure, deployment, and shared contract work on `master`. Keep mobile runtime work and mobile-specific backend/contracts changes on `mobile`. Template maintainers merge `master` into `mobile`, resolve branch-specific docs and capability states, run the local template gate below, and publish both refs before the mobile line is offered for project setup.
+Общие изменения web, backend, инфраструктуры, деплоя и контрактов делай в `master`. Мобильное приложение и нужные только ему изменения backend/контрактов делай в `mobile`.
 
-Before a template maintainer publishes the reusable `mobile` line, fetch the refs, install the
-locked dependencies, and validate the clean candidate before push:
+Владелец шаблона переносит `master` в `mobile`, согласует документацию и реестр возможностей, затем проверяет и публикует обе ветки. До публикации чистого кандидата:
 
 ```bash
 git fetch origin
@@ -42,23 +36,21 @@ bun install --frozen-lockfile
 bun run mobile:template:check
 ```
 
-After pushing the validated candidate, fetch and verify the published ref:
+После push проверь опубликованную ветку:
 
 ```bash
 git fetch origin
 bun run mobile:template:check -- --published
 ```
 
-The default check allows a clean candidate ahead of `origin/mobile`; `--published` additionally
-requires `HEAD` to equal that remote ref. Both require the `mobile` branch to contain current
-`origin/master`, the runnable mobile/IAP files, the cross-surface contract, equivalent agent
-instructions, and exactly the payments/push/social capability rows in the `available` state. They run the
-canonical `bun run check` gate across the synchronized mobile workspace — including template and
-architecture checks, typecheck, lint, and all tests with backend integration — followed by the
-Maestro flow-policy audit.
-If the command is missing or fails, stop setup or template-line publication and ask the template
-maintainer to synchronize the mobile line; do not improvise conflict resolution in a new product
-checkout. After first-run setup changes capabilities to
-`included` or `removed`, do not use this template gate for product releases; validate the installed
-product's active mobile paths with its recorded local test, typecheck, store-sandbox, and release
-runbooks instead.
+Обычная проверка допускает чистый коммит впереди `origin/mobile`. Режим `--published` требует равенства `HEAD` и этой удалённой ветки. Оба режима требуют:
+
+- Текущий `origin/master` входит в `mobile`.
+- Файлы mobile/IAP, межплатформенные контракты и согласованные инструкции агентов присутствуют.
+- Только возможности payments, push и social имеют состояние `available`.
+
+Проверка выполняет `bun run check` во всём синхронизированном проекте: шаблон, архитектуру, типы, lint и тесты с backend integration. Затем выполняет аудит правил Maestro.
+
+Если команды нет или проверка не прошла, останови установку или публикацию шаблона. Владелец шаблона должен синхронизировать ветки. Не устраняй конфликты шаблона в новом продуктовом проекте.
+
+После установки состояния возможностей меняются на `included` или `removed`. Для релизов такого проекта проверка шаблона больше не подходит. Используй записанные инструкции проекта: локальные тесты, типы, песочницы магазинов и релиз.
