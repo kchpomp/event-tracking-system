@@ -17,6 +17,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { authErrorMessage } from '../auth-errors'
+import { CONSENT_TEXT } from '../consent-text'
+import { PRIVACY_TEXT } from '../privacy-text'
 import { useAuth } from '../use-auth'
 import { ConsentDialog } from './ConsentDialog'
 import { FormAlert } from './form-errors'
@@ -27,6 +29,7 @@ import { PasswordInput } from './PasswordInput'
 // These two sentences are the product's own wording: do not reword them.
 const MSG_REQUIRED = 'Не все обязательные поля заполнены'
 const MSG_CONSENT = 'Не получено соглашение на обработку персональных данных'
+const MSG_PRIVACY = 'Не подтверждено ознакомление с Политикой конфиденциальности'
 
 const TEXT_FIELDS = [
   { key: 'email', label: 'Email', autoComplete: 'email', max: 254, placeholder: 'вы@email.com' },
@@ -49,6 +52,8 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
   const [values, setValues] = useState<Values>(EMPTY)
   const [consent, setConsent] = useState(false)
   const [consentOpen, setConsentOpen] = useState(false)
+  const [privacy, setPrivacy] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [missing, setMissing] = useState<ReadonlySet<string>>(new Set())
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -81,8 +86,12 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
       setNotice({ message: MSG_CONSENT, focusId: idOf('consent') })
       return
     }
+    if (!privacy) {
+      setNotice({ message: MSG_PRIVACY, focusId: idOf('privacy') })
+      return
+    }
 
-    const result = registerRequestSchema.safeParse({ ...values, consent: true })
+    const result = registerRequestSchema.safeParse({ ...values, consent: true, privacyPolicy: true })
     if (!result.success) {
       const validation = toValidationErrors(result.error.issues)
       setFieldErrors(validation.fieldErrors)
@@ -195,6 +204,25 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
             </Button>
           </div>
 
+          <div className="flex items-center gap-3">
+            <Checkbox
+              aria-label="Я ознакомлен(а) с Политикой конфиденциальности"
+              checked={privacy}
+              data-testid="signup-privacy"
+              id={idOf('privacy')}
+              onCheckedChange={(checked) => setPrivacy(checked === true)}
+            />
+            <Button
+              className="h-auto min-h-11 justify-start px-0 text-left whitespace-normal"
+              data-testid="privacy-link"
+              onClick={() => setPrivacyOpen(true)}
+              type="button"
+              variant="link"
+            >
+              Я ознакомлен(а) с Политикой конфиденциальности
+            </Button>
+          </div>
+
           <FormAlert message={formError} title="Не удалось зарегистрироваться" />
 
           <Field>
@@ -219,6 +247,18 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
         }}
         onOpenChange={setConsentOpen}
         open={consentOpen}
+        text={CONSENT_TEXT}
+      />
+
+      <ConsentDialog
+        onAgree={() => {
+          setPrivacy(true)
+          setPrivacyOpen(false)
+        }}
+        onOpenChange={setPrivacyOpen}
+        open={privacyOpen}
+        testId="privacy"
+        text={PRIVACY_TEXT}
       />
 
       <AlertDialog onOpenChange={(open) => !open && setNotice(null)} open={notice !== null}>

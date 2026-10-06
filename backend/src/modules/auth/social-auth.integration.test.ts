@@ -395,7 +395,7 @@ describe('social sign-in API integration', () => {
     const response = await app.request('/api/auth/token/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true,  email, password: 'password123' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true,  email, password: 'password123' }),
     })
     const body = await response.json()
     const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } })

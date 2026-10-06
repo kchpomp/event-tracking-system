@@ -20,3 +20,9 @@ export const CONSENT_TEXT = `СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСО
 7. Я подтверждаю, что ознакомлен(а) с правами субъекта персональных данных, установленными ст. 14 Федерального закона № 152-ФЗ, и даю согласие добровольно, в своих интересах.
 
 [Оператор: наименование, ОГРН/ИНН, юридический адрес, email для обращений по вопросам обработки персональных данных]`
+
+/** Splits a static text into its title (first block) and paragraphs (blank-line separated). */
+export function splitTextBlocks(text: string) {
+  const [title = '', ...paragraphs] = text.trim().split(/\n\s*\n/)
+  return { title, paragraphs }
+}

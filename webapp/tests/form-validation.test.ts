@@ -15,7 +15,7 @@ test('issues on rendered fields become field errors and leave the form-level slo
     lastName: 'Петрова',
     company: 'Завод',
     city: 'Тюмень',
-    consent: true,
+    consent: true, privacyPolicy: true,
   })
   const confirmation = z
     .object({ confirmPassword: z.string().min(1, 'Confirm your password') })

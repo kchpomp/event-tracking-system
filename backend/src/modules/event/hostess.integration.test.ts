@@ -34,7 +34,7 @@ async function register(overrides: Record<string, unknown> = {}): Promise<Person
       lastName: `Фамилия${counter}`,
       company: `Предприятие ${counter}`,
       city: `Город ${counter}`,
-      consent: true,
+      consent: true, privacyPolicy: true,
       ...overrides,
     }),
   })

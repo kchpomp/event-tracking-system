@@ -2900,7 +2900,7 @@ describe('push notification API and outbox', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true, 
         email,
         password: 'password123',
       }),

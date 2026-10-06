@@ -169,7 +169,7 @@ Remote шаблона отключён, `origin` указывает на реп�
 
 | Возможность | Состояние | Примечание |
 | --- | --- | --- |
-| Auth (email + password) | included | Базовая возможность шаблона. Регистрация требует имя, фамилию, предприятие, город и согласие. |
+| Auth (email + password) | included | Базовая возможность шаблона. Регистрация требует имя, фамилию, предприятие, город, согласие на обработку данных и отдельное подтверждение ознакомления с Политикой конфиденциальности. |
 | Admin roles | included | Роли и seed в `backend`, интерфейс администратора в `webapp`. |
 | Password reset email delivery | included | Письмо со ссылкой сброса и уведомление о смене пароля идут через outbox, тексты на русском. Провайдер выбирает `EMAIL_DELIVERY`; локально — `console`, в Yandex Cloud — Postbox. См. [EMAIL.md](docs/EMAIL.md). |
 | File/media storage | included | Серверная часть (приватные загрузки, бакет) работает и нужна отложенному `mobile`. Продукту не нужна: из `webapp` загрузка аватаров убрана. См. [STORAGE.md](docs/STORAGE.md). |
@@ -195,6 +195,7 @@ Remote шаблона отключён, `origin` указывает на реп�
 | Polymer game | included | Десять QR-мест (10…1 балл), одна награда на человека; тексты игры на странице `/app/polymer`. |
 | Admin stations page | included | `/admin/stations`: QR-коды станций для печати, включение и выключение мероприятия. Станции создаёт `bun run --cwd backend event:seed` и `db:deploy`. |
 | Personal-data consent | included | Согласие записывается на сервере (`users.consented_at`). Текст в `webapp/src/features/auth/consent-text.ts` — шаблон с пустыми реквизитами оператора, юрист его не проверял. |
+| Privacy policy and cookie notice | included | Отдельная галочка при регистрации (сервер требует `privacyPolicy: true`, отдельно не записывается: ту же дату хранит `consented_at`), публичная страница `/privacy`, баннер о технических cookie при первом заходе (`CookieNotice`, отметка в `localStorage`). Текст политики в `webapp/src/features/auth/privacy-text.ts` — шаблон с пустыми реквизитами, юрист его не проверял; при новых cookie или хранилищах обновите п. 3 текста. |
 | Moderator interface | included | Роль хостес (`/hostess`): поиск участника, начисление баллов за станцию, QR регистрации. Подтверждение видео и выдача призов не сделаны. |
 | Live venue screens | absent | Экраны на площадке (линии связей, колба идей) не сделаны. |
 | Video booth capture | absent | Станция «Люди формулы будущего» — обычный QR на баллы. |

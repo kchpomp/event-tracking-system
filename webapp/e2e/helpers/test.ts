@@ -16,6 +16,8 @@ type SignupProfile = {
   company?: string
   /** Tick the consent box (default). Pass false to leave it for the consent popup to catch. */
   consent?: boolean
+  /** Tick the privacy-policy box (default). Pass false to leave it for its popup to catch. */
+  privacy?: boolean
   firstName?: string
   lastName?: string
 }
@@ -29,6 +31,7 @@ export async function fillSignupForm(page: Page, email: string, profile: SignupP
   await page.getByTestId('signup-city').fill(profile.city ?? 'Тюмень')
   await page.getByTestId('signup-password').fill(e2ePassword)
   if (profile.consent !== false) await page.getByTestId('signup-consent').check()
+  if (profile.privacy !== false) await page.getByTestId('signup-privacy').check()
 }
 
 export async function signUp(page: Page, email: string, profile: SignupProfile = {}) {

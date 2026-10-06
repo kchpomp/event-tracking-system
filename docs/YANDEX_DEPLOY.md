@@ -1,416 +1,142 @@
-# Деплой в Yandex Cloud: пошаговый гайд для владельца
+# Деплой в Yandex Cloud: команды по порядку
 
-Что нужно сделать руками, чтобы сайт заработал на ваших адресах вместе с базой данных. Справочники для разработчиков: [DEPLOYMENT.md](DEPLOYMENT.md), [YANDEX_CLOUD.md](YANDEX_CLOUD.md). Команды ниже для PowerShell на Windows, из корня репозитория, если не сказано иное.
+Команды запускайте в PowerShell из корня репозитория. **Пока идёт деплой, VPN должен быть выключен**: через него API Yandex Cloud и реестр образов то доступны, то нет, и команды обрываются по таймауту.
 
-> **Внимание, срок.** Проект хранит Docker-образ в Yandex Container Registry (реестр создаёт Terraform). По [официальной странице закрытия](https://yandex.cloud/ru/docs/container-registry/sunset): 13 октября 2026 прекращаются новые продажи, 10 ноября 2026 сервис становится только для чтения (новый образ загрузить нельзя, то есть выпустить обновление не получится), 14 декабря 2026 он полностью прекращает работу. Yandex переносит реестры на месте, командой CLI по каталогу, и по [руководству по миграции](https://yandex.cloud/ru/docs/container-registry/tutorials/container-registry-migration) идентификаторы реестров и адреса образов `cr.yandex/...` сохраняются (старый адрес работает через перенаправление). Поэтому: разверните проект до 13 октября, все релизы сделайте до 10 ноября, а до закрытия выполните миграцию каталога по этому руководству. Как Terraform проекта поведёт себя с уже перенесённым реестром, я не проверял.
+> **Срок.** Образы хранятся в Yandex Container Registry. По [странице закрытия сервиса](https://yandex.cloud/ru/docs/container-registry/sunset): с 13 октября 2026 новые продажи прекращены, с 10 ноября только чтение (выпустить обновление нельзя), 14 декабря полная остановка. Разверните проект до 13 октября, сделайте все релизы до 10 ноября и до закрытия перенесите каталог по [руководству Yandex](https://yandex.cloud/ru/docs/container-registry/tutorials/container-registry-migration) (адреса `cr.yandex/...` сохраняются).
 
-## Ваш домен: формула-будущего.рф
-
-Кириллический домен везде, где его просят Yandex Cloud, Terraform и бэкенд, записывается латиницей (punycode): `формула-будущего.рф` это `xn----7sbeieg1bhrin1bebe5g.xn--p1ai`. Люди по-прежнему вводят в браузере `app.формула-будущего.рф`, браузер сам превращает адрес. Я проверил: такой вид проходит проверку имён в Terraform, бэкенд принимает его и как адрес сайта, и как адрес отправителя. Сертификаты, Cloud DNS и Postbox с таким именем я не пробовал; для Cloud DNS документация прямо требует punycode для нелатинских доменов.
-
-Везде в гайде вместо `example.com` подставляйте это значение:
+## Ваши значения
 
 | Что | Значение |
 | --- | --- |
-| Зона в Cloud DNS (с точкой на конце) | `xn----7sbeieg1bhrin1bebe5g.xn--p1ai.` |
-| `dns_zone_domain` | `xn----7sbeieg1bhrin1bebe5g.xn--p1ai` |
-| API (`api_domain`) | `api.xn----7sbeieg1bhrin1bebe5g.xn--p1ai` |
-| Приложение (`webapp_domain`) | `app.xn----7sbeieg1bhrin1bebe5g.xn--p1ai` |
-| Сайт (`website_domain`) | `www.xn----7sbeieg1bhrin1bebe5g.xn--p1ai` |
-| Бакеты приложения и сайта | те же имена, что у адресов (по 39 символов, предел 63) |
-| `email_from` | `no-reply@xn----7sbeieg1bhrin1bebe5g.xn--p1ai` |
+| Домен | `формула-будущего.рф` |
+| Он же для Yandex Cloud и Terraform (латиницей) | `xn----7sbeieg1bhrin1bebe5g.xn--p1ai` |
+| Приложение, API, сайт | `app.`, `api.`, `www.` + домен выше |
 
-Если Postbox не примет такой домен, поставьте `email_delivery = "disabled"` (сброс пароля по почте тогда не работает) или заведите для почты отдельный домен из латиницы.
+## Шаг 1. В консоли Yandex Cloud (в браузере, https://console.yandex.cloud)
 
-## Что оплатить и что подключать, по порядку
-
-В Yandex Cloud вручную покупается и настраивается только это. **Виртуальные машины, публичные IP-адреса, вычислительные мощности и базу данных создавать и покупать не нужно: их создаёт Terraform** (создание этого вручную ломает деплой: Terraform не должен накладываться на ресурсы, созданные руками).
-
-1. **Платёжный аккаунт** и пополнение баланса (шаг 1). Без него Terraform ничего не создаст.
-2. **Каталог** `event-tracking-system`, из него `cloud_id` и `folder_id` (шаг 1).
-3. **Зона Cloud DNS** для домена и делегирование на `ns1.yandexcloud.net` и `ns2.yandexcloud.net` у регистратора (шаг 2).
-4. **Три сертификата Let's Encrypt** в Certificate Manager для `api.`, `app.` и `www.` (шаг 3).
-5. **Адрес Postbox** с DKIM для домена (шаг 4).
-6. Дальше всё создают команды из шага 9: сеть, база PostgreSQL, реестр, контейнеры, API Gateway, бакеты, Lockbox.
-
-Если вы пользуетесь встроенным ИИ-помощником Yandex Cloud, дайте ему такой текст:
-
-> Я развёртываю веб-приложение для мероприятия. Всю инфраструктуру создаст Terraform, поэтому виртуальные машины, публичные IP-адреса, вычислительные мощности и базу данных вручную создавать не нужно. Мне нужно только: (1) платёжный аккаунт физлица с картой российского банка и пополнение баланса; (2) в каталоге event-tracking-system публичная зона Cloud DNS для домена xn----7sbeieg1bhrin1bebe5g.xn--p1ai (это формула-будущего.рф) и делегирование домена на ns1.yandexcloud.net и ns2.yandexcloud.net; (3) три сертификата Let's Encrypt в Certificate Manager с проверкой DNS (CNAME) для api., app. и www. этого домена; (4) адрес Postbox для этого домена с простой настройкой DKIM. Подскажи пошагово, как это сделать в консоли и как узнать cloud_id и folder_id. Больше ничего не создавай и не предлагай покупать.
-
-## Что вы получите
-
-Три адреса вашего домена на HTTPS, данные хранятся в России:
-
-- `app.<домен>`: приложение (участники, хостес, администратор);
-- `api.<домен>`: API, к нему обращается приложение;
-- `www.<домен>`: сайт-визитка.
-
-**База данных:** отдельно создавать не нужно, Terraform сам создаёт Managed Service for PostgreSQL 18 (закрытый кластер без публичного адреса), а релиз применяет миграции и создаёт первое мероприятие с 15 станциями.
-
-| Вы делаете руками | Terraform и `release` делают сами |
-| --- | --- |
-| Аккаунт и платёжный аккаунт Yandex Cloud, облако, каталог | Сеть, **базу PostgreSQL 18**, реестр образов, логи |
-| Домен, DNS-зона, три сертификата | API (Serverless Container + API Gateway), задачи по расписанию |
-| Адрес отправителя в Postbox (если нужна почта) | Три бакета (приложение, сайт, медиа), сервисные аккаунты, Lockbox |
-| Файлы `terraform.tfvars`, пароли и ключи в переменных окружения | DNS-записи на три адреса (если зона в Cloud DNS), ключ Postbox в Lockbox |
-| Публикация кода в GitHub, запуск команд | Миграции базы, сборка и выкладка сайтов, проверка адресов |
-
-| Этап | Ориентировочное время |
-| --- | --- |
-| Шаги 1, 3-8: аккаунт, сертификаты, программы, файлы | 1-2 часа вашей работы |
-| Шаг 2: делегирование домена | от минут до суток ожидания |
-| Шаг 4: проверка Postbox | до нескольких часов ожидания |
-| Шаг 9: три команды запуска | 40-60 минут (база создаётся 15-20 минут) |
-
-Начните с шагов 1 и 2: они самые долгие по ожиданию.
-
-## Что подготовить заранее
-
-- Банковская карта российского банка или реквизиты организации для платёжного аккаунта (российским резидентам подходят карты российских банков). При привязке карты физлица Yandex Cloud выдаёт стартовый грант на 60 дней, подробности и тарифы смотрите в консоли.
-- Документы для покупки домена `.ru`: регистратор попросит подтвердить личность.
-- Почтовый ящик, на который будет зарегистрирован администратор. Он не обязан быть на вашем домене.
-- Компьютер с Windows, запущенный Docker Desktop (режим Linux-контейнеров), Git и Bun. Они у вас уже есть.
-- Доступ к репозиторию на GitHub с правом `git push`.
-
-## Шпаргалка значений
-
-Заполняйте по ходу шагов, всё это потребуется в шаге 7:
-
-| Что | Откуда | Куда |
-| --- | --- | --- |
-| `cloud_id` | шаг 1 | оба `terraform.tfvars` |
-| `folder_id` | шаг 1 | оба `terraform.tfvars` |
-| ID DNS-зоны | шаг 2 | `dns_zone_id` (production) |
-| ID сертификатов `api`, `app`, `www` | шаг 3 | `*_certificate_id` (production) |
-| имя бакета состояния | придумываете | `state_bucket_name` (bootstrap) |
-| имя бакета медиа | придумываете | `media_bucket_name` (production) |
-| адрес отправителя | шаг 4 | `email_from` (production) |
-| 3 пароля базы и JWT-секрет | шаг 8 | только переменные окружения |
-| email и пароль администратора | придумываете | только при первом релизе |
-
-## Шаг 1. Аккаунт, облако, каталог, `cloud_id` и `folder_id`
-
-1. Откройте https://console.yandex.cloud и войдите (или создайте) аккаунт Яндекса. При первом входе Yandex Cloud создаст организацию и каталог `default`.
-2. Создайте **платёжный аккаунт** (раздел «Биллинг»): без него база и контейнеры не создадутся. Данные карты или реквизиты организации вводите только сами.
-3. Создайте **каталог** `event-tracking-system` в вашем облаке: все ресурсы проекта будут в нём.
-4. Возьмите идентификаторы:
-   - **`cloud_id`**: консоль, список облаков (колонка ID) или страница облака;
-   - **`folder_id`**: откройте каталог, ID виден под его названием вверху и в адресе `console.yandex.cloud/folders/<folder_id>`.
-
-   Либо командой (после шага 5): `yc resource-manager cloud list` и `yc resource-manager folder list`.
-5. Вы должны быть владельцем облака (роль `resource-manager.clouds.owner`): Terraform создаёт сервисные аккаунты и выдаёт им роли.
-
-## Шаг 2. Домен и DNS-зона
-
-Нужен свой домен: сертификаты и адреса бакетов привязаны к нему. Пример: `example.com`, замените на свой. Можно взять и поддомен домена, которым вы уже владеете (например, `forum.company.ru`): тогда зону создавайте для него.
-
-1. **Купите домен** у любого регистратора (REG.RU, Beget, Timeweb и другие).
-2. Выберите, где будет жить DNS:
-   - **Вариант А, рекомендуется: Cloud DNS.** Terraform сам создаст записи на три адреса, а записи для сертификатов и DKIM создаются в том же месте.
-   - **Вариант Б: DNS остаётся у регистратора.** Все записи вы создаёте у него вручную (описано ниже).
-
-### Вариант А: Cloud DNS
-
-1. Консоль: **Cloud DNS → Создать зону**. Зона `example.com.` (с точкой на конце), тип **Публичная**, имя `event-tracking-system`. После создания скопируйте **ID зоны**: это `dns_zone_id` (или `yc dns zone list`).
-2. **Делегируйте домен**: в кабинете регистратора в настройках DNS-серверов домена укажите ровно два сервера: `ns1.yandexcloud.net` и `ns2.yandexcloud.net`.
-3. Дождитесь применения. Проверка:
+1. **Биллинг:** создайте платёжный аккаунт (карта российского банка) и пополните баланс.
+2. **Каталог:** создайте каталог `event-tracking-system`.
+3. **Cloud DNS → Создать зону:** зона `xn----7sbeieg1bhrin1bebe5g.xn--p1ai.` (с точкой на конце), тип «Публичная». У регистратора домена в DNS-серверах укажите `ns1.yandexcloud.net` и `ns2.yandexcloud.net`. Проверка (в ответе должны быть оба сервера):
 
 ```powershell
-nslookup -type=NS example.com 8.8.8.8
+nslookup -type=NS xn----7sbeieg1bhrin1bebe5g.xn--p1ai 8.8.8.8
 ```
 
-В ответе должны быть `ns1.yandexcloud.net` и `ns2.yandexcloud.net`. Пока этого нет, к шагу 3 не переходите: сертификат не выпустится.
+4. **Certificate Manager → Добавить сертификат → Let's Encrypt:** три сертификата, по одному домену в каждом: `api.xn----7sbeieg1bhrin1bebe5g.xn--p1ai`, `app.xn----7sbeieg1bhrin1bebe5g.xn--p1ai`, `www.xn----7sbeieg1bhrin1bebe5g.xn--p1ai`. Тип проверки DNS (CNAME): запись `_acme-challenge` создайте в зоне кнопкой рядом с проверкой или вручную (тип CNAME, имя и значение с экрана). Дождитесь статуса **Issued** у всех трёх.
+5. **Postbox → Создать адрес** для домена `xn----7sbeieg1bhrin1bebe5g.xn--p1ai`, простая настройка DKIM; записи, которые покажет консоль, создайте в зоне. Дождитесь статуса **Success**. Если Postbox не принимает такой домен, пропустите шаг и добавьте ключ `-NoMail` на шаге 4 (сброс пароля по почте тогда работать не будет).
 
-### Вариант Б: DNS у регистратора
+## Шаг 2. Программы (один раз)
 
-- В `terraform.tfvars` поставьте `dns_zone_id = null`.
-- Запись `_acme-challenge` для сертификатов (шаг 3) и записи DKIM для Postbox (шаг 4) создайте в кабинете регистратора вручную, значения копируйте с экранов консоли.
-- Три CNAME на адреса приложения вы создадите после первого релиза (шаг 9): их покажет `bun run infra:output -- yandex` в разделе `required_dns_records`.
-
-### Три адреса
-
-Это три поддомена (не сам домен: записи будут CNAME, а на корне домена они не работают):
-
-| Назначение | Адрес | Переменные в tfvars |
-| --- | --- | --- |
-| API | `api.example.com` | `api_domain`, `api_certificate_id` |
-| Приложение | `app.example.com` | `webapp_domain`, `webapp_certificate_id` |
-| Сайт-визитка | `www.example.com` | `website_domain`, `website_certificate_id` |
-
-## Шаг 3. Три сертификата HTTPS
-
-Нужен отдельный сертификат на каждый адрес. Выпускаются бесплатно в Certificate Manager.
-
-Для каждого из `api.example.com`, `app.example.com`, `www.example.com`:
-
-1. Консоль: **Certificate Manager → Добавить сертификат → Сертификат Let's Encrypt**.
-2. Имя, например `etsys-api`. В поле доменов один адрес (например, `api.example.com`).
-3. Тип проверки: **DNS (CNAME)**: он нужен для автоматического продления.
-4. Нажмите «Создать». Сертификат получит статус **Validating**.
-5. Откройте сертификат, раздел проверки покажет запись типа CNAME (имя вида `_acme-challenge.api.example.com`). Создайте её в вашей зоне: если рядом есть кнопка создания записи, нажмите её, иначе вручную в Cloud DNS (или у регистратора для варианта Б): тип `CNAME`, имя и значение скопируйте с экрана. Для `_acme-challenge` должна быть только CNAME, без TXT.
-6. Подождите, пока статус станет **Issued** (обычно несколько минут). Если не выпускается, нажмите «Показать логи».
-7. Скопируйте **ID сертификата** (страница сертификата или `yc certificate-manager certificate list`).
-
-Должно получиться три ID, все в статусе Issued.
-
-## Шаг 4. Почта (Postbox)
-
-Почта нужна для «Забыли пароль?». **Важно:** в приложении нет страницы смены пароля, пароль меняется только письмом по этой ссылке. Без почты сброс пароля не работает (регистрация и вход работают).
-
-Terraform сам создаёт сервисный аккаунт с ролью `postbox.sender` и его ключ в Lockbox. Вам нужно только подтвердить домен:
-
-1. Консоль: **Postbox → Создать адрес**. В поле указывается **домен**, а не email: введите `example.com`.
-2. Выберите простую настройку DKIM (ключи создаст Yandex Cloud).
-3. Консоль покажет DNS-записи подписи (вид `<selector>._domainkey.example.com`). Создайте их в вашей зоне **точно как показано**: тип и значение копируйте с экрана.
-4. Подождите, пока статус адреса станет **Success** (Yandex проверяет записи сам, это может занять до нескольких часов).
-5. Отправитель в tfvars: `email_delivery = "postbox"` и `email_from = "no-reply@example.com"`. Адрес должен быть на подтверждённом домене.
-6. На странице Postbox проверьте квоты и ограничения вашего аккаунта: в документации Yandex про ограничения для новых адресов ничего не сказано.
-
-Без почты поставьте `email_delivery = "disabled"` и `email_from = null`.
-
-## Шаг 5. Программы на вашем компьютере
-
-Один раз поставьте Yandex Cloud CLI и AWS CLI (последний нужен только для выкладки сайтов в Object Storage):
+Нужны Bun, Docker Desktop и Git (они уже есть). Остальное:
 
 ```powershell
+# Yandex Cloud CLI (на вопрос о PATH ответьте Y)
 Invoke-Expression (New-Object System.Net.WebClient).DownloadString('https://storage.yandexcloud.net/yandexcloud-yc/install.ps1')
-msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
+
+# AWS CLI без прав администратора
+Invoke-WebRequest https://awscli.amazonaws.com/AWSCLIV2.msi -OutFile "$env:TEMP\AWSCLIV2.msi"
+msiexec /a "$env:TEMP\AWSCLIV2.msi" /qn TARGETDIR="$env:USERPROFILE\tools\awscli"
+
+# Terraform: скачайте архив terraform_<версия>_windows_amd64.zip (версия от 1.15 до 1.x)
+# со страницы https://hashicorp-releases.yandexcloud.net/terraform/ в папку Загрузки, затем:
+New-Item -ItemType Directory -Force C:\tools\terraform
+Expand-Archive "$env:USERPROFILE\Downloads\terraform_1.16.5_windows_amd64.zip" C:\tools\terraform -Force
 ```
 
-**Terraform.** Нужна версия из диапазона `>= 1.15, < 2` (так записано в проекте). Из России сайт HashiCorp недоступен, используйте зеркало Yandex: со страницы https://hashicorp-releases.yandexcloud.net/terraform/ скачайте `terraform_<версия>_windows_amd64.zip` самой новой версии 1.x, распакуйте `terraform.exe` в `C:\tools\terraform` и добавьте эту папку в `PATH`. Зеркало я с рабочей машины открыть не смог, поэтому наличие именно версии 1.15 и новее проверьте сами; если версия не подходит, `terraform` или скрипт сообщат об этом.
+Пути к этим программам скрипты ниже добавляют в `PATH` сами.
 
-Чтобы Terraform брал и провайдеры с зеркала, создайте файл `%APPDATA%\terraform.rc` с содержимым:
+## Шаг 3. Вход в Yandex Cloud (один раз)
 
-```
-provider_installation {
-  network_mirror {
-    url = "https://terraform-mirror.yandexcloud.net/"
-    include = ["registry.terraform.io/*/*"]
-  }
-  direct {
-    exclude = ["registry.terraform.io/*/*"]
-  }
-}
-```
-
-Откройте **новое** окно PowerShell и проверьте:
-
-```powershell
-yc --version
-aws --version
-terraform version
-docker info
-```
-
-Настройте `yc` на ваше облако и каталог (откроется браузер для входа):
+Откроется браузер: войдите в аккаунт Яндекса, выберите ваше облако и каталог `event-tracking-system`, зону `ru-central1-a`.
 
 ```powershell
 yc init
 yc config list
 ```
 
-`cloud-id` и `folder-id` в `yc config list` должны совпасть с шагом 1: каждая команда деплоя это проверяет и останавливается при расхождении.
+## Шаг 4. Подготовка (один раз)
 
-## Шаг 6. Код в GitHub
+Скрипт сам находит в вашем облаке зону DNS и сертификаты, создаёт оба файла `terraform.tfvars`, секреты (три пароля базы и JWT-секрет), скачивает провайдер Terraform и спрашивает домен, email и пароль администратора (от 12 символов, латиницей):
 
-Релиз собирается из **запушенной** ветки и требует чистого рабочего дерева. Ветка называется `main` (так в tfvars):
+```powershell
+.\scripts\deploy-setup.ps1
+```
+
+На вопрос о домене введите `формула-будущего.рф`. Без почты: `.\scripts\deploy-setup.ps1 -NoMail`. Скрипт безопасно запускать повторно, существующие файлы он не меняет.
+
+**Сохраните копию файла `C:\Users\<вы>\.etsys\secrets.ps1` в менеджере паролей.** Менять эти значения после первого деплоя нельзя.
+
+## Шаг 5. Код в GitHub
+
+Релиз собирается из запушенной ветки `main` и требует чистого рабочего дерева:
 
 ```bash
-git branch -M main
 git add -A
 git commit -m "Подготовка к деплою"
-git push -u origin main
+git push
 git status
 ```
 
-`git status` должен показать «nothing to commit, working tree clean». Файлы `terraform.tfvars`, `.env` и `*.backend.hcl` в git не попадают (они в `.gitignore`).
+`git status` должен показать «nothing to commit, working tree clean».
 
-## Шаг 7. Файлы `terraform.tfvars`
+## Шаг 6. Запуск
 
-```powershell
-Copy-Item infra/yandex/bootstrap/terraform.tfvars.example infra/yandex/bootstrap/terraform.tfvars
-Copy-Item infra/yandex/production/terraform.tfvars.example infra/yandex/production/terraform.tfvars
-```
-
-### `infra/yandex/bootstrap/terraform.tfvars`
-
-Бакет для хранения состояния Terraform:
-
-```hcl
-cloud_id          = "<cloud_id из шага 1>"
-folder_id         = "<folder_id из шага 1>"
-zone              = "ru-central1-a"
-project_slug      = "event-tracking-system"
-state_bucket_name = "etsys-tfstate-<ваши-буквы-и-цифры>"
-```
-
-Имя бакета уникально на весь Object Storage: строчные латинские буквы, цифры и дефисы, 3-63 символа.
-
-### `infra/yandex/production/terraform.tfvars`
-
-```hcl
-cloud_id     = "<cloud_id>"
-folder_id    = "<folder_id>"
-project_slug = "event-tracking-system"
-git_branch   = "main"
-
-backend_image_name = "backend"
-
-# Пароли и JWT здесь НЕ пишите: они идут через переменные окружения (шаг 8).
-database_active_slot            = "blue"
-database_owner_password_version = 1
-database_blue_password_version  = 1
-database_green_password_version = 1
-
-api_domain             = "api.example.com"
-api_certificate_id     = "<ID сертификата api, шаг 3>"
-webapp_domain          = "app.example.com"
-webapp_certificate_id  = "<ID сертификата app>"
-website_domain         = "www.example.com"
-website_certificate_id = "<ID сертификата www>"
-dns_zone_id            = "<ID зоны, шаг 2>"   # для варианта Б: null (без кавычек)
-dns_zone_domain        = "example.com"
-
-enable_cdn               = false
-route_static_through_cdn = false
-
-# Имена бакетов приложения и сайта ВСЕГДА равны их доменам.
-webapp_bucket_name  = "app.example.com"
-website_bucket_name = "www.example.com"
-media_bucket_name   = "etsys-media-<ваши-буквы-и-цифры>"
-
-email_delivery = "postbox"
-email_from     = "no-reply@example.com"
-```
-
-Что важно:
-- `dns_zone_domain` это домен зоны без точки, а три адреса его **поддомены**.
-- `media_bucket_name` уникален глобально, как и имя бакета состояния.
-- Не оставляйте `REPLACE_WITH_...`: проверка остановится.
-- Пароли и JWT в файл не пишите: значение из файла перекроет переменную окружения.
-- Нагрузка: лимит запросов с одного адреса (Wi-Fi площадки) и размер базы можно поднять позже, см. раздел «Репетиция перед мероприятием».
-
-## Шаг 8. Пароли и ключи (в каждом новом окне PowerShell)
-
-Сгенерируйте и **сохраните в менеджере паролей** четыре значения. Они нужны при каждом `plan`, `apply` и `release`. Потеряете их, смена секретов потребует отдельной процедуры ([YANDEX_CLOUD.md](YANDEX_CLOUD.md#database-password-rotation)).
+В **каждом новом окне** PowerShell сначала подключите окружение (первый релиз с ключом `-WithAdmin`, он задаёт администратора):
 
 ```powershell
-function New-HexSecret([int]$Bytes) {
-  $b = New-Object byte[] $Bytes
-  [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
-  -join ($b | ForEach-Object { $_.ToString('x2') })
-}
-$env:TF_VAR_database_owner_password = New-HexSecret 16   # 32 символа, нужно от 24
-$env:TF_VAR_database_blue_password  = New-HexSecret 16
-$env:TF_VAR_database_green_password = New-HexSecret 16
-$env:TF_VAR_jwt_secret              = New-HexSecret 32   # 64 hex-символа, как требует проверка
+cd "D:\Projects\Event Station Tracker YandexCloud"
+. .\scripts\deploy-env.ps1 -WithAdmin
 ```
 
-Выведите значения (`$env:TF_VAR_jwt_secret` и так далее), сохраните, а в следующем окне заново присвойте **те же** значения:
-
-```powershell
-$env:TF_VAR_database_owner_password = '<сохранённое>'
-# и так для blue, green, jwt_secret
-```
-
-В каждом окне нужно ещё два действия:
-
-```powershell
-# настоящий bun.exe первым в PATH (shim из npm скрипты запустить не могут)
-$env:PATH = "$env:APPDATA\npm\node_modules\bun\bin;" + $env:PATH
-# токен Yandex Cloud, живёт 12 часов
-$env:YC_TOKEN = (yc iam create-token)
-```
-
-## Шаг 9. Запуск, по порядку
-
-Сначала пробный прогон `--dry-run` (ничего не создаёт), потом настоящий. Если команда остановилась с ошибкой, прочитайте её текст и таблицу ошибок в конце: повторный запуск безопасен.
-
-### 9.1. Хранилище состояния
+Команды по порядку (сначала `--dry-run`, потом настоящая). Если команда оборвалась, прочитайте ошибку и запустите её ещё раз: повтор безопасен.
 
 ```powershell
 bun run infra:bootstrap -- yandex --new --dry-run
 bun run infra:bootstrap -- yandex --new
 ```
 
-Создаёт бакет состояния Terraform и ключ к нему (несколько минут). Появятся файлы `infra/yandex/.env.terraform-state` и `backend.backend.hcl`: **скопируйте `.env.terraform-state` в менеджер паролей**, без него состояние потеряется.
-
-### 9.2. Основа: сеть, база, реестр, бакеты
+Создаёт хранилище состояния Terraform и файл `infra\yandex\.env.terraform-state`. **Сохраните его копию в менеджере паролей.**
 
 ```powershell
 bun run infra:apply -- yandex --dry-run
 bun run infra:apply -- yandex
 ```
 
-Создаёт сеть, **базу PostgreSQL** (15-20 минут), реестр образов, бакеты, сервисные аккаунты, Lockbox, DNS-записи. Проверить результат можно в консоли: Managed Service for PostgreSQL (кластер `event-tracking-system-prod-postgres`), Object Storage (бакеты), Cloud DNS (записи).
-
-### 9.3. Первый релиз и администратор
-
-Администратор задаётся только при **первом** релизе, двумя переменными окружения. Email ваш настоящий, пароль случайный, не короче 12 символов:
+Создаёт сеть, базу PostgreSQL (15-20 минут), реестр, бакеты, Lockbox, DNS-записи. С этого момента начинаются списания.
 
 ```powershell
-$env:ADMIN_SEED_EMAIL    = 'owner@example.com'
-$env:ADMIN_SEED_PASSWORD = '<случайный пароль от 12 символов>'
 bun run release -- yandex --dry-run
 bun run release -- yandex
-Remove-Item Env:ADMIN_SEED_EMAIL, Env:ADMIN_SEED_PASSWORD
 ```
 
-Релиз собирает образ, загружает его в реестр, **запускает миграции базы** и создаёт первое мероприятие с 15 станциями, переключает API и задачи, выкладывает оба сайта и проверяет адреса. Не передавайте эти переменные повторно: новое значение сбросит пароль администратора.
+Собирает образ, запускает миграции, создаёт администратора и мероприятие с 15 станциями, выкладывает приложение и сайт. Администратор создаётся только первым релизом: следующие релизы запускайте **без** `-WithAdmin`.
 
-**Для варианта Б (DNS у регистратора):** релиз остановится на проверке адресов. Выполните `bun run infra:output -- yandex`, создайте у регистратора три CNAME из раздела `required_dns_records` (имя и значение как в выводе), подождите 5-10 минут и запустите `bun run release -- yandex` ещё раз.
+## Шаг 7. Проверка
 
-**Для варианта А**, если проверка адресов не прошла из-за того, что DNS ещё не разошёлся: подождите и повторите `bun run release -- yandex`.
+1. `https://api.xn----7sbeieg1bhrin1bebe5g.xn--p1ai/health/ready` отвечает 200.
+2. `https://app.xn----7sbeieg1bhrin1bebe5g.xn--p1ai` открывается; войдите email и паролем администратора.
+3. `/admin/users`: хостес сначала сама регистрируется на `/signup`, затем выберите ей роль «Хостес».
+4. `/admin/stations`: распечатайте QR станций и проверьте каждый телефоном.
+5. Пароль администратора меняется только через «Забыли пароль?» (нужна почта): выйдите и пройдите эту ссылку.
+6. При первом открытии сайта внизу виден баннер про cookie; на `/privacy` открывается Политика конфиденциальности. Её текст и текст согласия пока шаблоны с пустыми реквизитами: до мероприятия заполните и покажите юристу файлы `webapp/src/features/auth/consent-text.ts` и `privacy-text.ts`, затем сделайте релиз ([YANDEX_UPDATE.md](YANDEX_UPDATE.md)).
 
-## Шаг 10. Проверка, администратор и хостес
+## Если ошибка
 
-1. https://api.example.com/health/ready отвечает HTTP 200.
-2. https://www.example.com открывается (сайт-визитка).
-3. https://app.example.com открывается; войдите email и паролем администратора, откроется `/admin`.
-4. **Смените пароль администратора.** Страницы смены нет: выйдите, на странице входа «Забыли пароль?», введите email, письмо придёт через Postbox, по ссылке задайте новый пароль. Если почта отключена, оставьте сгенерированный пароль, но помните, что он остаётся в Lockbox и состоянии Terraform.
-5. **Создайте хостес.** Каждая хостес сама регистрируется на `https://app.example.com/signup` как обычный участник. Затем в `/admin/users` найдите её по email, в колонке роли выберите «Хостес» и подтвердите. Пусть войдёт заново: откроется её экран `/hostess`. Подробности: [MANUAL_TESTING.md](MANUAL_TESTING.md).
-6. `/admin/stations`: QR станций, распечатайте и проверьте каждый телефоном. Страницу участникам и хостес не показывайте.
-7. Зарегистрируйте тестового участника на телефоне по HTTPS-адресу и пройдите станцию.
+| Ошибка | Что делать |
+| --- | --- |
+| `i/o timeout`, `DeadlineExceeded`, `dial tcp` к `api.cloud.yandex.net`, `iam...`, `cr.yandex` | Выключите VPN. Проверка: `Test-NetConnection api.cloud.yandex.net -Port 443` должна дать `TcpTestSucceeded : True` |
+| `Failed to install provider`, `Invalid provider registry host` | Не подключено окружение или провайдер не скачан: в этом окне выполните `. .\scripts\deploy-env.ps1`, при необходимости `.\scripts\deploy-setup.ps1` (скачает провайдер) |
+| `Unauthenticated`, `token expired` | Токен живёт 12 часов: снова `. .\scripts\deploy-env.ps1` |
+| В `deploy-setup.ps1` «нет зоны» или «нет сертификата» | Шаг 1 не закончен: зона DNS или сертификаты не созданы, или сертификат ещё не `ISSUED` |
+| Релиз: рабочее дерево не чистое | `git add -A`, коммит, `git push` (в том числе обновлённые `.terraform.lock.hcl`) |
+| `BucketAlreadyExists` | Имя бакета занято: в `infra\yandex\production\terraform.tfvars` (`media_bucket_name`) или `infra\yandex\bootstrap\terraform.tfvars` (`state_bucket_name`) допишите к имени несколько цифр и повторите команду |
+| Письма не приходят | Адрес в Postbox не в статусе Success, либо запустите setup с `-NoMail` |
+| Docker не отвечает | Запустите Docker Desktop |
 
 ## Репетиция перед мероприятием
 
-За несколько дней до начала, с двумя-тремя реальными телефонами (iPhone Safari и Android Chrome):
+С двумя-тремя телефонами (iPhone Safari, Android Chrome): регистрация (обе галочки), вход, «Забыли пароль?»; сканирование станции камерой; «Диффузия» между двумя участниками; «Колба идей»; хостес находит участника и начисляет баллы; администратор закрывает и снова открывает мероприятие на `/admin/stations`. Оповещения в Monitoring: [YANDEX_CLOUD.md](YANDEX_CLOUD.md#alerts). Нагрузка, обновления и откат: [YANDEX_UPDATE.md](YANDEX_UPDATE.md).
 
-1. Регистрация нового участника, согласие, вход, выход, «Забыли пароль?» с настоящей почтой.
-2. Сканирование станции камерой, повторное сканирование («Уже отсканировано»), «Полимер решений» один раз.
-3. «Диффузия» между двумя участниками из разных городов, «Колба идей».
-4. Хостес: поиск участника, сканирование его QR, начисление баллов, QR регистрации.
-5. Администратор: закрыть мероприятие переключателем на `/admin/stations`, убедиться, что сканирование отклоняется, и открыть обратно.
-6. Оповещения в Monitoring ([YANDEX_CLOUD.md](YANDEX_CLOUD.md#alerts)): два оповещения создаются вручную после первого релиза.
-7. Нагрузка: на площадке все сидят за одним адресом Wi-Fi. Если ожидаете больше нескольких тысяч запросов в минуту с одного адреса, поднимите лимит `EVENT_RATE_LIMIT_MAX` (по умолчанию 6000 в минуту) через `extra_runtime_env` в production `terraform.tfvars`, например `extra_runtime_env = { EVENT_RATE_LIMIT_MAX = "20000" }`, затем `bun run infra:apply -- yandex` и `bun run release -- yandex`. Размер базы задаётся `postgres_resource_preset` и `postgres_disk_size_gb` там же.
+## Сколько это стоит
 
-## Дальше: обновления, откат, копии, стоимость
-
-- **Обновить приложение:** подробно в [YANDEX_UPDATE.md](YANDEX_UPDATE.md). Коротко: внесите изменения, `git commit`, `git push`, затем в окне с переменными из шага 8 выполните `bun run release -- yandex`. Если релиз пишет, что основа изменилась, сначала `bun run infra:apply -- yandex`.
-- **Откатить:** новым коммитом (обычно `git revert`) и обычным релизом. Миграции базы идут только вперёд.
-- **Резервные копии:** кластер хранит копии 7 дней автоматически. Восстановление из копии создаёт отдельный новый кластер, а приложение подключено к прежнему: делайте это только вместе с разработчиком ([DEPLOYMENT.md](DEPLOYMENT.md)).
-- **Стоимость:** платно и круглосуточно. Основная часть счёта это Managed PostgreSQL (часы работы хоста `s3-c2-m8` и диск 20 ГБ SSD; точную цену берите в калькуляторе Yandex Cloud). Остальное по данным документации Yandex Cloud на день проверки, с НДС: Serverless Containers 18,97 ₽ за млн вызовов, 3,79 ₽ за ГБ·ч и 5,69 ₽ за vCPU·ч (бесплатно в месяц: 1 млн вызовов, 10 ГБ·ч, 5 vCPU·ч); API Gateway 142,3 ₽ за млн запросов (100 тысяч в месяц бесплатно); Postbox 2 000 писем в месяц бесплатно, дальше 80,32 ₽ за 1 000; Lockbox 0,0274 ₽ за версию секрета в час и 3,79 ₽ за 10 000 обращений; Object Storage и Cloud DNS копейки; Certificate Manager отдельно не тарифицируется.
-- **Удаление после мероприятия:** Terraform-скрипты удаление намеренно блокируют. Сначала сохраните данные (резервная копия кластера в консоли), затем снимите защиту от удаления и удаляйте ресурсы в консоли осознанно.
-- **Доступ к базе** для чтения: [YANDEX_CLOUD.md](YANDEX_CLOUD.md#operator-database-access), публичного адреса у базы нет.
-
-## Типичные ошибки
-
-| Сообщение или симптом | Причина и решение |
-| --- | --- |
-| `yc targets cloud/folder ..., expected ...` | `yc` смотрит в другой каталог: `yc config set cloud-id ...` и `yc config set folder-id ...` |
-| `terraform is not installed` или не скачиваются провайдеры | Нет Terraform в `PATH` или нет файла `terraform.rc` с зеркалом (шаг 5) |
-| `i/o timeout` или `DeadlineExceeded` при обращении к `api.cloud.yandex.net`, `iam.api.cloud.yandex.net` или `cr.yandex` | Включён VPN (например, WireGuard): через него API Yandex Cloud и реестр образов часто недоступны. Отключите VPN на время деплоя и повторите команду. Проверка: `Test-NetConnection api.cloud.yandex.net -Port 443` должна показать `TcpTestSucceeded : True` |
-| `Failed to install provider` или `dial tcp ... terraform-mirror.yandexcloud.net` | Зеркало Yandex иногда обрывает соединение: подождите минуту и повторите команду, при необходимости несколько раз |
-| Релиз пишет, что рабочее дерево не чистое, а вы ничего не меняли | Первый `terraform init` на Windows дописал хеш провайдера в `.terraform.lock.hcl`. Выполните `git add -A`, коммит и `git push` (обновлённые файлы блокировки должны быть в репозитории) |
-| `REPLACE_WITH_` в сообщении | В tfvars остался шаблон |
-| Ошибка про переменную `jwt_secret` или `database_..._password` | В этом окне PowerShell не заданы четыре `TF_VAR_*` (шаг 8) |
-| `Unauthenticated` или `token expired` | Токен живёт 12 часов: `$env:YC_TOKEN = (yc iam create-token)` |
-| Сертификат не выпускается | DNS-зона не делегирована или не создана CNAME `_acme-challenge` (шаги 2-3) |
-| `BucketAlreadyExists` | Имя бакета занято: выберите другое `media_bucket_name` или `state_bucket_name`. Для `app.` и `www.` имя равно домену: домен должен быть вашим |
-| `release` ругается на ветку или дерево | Не запушено или есть незакоммиченные файлы (шаг 6) |
-| Релиз упал на проверке адресов | DNS ещё не разошёлся: подождите и повторите `release` |
-| Письма не приходят | Адрес в Postbox не в статусе Success или `email_from` не на подтверждённом домене |
-| Docker не отвечает | Запустите Docker Desktop и дождитесь Engine running |
-| Хостес после смены роли видит участника | Её сессии завершены, но вкладка осталась открытой: пусть выйдет и войдёт заново |
-
-Скрипты `scripts/infra.mjs` до сих пор проверялись только тестами, на настоящем облаке и на Windows они не запускались. Если какая-то команда не находится, проверьте `PATH` в этом окне.
+База PostgreSQL платная круглосуточно (цену хоста `s3-c2-m8` и диска смотрите в калькуляторе Yandex Cloud). По данным документации, с НДС: Serverless Containers 18,97 ₽ за млн вызовов (бесплатно 1 млн), API Gateway 142,3 ₽ за млн запросов (бесплатно 100 тысяч), Postbox 2 000 писем в месяц бесплатно, дальше 80,32 ₽ за 1 000, Lockbox около 20 ₽ в месяц за версию секрета. Сертификаты отдельно не тарифицируются.

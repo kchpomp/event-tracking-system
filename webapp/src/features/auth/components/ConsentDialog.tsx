@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 
 import { Typography } from '@/components/typography'
 import { Button } from '@/components/ui/button'
@@ -10,29 +10,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { CONSENT_TEXT } from '../consent-text'
-
-const [title, ...paragraphs] = CONSENT_TEXT.trim().split(/\n\s*\n/)
+import { splitTextBlocks } from '../consent-text'
 
 /**
- * The consent text, scroll-gated: «Согласен» stays disabled until the text has been read to the
- * end, then ticks the checkbox. The text is static and rendered as plain text, never as HTML.
+ * A legal text (consent or privacy policy), scroll-gated: «Согласен» stays disabled until the text
+ * has been read to the end, then ticks its checkbox. The text is static and rendered as plain text,
+ * never as HTML. `testId` prefixes the «Согласен» button's test id (`<testId>-agree`).
  */
 export function ConsentDialog({
   onAgree,
   onOpenChange,
   open,
+  testId = 'consent',
+  text,
 }: {
   onAgree: () => void
   onOpenChange: (open: boolean) => void
   open: boolean
+  testId?: string
+  text: string
 }) {
+  const { title, paragraphs } = splitTextBlocks(text)
   const [atEnd, setAtEnd] = useState(false)
 
-  const check = useCallback((element: HTMLElement) => {
+  function check(element: HTMLElement) {
     // Within 2px of the bottom counts as the end; a short text that needs no scrolling is read at once.
     if (element.scrollHeight - element.scrollTop - element.clientHeight <= 2) setAtEnd(true)
-  }, [])
+  }
 
   return (
     <Dialog
@@ -68,7 +72,7 @@ export function ConsentDialog({
         </div>
         <DialogFooter>
           <Button
-            data-testid="consent-agree"
+            data-testid={`${testId}-agree`}
             disabled={!atEnd}
             onClick={() => {
               setAtEnd(false)

@@ -254,7 +254,7 @@ test('cookie auth releases its in-process coordinator after response parsing fai
 
   const auth = createAuthApi('cookie', state);
   const register = auth.register(
-    { email: 'account-a@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true as const },
+    { email: 'account-a@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true as const, privacyPolicy: true as const },
     state.generation,
   );
   await waitForEvent(events, 'register:fetch');
@@ -435,7 +435,7 @@ test('native token auth never enters the browser cookie coordinator', async () =
   };
 
   const auth = createAuthApi('token', state, coordinator);
-  await auth.register({ email: 'account-a@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true as const });
+  await auth.register({ email: 'account-a@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true as const, privacyPolicy: true as const });
   await auth.login({ email: 'account-a@example.com', password: 'password123' });
   await auth.socialAuth('google', { idToken: 'google-id-token' });
   await auth.refresh();

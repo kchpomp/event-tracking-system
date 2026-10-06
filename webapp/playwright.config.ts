@@ -97,6 +97,14 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'e2e/.artifacts/report' }]],
   use: {
     baseURL: frontendUrl,
+    // The cookie notice is pre-acknowledged so it never covers a button in another spec; the
+    // cookie-notice spec clears this to see it.
+    storageState: {
+      cookies: [],
+      origins: [
+        { origin: frontendUrl, localStorage: [{ name: 'event_tracking_system_cookie_notice', value: '1' }] },
+      ],
+    },
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     // Video needs Playwright's own ffmpeg download, which an installed-Chrome run does not have.
