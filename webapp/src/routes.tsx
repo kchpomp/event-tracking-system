@@ -131,6 +131,30 @@ const adminSettingsRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'AdminSettingsPage'),
 })
 
+const hostessWorkspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'hostessWorkspace',
+  component: lazyRouteComponent(() => import('./pages'), 'HostessWorkspaceLayout'),
+})
+
+const hostessHomeRoute = createRoute({
+  getParentRoute: () => hostessWorkspaceRoute,
+  path: '/hostess',
+  component: lazyRouteComponent(() => import('./pages'), 'HostessHomeRoutePage'),
+})
+
+const hostessScanRoute = createRoute({
+  getParentRoute: () => hostessWorkspaceRoute,
+  path: '/hostess/scan',
+  component: lazyRouteComponent(() => import('./pages'), 'HostessScanRoutePage'),
+})
+
+const hostessParticipantRoute = createRoute({
+  getParentRoute: () => hostessWorkspaceRoute,
+  path: '/hostess/participant/$participantId',
+  component: lazyRouteComponent(() => import('./pages'), 'HostessParticipantRoutePage'),
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -152,6 +176,11 @@ const routeTree = rootRoute.addChildren([
     adminUsersRoute,
     adminStationsRoute,
     adminSettingsRoute,
+  ]),
+  hostessWorkspaceRoute.addChildren([
+    hostessHomeRoute,
+    hostessScanRoute,
+    hostessParticipantRoute,
   ]),
 ])
 

@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { roleLabel } from './model'
 
 export function RoleChangeDialog({
   failureReason,
@@ -40,7 +41,7 @@ export function RoleChangeDialog({
           <AlertDialogTitle>Изменить роль пользователя?</AlertDialogTitle>
           <AlertDialogDescription>
             {pendingChange
-              ? `${pendingChange.user.email}: новая роль — ${pendingChange.role === 'admin' ? 'администратор' : 'участник'}. Все активные сессии пользователя будут завершены.`
+              ? `${pendingChange.user.email}: новая роль — ${roleLabel(pendingChange.role)}. Все активные сессии пользователя будут завершены.`
               : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>

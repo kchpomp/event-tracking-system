@@ -2,7 +2,19 @@ import {
   ADMIN_USERS_MAX_PAGE,
   type AdminUserSummary,
   type UpdateUserRoleResponse,
+  type UserRole,
 } from '@event-tracking-system/contracts'
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  user: 'участник',
+  admin: 'администратор',
+  hostess: 'хостес',
+}
+
+/** The role in a sentence: «теперь хостес», «новая роль администратор». */
+export function roleLabel(role: UserRole) {
+  return ROLE_LABELS[role]
+}
 
 type AdminUsersQueryState = {
   isError: boolean

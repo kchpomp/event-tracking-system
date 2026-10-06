@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 
-import { connectionPoints, ideaPoints, orderedPair, sameCityAndCompany } from './rules'
+import {
+  connectionPoints,
+  ideaPoints,
+  orderedPair,
+  participantFullName,
+  sameCityAndCompany,
+  searchWords,
+} from './rules'
 
 describe('event scoring rules', () => {
   test('only the first 5 ideas and the first 3 connections score', () => {
@@ -11,6 +18,20 @@ describe('event scoring rules', () => {
   test('a pair is stored lowest id first whichever way it is given', () => {
     expect(orderedPair('b', 'a')).toEqual(['a', 'b'])
     expect(orderedPair('a', 'b')).toEqual(['a', 'b'])
+  })
+
+  test('staff see the full name, else the display name, else «Участник»', () => {
+    const none = { firstName: null, lastName: null, displayName: null }
+    expect(participantFullName({ ...none, firstName: 'Анна', lastName: 'Петрова' })).toBe('Анна Петрова')
+    expect(participantFullName({ ...none, firstName: 'Анна' })).toBe('Анна')
+    expect(participantFullName({ ...none, displayName: ' Ася ' })).toBe('Ася')
+    expect(participantFullName(none)).toBe('Участник')
+  })
+
+  test('a staff search is split into at most five words', () => {
+    expect(searchWords('  Анна   Петрова ')).toEqual(['Анна', 'Петрова'])
+    expect(searchWords('a b c d e f g')).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(searchWords('   ')).toEqual([])
   })
 
   test('the same city AND company blocks a connection, anything else does not', () => {

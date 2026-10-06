@@ -109,7 +109,7 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
           throw new UsersFailure('role_conflict', 'You cannot remove your own administrator role')
         }
 
-        if (target.role === 'admin' && input.role === 'user') {
+        if (target.role === 'admin' && input.role !== 'admin') {
           const adminCount = await tx.user.count({ where: { role: 'admin' } })
           if (adminCount <= 1) {
             throw new UsersFailure('role_conflict', 'At least one administrator must remain')

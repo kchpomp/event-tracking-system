@@ -15,7 +15,7 @@ export const passwordSchema = z
   .min(8, 'Пароль должен содержать не менее 8 символов')
   .max(128, 'Пароль должен содержать не более 128 символов')
 
-export const userRoleSchema = z.enum(['user', 'admin'])
+export const userRoleSchema = z.enum(['user', 'admin', 'hostess'])
 
 // The user contract deliberately carries no subscription: billing is an optional capability,
 // and clients that need it read `GET /api/iap/entitlement` through their billing feature.

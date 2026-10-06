@@ -1,6 +1,7 @@
 export { AdminStations } from './AdminStations'
 export { DiffusionPage, IdeasPage, PolymerPage, StationPage } from './ActivityPages'
 export { EventDashboard } from './Dashboard'
+export { HostessHomePage, HostessParticipantPage, HostessScanPage } from './HostessPages'
 export { Brand } from './parts'
 export { ProfilePage } from './ProfilePage'
 export { DiffusionScanPage, StationScanPage } from './ScanPages'

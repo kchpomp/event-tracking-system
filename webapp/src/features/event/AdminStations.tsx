@@ -1,6 +1,5 @@
 import { PrinterIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { POLYMER_GROUP, type AdminStation } from '@event-tracking-system/contracts'
 import { useEffect, useState } from 'react'
 
 import { PageContainer, PageHeader } from '@/components/PageLayout'
@@ -13,14 +12,8 @@ import { Empty, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { eventErrorMessage } from './errors'
+import { stationLabel } from './model'
 import { useAdminStationsQuery, useSetEventActiveMutation } from './queries'
-
-/** Each of the ten «Полимер решений» QR codes is a placement: 10 points = 1st place ... 1 = 10th. */
-function stationLabel(station: AdminStation) {
-  return station.displayGroup === POLYMER_GROUP
-    ? `${station.name}: место ${11 - station.points}`
-    : station.name
-}
 
 export function AdminStations() {
   const stations = useAdminStationsQuery()

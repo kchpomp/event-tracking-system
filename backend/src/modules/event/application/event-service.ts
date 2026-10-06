@@ -1,6 +1,8 @@
 import type {
   ConnectRequest,
   CreateIdeaRequest,
+  HostessAwardRequest,
+  HostessResolveRequest,
   ScanRequest,
   UpdateEventRequest,
 } from '@event-tracking-system/contracts'
@@ -10,6 +12,7 @@ import { EventFailure } from '../domain/errors'
 import type {
   ConnectionMaker,
   EventAdmin,
+  HostessDesk,
   IdeaWriter,
   LeaderboardReader,
   ParticipantReader,
@@ -20,6 +23,7 @@ import type {
 type EventServiceDependencies = {
   admin: EventAdmin
   connections: ConnectionMaker
+  hostess: HostessDesk
   ideas: IdeaWriter
   leaderboard: LeaderboardReader
   participants: ParticipantReader
@@ -57,6 +61,28 @@ export class EventService {
 
   async leaderboard(principal: AuthenticatedPrincipal) {
     return { entries: await this.dependencies.leaderboard.leaderboard(principal.id) }
+  }
+
+  async searchParticipants(query: string) {
+    return { participants: await this.dependencies.hostess.searchParticipants(query) }
+  }
+
+  async participantByToken(input: HostessResolveRequest) {
+    const participantId = await this.dependencies.hostess.participantIdByToken(input.token)
+    if (!participantId) {
+      throw new EventFailure('invalid_participant_token', 'Unknown participant code')
+    }
+    return this.participantDetail(participantId)
+  }
+
+  async participantDetail(participantId: string) {
+    const detail = await this.dependencies.hostess.participantDetail(participantId)
+    if (!detail) throw new EventFailure('not_found', 'Participant not found')
+    return detail
+  }
+
+  awardStation(principal: AuthenticatedPrincipal, input: HostessAwardRequest) {
+    return this.dependencies.hostess.awardStation({ ...input, awardedById: principal.id })
   }
 
   adminStations() {

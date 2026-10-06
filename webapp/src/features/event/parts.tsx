@@ -41,7 +41,7 @@ export function ActivityHead({
   icon,
   title,
 }: {
-  back?: '/app' | '/app/diffusion'
+  back?: '/app' | '/app/diffusion' | '/hostess'
   icon?: ReactNode
   title: string
 }) {

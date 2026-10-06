@@ -3,6 +3,9 @@ import type {
   ConnectResponse,
   CreateIdeaRequest,
   EventMeResponse,
+  HostessAwardResponse,
+  HostessParticipant,
+  HostessParticipantResponse,
   LeaderboardEntry,
   ScanResponse,
   StationSummary,
@@ -35,6 +38,24 @@ export type IdeaWriter = {
 export type LeaderboardReader = {
   /** The top 10 plus the caller's own row when outside it, with competition ranks. */
   leaderboard(userId: string): Promise<LeaderboardEntry[]>
+}
+
+export type HostessDesk = {
+  /** Participants (never staff) whose name, company, city or email contain every word; at most 20. */
+  searchParticipants(query: string): Promise<HostessParticipant[]>
+  /** The id behind a scanned personal QR token, or null for an unknown one or a staff account. */
+  participantIdByToken(token: string): Promise<string | null>
+  /** One participant with every active station marked visited for them; null when not a participant. */
+  participantDetail(participantId: string): Promise<HostessParticipantResponse | null>
+  /**
+   * Awards a station to the participant exactly as their own scan would, and records who did it.
+   * Throws an EventFailure for an unknown participant or station, an inactive station or a closed event.
+   */
+  awardStation(input: {
+    participantId: string
+    stationId: string
+    awardedById: string
+  }): Promise<HostessAwardResponse>
 }
 
 export type EventAdmin = {
