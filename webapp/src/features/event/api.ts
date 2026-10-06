@@ -5,6 +5,12 @@ import {
   createIdeaRequestSchema,
   createIdeaResponseSchema,
   eventMeResponseSchema,
+  hostessAwardRequestSchema,
+  hostessAwardResponseSchema,
+  hostessParticipantResponseSchema,
+  hostessParticipantsResponseSchema,
+  hostessResolveRequestSchema,
+  hostessSearchQuerySchema,
   leaderboardResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
@@ -13,6 +19,8 @@ import {
   updateEventResponseSchema,
   type ConnectRequest,
   type CreateIdeaRequest,
+  type HostessAwardRequest,
+  type HostessResolveRequest,
   type ScanRequest,
   type UpdateEventRequest,
 } from '@event-tracking-system/contracts'
@@ -51,6 +59,48 @@ export function createIdea(transport: AuthenticatedTransport, input: CreateIdeaR
   return transport.request('/api/event/ideas', createIdeaResponseSchema, {
     method: 'POST',
     body: createIdeaRequestSchema.parse(input),
+  })
+}
+
+export function searchParticipants(
+  transport: AuthenticatedTransport,
+  q: string,
+  options: ReadOptions = {},
+) {
+  const search = new URLSearchParams({ q: hostessSearchQuerySchema.parse({ q }).q })
+  return transport.request(
+    `/api/hostess/participants?${search}`,
+    hostessParticipantsResponseSchema,
+    options,
+  )
+}
+
+export function resolveParticipant(transport: AuthenticatedTransport, input: HostessResolveRequest) {
+  return transport.request('/api/hostess/participants/resolve', hostessParticipantResponseSchema, {
+    method: 'POST',
+    body: hostessResolveRequestSchema.parse(input),
+  })
+}
+
+export function getHostessParticipant(
+  transport: AuthenticatedTransport,
+  participantId: string,
+  options: ReadOptions = {},
+) {
+  return transport.request(
+    `/api/hostess/participants/${encodeURIComponent(participantId)}`,
+    hostessParticipantResponseSchema,
+    options,
+  )
+}
+
+export function awardStationToParticipant(
+  transport: AuthenticatedTransport,
+  input: HostessAwardRequest,
+) {
+  return transport.request('/api/hostess/awards', hostessAwardResponseSchema, {
+    method: 'POST',
+    body: hostessAwardRequestSchema.parse(input),
   })
 }
 

@@ -50,6 +50,7 @@ import { formatDate } from '@/platform/intl'
 import {
   adminUsersPagination,
   adminUsersViewState,
+  roleLabel,
   roleMutationFeedback,
 } from './model'
 import {
@@ -135,7 +136,7 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
           <Alert data-testid="role-change-success">
             <AlertTitle>Роль изменена</AlertTitle>
             <AlertDescription>
-              {mutationFeedback.user.email}: теперь {mutationFeedback.user.role === 'admin' ? 'администратор' : 'участник'}.
+              {mutationFeedback.user.email}: теперь {roleLabel(mutationFeedback.user.role)}.
               Прежние сессии пользователя завершены.
             </AlertDescription>
           </Alert>
@@ -354,6 +355,13 @@ function RoleSelect({
           value="user"
         >
           Участник
+        </SelectItem>
+        <SelectItem
+          data-testid="role-option-hostess"
+          disabled={user.id === currentUser.id && user.role === 'admin'}
+          value="hostess"
+        >
+          Хостес
         </SelectItem>
         <SelectItem data-testid="role-option-admin" value="admin">Администратор</SelectItem>
       </SelectContent>

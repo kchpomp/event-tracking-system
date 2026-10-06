@@ -10,6 +10,7 @@ type CreateEventModuleOptions = {
   db: DbClient
   requireAdmin: MiddlewareHandler<AuthHttpEnv>
   requireAuth: MiddlewareHandler<AuthHttpEnv>
+  requireHostess: MiddlewareHandler<AuthHttpEnv>
   requireParticipant: MiddlewareHandler<AuthHttpEnv>
 }
 
@@ -18,6 +19,7 @@ export function createEventModule(options: CreateEventModuleOptions) {
   const service = new EventService({
     admin: repository,
     connections: repository,
+    hostess: repository,
     ideas: repository,
     leaderboard: repository,
     participants: repository,
@@ -27,6 +29,7 @@ export function createEventModule(options: CreateEventModuleOptions) {
   return createEventRoutes({
     requireAdmin: options.requireAdmin,
     requireAuth: options.requireAuth,
+    requireHostess: options.requireHostess,
     requireParticipant: options.requireParticipant,
     service,
   })

@@ -96,6 +96,7 @@ export function createApp({
     db: prisma,
     requireAdmin: auth.requireAdmin,
     requireAuth: auth.requireAuth,
+    requireHostess: auth.requireHostess,
     requireParticipant: auth.requireParticipant,
   })
   const uploads = createUploadsModule({
@@ -154,8 +155,9 @@ export function createApp({
   })) {
     app.use('/api/notifications/*', middleware)
   }
-  // The participant routes: one venue Wi-Fi address serves hundreds of phones, so this budget is
-  // far larger than the account one (EVENT_RATE_LIMIT_MAX) while the body limit still applies.
+  // The participant and hostess routes: one venue Wi-Fi address serves hundreds of phones, so
+  // this budget is far larger than the account one (EVENT_RATE_LIMIT_MAX) while the body limit
+  // still applies. Both prefixes count against the same budget.
   for (const middleware of createIngressSecurity({
     ...publicWriteSecurity,
     rateLimitMax: env.EVENT_RATE_LIMIT_MAX,
@@ -163,6 +165,7 @@ export function createApp({
     store: rateLimitStore('event'),
   })) {
     app.use('/api/event/*', middleware)
+    app.use('/api/hostess/*', middleware)
   }
   // Ingress budget for the subscription routes, uncomment together with them. Without a `store`
   // they count in process memory whatever RATE_LIMIT_STORE says; add their policies to
@@ -189,6 +192,7 @@ export function createApp({
   const routesWithOwnBudget = [
     '/api/auth/*',
     '/api/event/*',
+    '/api/hostess/*',
     '/api/notifications/*',
     // Uncomment together with the subscription budgets above:
     // '/api/iap/*',
@@ -238,6 +242,7 @@ export function createApp({
   app.route('/api/admin', users.adminRoutes)
   app.route('/api/admin', event.adminRoutes)
   app.route('/api/event', event.participantRoutes)
+  app.route('/api/hostess', event.hostessRoutes)
   // app.route('/api/iap', billing.createRoutes(auth.authenticateAccessToken))
   app.route('/api/notifications', notifications.createRoutes(auth.authenticateAccessToken))
   app.route('/api/uploads', uploads.routes)

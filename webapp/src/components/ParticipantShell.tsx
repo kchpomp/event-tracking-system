@@ -7,13 +7,20 @@ import { Button } from '@/components/ui/button'
 import { Brand } from '@/features/event'
 
 /**
- * The participant's frame: one narrow column for a phone, a sticky header with the brand, the
- * profile and sign-out. Participants have no sidebar; administrators keep `WorkspaceShell`.
+ * The phone frame: one narrow column, a sticky header with the brand, the profile and sign-out.
+ * Participants and hostesses have no sidebar (hostesses have no profile page either: `showProfile`
+ * is off for them); administrators keep `WorkspaceShell`.
  */
 export function ParticipantShell({
   children,
+  home = '/app',
   onLogout,
-}: PropsWithChildren<{ onLogout: () => Promise<void> }>) {
+  showProfile = true,
+}: PropsWithChildren<{
+  home?: '/app' | '/hostess'
+  onLogout: () => Promise<void>
+  showProfile?: boolean
+}>) {
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -34,15 +41,17 @@ export function ParticipantShell({
     <div className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4 py-3">
-          <Link to="/app">
+          <Link to={home}>
             <Brand />
           </Link>
           <div className="flex items-center gap-2">
-            <Button asChild size="lg" variant="outline">
-              <Link data-testid="nav-profile" to="/app/profile">
-                Профиль
-              </Link>
-            </Button>
+            {showProfile && (
+              <Button asChild size="lg" variant="outline">
+                <Link data-testid="nav-profile" to="/app/profile">
+                  Профиль
+                </Link>
+              </Button>
+            )}
             <Button
               data-testid="logout"
               disabled={pending}

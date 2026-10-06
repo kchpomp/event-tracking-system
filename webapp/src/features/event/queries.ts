@@ -1,16 +1,27 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ConnectRequest, CreateIdeaRequest, ScanRequest } from '@event-tracking-system/contracts'
+import {
+  HOSTESS_SEARCH_MIN,
+  type ConnectRequest,
+  type CreateIdeaRequest,
+  type HostessAwardRequest,
+  type HostessResolveRequest,
+  type ScanRequest,
+} from '@event-tracking-system/contracts'
 
 import { sessionQueryKeys, useAuth } from '@/features/auth'
 import type { AuthenticatedTransport } from '@/platform/api'
 import {
+  awardStationToParticipant,
   connectParticipant,
   createIdea,
   getAdminStations,
   getEventMe,
+  getHostessParticipant,
   getLeaderboard,
   getStations,
+  resolveParticipant,
   scanStation,
+  searchParticipants,
   updateEvent,
 } from './api'
 
@@ -21,6 +32,10 @@ export const eventQueryKeys = {
   stations: () => [...eventQueryKeys.all, 'stations'] as const,
   leaderboard: () => [...eventQueryKeys.all, 'leaderboard'] as const,
   adminStations: () => [...eventQueryKeys.all, 'admin-stations'] as const,
+  hostess: () => [...eventQueryKeys.all, 'hostess'] as const,
+  hostessSearch: (q: string) => [...eventQueryKeys.hostess(), 'search', q] as const,
+  hostessParticipant: (participantId: string) =>
+    [...eventQueryKeys.hostess(), 'participant', participantId] as const,
 }
 
 export function eventMeQueryOptions(transport: AuthenticatedTransport) {
@@ -85,6 +100,45 @@ export function useCreateIdeaMutation() {
   return useMutation({
     mutationFn: (input: CreateIdeaRequest) => createIdea(transport, input),
     onSuccess: invalidate,
+  })
+}
+
+/** Waits for HOSTESS_SEARCH_MIN characters: the server refuses a shorter query. */
+export function useHostessSearchQuery(q: string) {
+  const { transport } = useAuth()
+  return useQuery(
+    queryOptions({
+      queryKey: eventQueryKeys.hostessSearch(q),
+      queryFn: ({ signal }) => searchParticipants(transport, q, { signal }),
+      enabled: q.length >= HOSTESS_SEARCH_MIN,
+    }),
+  )
+}
+
+export function useHostessParticipantQuery(participantId: string) {
+  const { transport } = useAuth()
+  return useQuery(
+    queryOptions({
+      queryKey: eventQueryKeys.hostessParticipant(participantId),
+      queryFn: ({ signal }) => getHostessParticipant(transport, participantId, { signal }),
+    }),
+  )
+}
+
+export function useResolveParticipantMutation() {
+  const { transport } = useAuth()
+  return useMutation({
+    mutationFn: (input: HostessResolveRequest) => resolveParticipant(transport, input),
+  })
+}
+
+export function useAwardStationMutation() {
+  const { transport } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: HostessAwardRequest) => awardStationToParticipant(transport, input),
+    // The participant's points and station marks, and every search row that shows their points.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.hostess() }),
   })
 }
 

@@ -25,6 +25,9 @@ import {
   DiffusionPage,
   DiffusionScanPage,
   EventDashboard,
+  HostessHomePage,
+  HostessParticipantPage,
+  HostessScanPage,
   IdeasPage,
   PolymerPage,
   ProfilePage,
@@ -132,6 +135,21 @@ export function UserProfilePage() {
   return <ProfilePage user={user} />
 }
 
+export function HostessHomeRoutePage() {
+  return <HostessHomePage />
+}
+
+export function HostessScanRoutePage() {
+  return <HostessScanPage />
+}
+
+export function HostessParticipantRoutePage() {
+  const { participantId } = useParams({
+    from: '/hostessWorkspace/hostess/participant/$participantId',
+  })
+  return <HostessParticipantPage participantId={participantId} />
+}
+
 export function AdminStationsPage() {
   return <AdminStations />
 }
@@ -156,6 +174,10 @@ export function UserWorkspaceLayout() {
 
 export function AdminWorkspaceLayout() {
   return <WorkspaceRoute role="admin" />
+}
+
+export function HostessWorkspaceLayout() {
+  return <WorkspaceRoute role="hostess" />
 }
 
 export function NotFoundPage() {
@@ -186,10 +208,18 @@ function WorkspaceRoute({ role }: { role: UserRole }) {
     return <HrefRedirect href={homePathForRole(auth.user.role)} />
   }
 
-  // Participants use their phones: one narrow column. Administrators keep the sidebar workspace.
+  // Participants and hostesses use their phones: one narrow column. Administrators keep the
+  // sidebar workspace.
   if (auth.user.role === 'user') {
     return (
       <ParticipantShell onLogout={auth.logout}>
+        <Outlet />
+      </ParticipantShell>
+    )
+  }
+  if (auth.user.role === 'hostess') {
+    return (
+      <ParticipantShell home="/hostess" onLogout={auth.logout} showProfile={false}>
         <Outlet />
       </ParticipantShell>
     )

@@ -36,6 +36,13 @@ export function toStationCards(stations: StationSummary[]): StationCard[] {
   return [...cards.values()]
 }
 
+/** Each of the ten «Полимер решений» QR codes is a placement: 10 points = 1st place ... 1 = 10th. */
+export function stationLabel(station: Pick<StationSummary, 'name' | 'displayGroup' | 'points'>) {
+  return station.displayGroup === POLYMER_GROUP
+    ? `${station.name}: место ${11 - station.points}`
+    : station.name
+}
+
 export function isPolymerCard(card: Pick<StationCard, 'group'>) {
   return card.group === POLYMER_GROUP
 }

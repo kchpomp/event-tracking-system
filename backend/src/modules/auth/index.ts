@@ -54,6 +54,8 @@ export function createAuthModule({
       executeAuth(() => service.authenticateAccessToken(accessToken)),
     requireAuth,
     requireAdmin: createRequireRole('admin'),
+    // Staff desk: hostesses, and administrators as the superset of every staff role.
+    requireHostess: createRequireRole('hostess', 'admin'),
     requireParticipant: createRequireRole('user'),
     routes: createAuthRoutes({ env, requireAuth, service }),
   }

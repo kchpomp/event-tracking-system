@@ -17,6 +17,9 @@ test('role navigation exposes only the current workspace', () => {
   expect(navigationItemsForRole('admin').every((item) => item.to.startsWith('/admin'))).toBe(true)
   expect(homePathForRole('user')).toBe('/app')
   expect(homePathForRole('admin')).toBe('/admin')
+  expect(homePathForRole('hostess')).toBe('/hostess')
+  // Hostesses, like participants, have no sidebar.
+  expect(navigationItemsForRole('hostess')).toEqual([])
 })
 
 test('cross-role destinations resolve to the current role home', () => {
@@ -24,6 +27,10 @@ test('cross-role destinations resolve to the current role home', () => {
   expect(resolveRoleDestination('user', '/admin/users')).toBe('/app')
   expect(resolveRoleDestination('admin', '/admin/settings')).toBe('/admin/settings')
   expect(resolveRoleDestination('admin', '/app')).toBe('/admin')
+  expect(resolveRoleDestination('hostess', '/hostess/scan')).toBe('/hostess/scan')
+  expect(resolveRoleDestination('hostess', '/app')).toBe('/hostess')
+  expect(resolveRoleDestination('hostess', '/admin/users')).toBe('/hostess')
+  expect(resolveRoleDestination('user', '/hostess')).toBe('/app')
 })
 
 test('workspace route table matches the routes registered under each workspace layout', () => {
@@ -32,9 +39,10 @@ test('workspace route table matches the routes registered under each workspace l
   // sidebar, so the return-path allow-list is pinned to the router, not to the menu.
   const rolesByLayoutId: Record<string, UserRole> = {
     '/adminWorkspace': 'admin',
+    '/hostessWorkspace': 'hostess',
     '/userWorkspace': 'user',
   }
-  const registered: Record<UserRole, string[]> = { admin: [], user: [] }
+  const registered: Record<UserRole, string[]> = { admin: [], hostess: [], user: [] }
 
   for (const route of Object.values(router.routesById)) {
     if (typeof route.path !== 'string') continue
@@ -46,6 +54,7 @@ test('workspace route table matches the routes registered under each workspace l
 
   expect(registered.user.toSorted()).toEqual([...workspaceRoutesByRole.user].toSorted())
   expect(registered.admin.toSorted()).toEqual([...workspaceRoutesByRole.admin].toSorted())
+  expect(registered.hostess.toSorted()).toEqual([...workspaceRoutesByRole.hostess].toSorted())
 })
 
 test('workspace route table uses only route shapes the return-path matcher understands', () => {
@@ -54,7 +63,7 @@ test('workspace route table uses only route shapes the return-path matcher under
   // role home, so registering one must fail here, next to the table it would have to join.
   const supportedSegment = /^(\$[A-Za-z_]\w*|[^${}]+)$/
 
-  for (const pattern of [...workspaceRoutesByRole.user, ...workspaceRoutesByRole.admin]) {
+  for (const pattern of Object.values(workspaceRoutesByRole).flat()) {
     for (const segment of pattern.split('/').slice(1)) {
       expect(segment).toMatch(supportedSegment)
     }
@@ -62,9 +71,11 @@ test('workspace route table uses only route shapes the return-path matcher under
 })
 
 test('every protected route of the role round-trips as a return path', () => {
-  for (const role of ['user', 'admin'] as const) {
+  for (const role of ['user', 'admin', 'hostess'] as const) {
     for (const path of workspaceRoutesByRole[role]) {
-      expect(safeReturnPath(role, path)).toBe(path)
+      // The hostess participant route has a parameter: any non-empty segment round-trips.
+      const concrete = path.replace('$participantId', 'abc')
+      expect(safeReturnPath(role, concrete)).toBe(concrete)
     }
   }
   expect(safeReturnPath('admin', '/admin/users?page=2')).toBe('/admin/users?page=2')

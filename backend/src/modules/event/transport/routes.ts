@@ -7,6 +7,13 @@ import {
   createIdeaRequestSchema,
   createIdeaResponseSchema,
   eventMeResponseSchema,
+  hostessAwardRequestSchema,
+  hostessAwardResponseSchema,
+  hostessParticipantParamsSchema,
+  hostessParticipantResponseSchema,
+  hostessParticipantsResponseSchema,
+  hostessResolveRequestSchema,
+  hostessSearchQuerySchema,
   leaderboardResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
@@ -128,9 +135,64 @@ const updateEventRoute = createRoute({
   },
 })
 
+const hostessSearchRoute = createRoute({
+  method: 'get',
+  path: '/participants',
+  security: bearerSecurity,
+  request: { query: hostessSearchQuerySchema },
+  responses: {
+    200: { content: json(hostessParticipantsResponseSchema), description: 'Matching participants' },
+    400: { content: errorContent, description: 'Query too short or too long' },
+    ...authErrors,
+  },
+})
+
+const hostessResolveRoute = createRoute({
+  method: 'post',
+  path: '/participants/resolve',
+  security: bearerSecurity,
+  request: { body: { content: json(hostessResolveRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(hostessParticipantResponseSchema), description: 'The scanned participant' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    404: { content: errorContent, description: 'Unknown participant code' },
+    ...authErrors,
+  },
+})
+
+const hostessParticipantRoute = createRoute({
+  method: 'get',
+  path: '/participants/{participantId}',
+  security: bearerSecurity,
+  request: { params: hostessParticipantParamsSchema },
+  responses: {
+    200: { content: json(hostessParticipantResponseSchema), description: 'Participant and stations' },
+    400: { content: errorContent, description: 'Invalid participant id' },
+    404: { content: errorContent, description: 'Participant not found' },
+    ...authErrors,
+  },
+})
+
+const hostessAwardRoute = createRoute({
+  method: 'post',
+  path: '/awards',
+  security: bearerSecurity,
+  request: { body: { content: json(hostessAwardRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(hostessAwardResponseSchema), description: 'Award result' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    404: { content: errorContent, description: 'Unknown participant or station' },
+    409: { content: errorContent, description: 'Station inactive or event closed' },
+    ...authErrors,
+  },
+})
+
 type CreateEventRoutesOptions = {
   requireAdmin: MiddlewareHandler<AuthHttpEnv>
   requireAuth: MiddlewareHandler<AuthHttpEnv>
+  requireHostess: MiddlewareHandler<AuthHttpEnv>
   requireParticipant: MiddlewareHandler<AuthHttpEnv>
   service: EventService
 }
@@ -138,10 +200,12 @@ type CreateEventRoutesOptions = {
 export function createEventRoutes({
   requireAdmin,
   requireAuth,
+  requireHostess,
   requireParticipant,
   service,
 }: CreateEventRoutesOptions) {
   const participantRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
+  const hostessRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
   const adminRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
 
   participantRoutes.use('*', requireAuth)
@@ -163,6 +227,24 @@ export function createEventRoutes({
     c.json(await service.leaderboard(c.var.user), 200),
   )
 
+  hostessRoutes.use('*', requireAuth)
+  hostessRoutes.use('*', requireHostess)
+  hostessRoutes.openapi(hostessSearchRoute, async (c) =>
+    c.json(await service.searchParticipants(c.req.valid('query').q), 200),
+  )
+  hostessRoutes.openapi(hostessResolveRoute, async (c) =>
+    c.json(await executeEvent(() => service.participantByToken(c.req.valid('json'))), 200),
+  )
+  hostessRoutes.openapi(hostessParticipantRoute, async (c) =>
+    c.json(
+      await executeEvent(() => service.participantDetail(c.req.valid('param').participantId)),
+      200,
+    ),
+  )
+  hostessRoutes.openapi(hostessAwardRoute, async (c) =>
+    c.json(await executeEvent(() => service.awardStation(c.var.user, c.req.valid('json'))), 200),
+  )
+
   adminRoutes.use('*', requireAuth)
   adminRoutes.use('*', requireAdmin)
   adminRoutes.openapi(adminStationsRoute, async (c) => c.json(await service.adminStations(), 200))
@@ -170,5 +252,5 @@ export function createEventRoutes({
     c.json(await executeEvent(() => service.updateEvent(c.req.valid('json'))), 200),
   )
 
-  return { adminRoutes, participantRoutes }
+  return { adminRoutes, hostessRoutes, participantRoutes }
 }

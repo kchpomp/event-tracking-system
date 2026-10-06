@@ -1,10 +1,11 @@
-import { POLYMER_GROUP } from '@event-tracking-system/contracts'
+import { HOSTESS_SEARCH_LIMIT, POLYMER_GROUP } from '@event-tracking-system/contracts'
 
 import { acquireParticipantScoringLock, type DbClient } from '../../../db'
 import { Prisma } from '../../../generated/prisma/client'
 import type {
   ConnectionMaker,
   EventAdmin,
+  HostessDesk,
   IdeaWriter,
   LeaderboardReader,
   ParticipantReader,
@@ -12,7 +13,14 @@ import type {
   StationScanner,
 } from '../application/ports'
 import { EventFailure } from '../domain/errors'
-import { connectionPoints, ideaPoints, orderedPair, sameCityAndCompany } from '../domain/rules'
+import {
+  connectionPoints,
+  ideaPoints,
+  orderedPair,
+  participantFullName,
+  sameCityAndCompany,
+  searchWords,
+} from '../domain/rules'
 
 type EventRepository = ParticipantReader &
   StationReader &
@@ -20,9 +28,31 @@ type EventRepository = ParticipantReader &
   ConnectionMaker &
   IdeaWriter &
   LeaderboardReader &
+  HostessDesk &
   EventAdmin
 
 const LEADERBOARD_SIZE = 10
+
+const stationScoringSelect = {
+  id: true,
+  points: true,
+  isActive: true,
+  displayGroup: true,
+  successMessage: true,
+  event: { select: { isActive: true } },
+} as const
+
+type ScoringStation = Prisma.StationGetPayload<{ select: typeof stationScoringSelect }>
+
+const hostessParticipantSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  displayName: true,
+  company: true,
+  city: true,
+  email: true,
+} as const
 
 export function createPrismaEventRepository(db: DbClient): EventRepository {
   const pointsOf = async (tx: Pick<DbClient, 'activityLog'>, participantId: string) =>
@@ -32,6 +62,65 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
         _sum: { pointsAwarded: true },
       })
     )._sum.pointsAwarded ?? 0
+
+  const stationsFor = async (userId: string) => {
+    const [stations, visits] = await db.$transaction([
+      db.station.findMany({
+        where: { isActive: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, points: true, displayGroup: true },
+      }),
+      db.stationVisit.findMany({
+        where: { participantId: userId },
+        select: { stationId: true },
+      }),
+    ])
+    const visited = new Set(visits.map((visit) => visit.stationId))
+    return stations.map((station) => ({ ...station, visited: visited.has(station.id) }))
+  }
+
+  /**
+   * The one place a station is scored: the participant's own scan (`awardedById` null) and a
+   * hostess's award on their behalf run the same rules. The caller holds the participant's lock.
+   */
+  const scoreStation = async (
+    tx: Pick<DbClient, 'activityLog' | 'stationVisit'>,
+    participantId: string,
+    station: ScoringStation,
+    awardedById: string | null,
+  ) => {
+    if (!station.isActive) throw new EventFailure('station_inactive', 'Station is not active')
+    if (!station.event.isActive) throw new EventFailure('event_inactive', 'Event is not active')
+
+    // One award for the whole "Полимер решений" game, whichever of its ten QR codes is
+    // scanned; every other station is awarded once per station.
+    const polymer = station.displayGroup === POLYMER_GROUP
+    const alreadyCompleted = polymer
+      ? (await tx.activityLog.count({ where: { participantId, actionType: 'polymer' } })) > 0
+      : (await tx.stationVisit.count({
+          where: { participantId, stationId: station.id },
+        })) > 0
+
+    if (!alreadyCompleted) {
+      await tx.stationVisit.create({ data: { participantId, stationId: station.id } })
+      await tx.activityLog.create({
+        data: {
+          participantId,
+          actionType: polymer ? 'polymer' : 'station_scan',
+          pointsAwarded: station.points,
+          refId: station.id,
+          awardedById,
+        },
+      })
+    }
+
+    return {
+      pointsAwarded: alreadyCompleted ? 0 : station.points,
+      totalPoints: await pointsOf(tx, participantId),
+      alreadyCompleted,
+      successMessage: station.successMessage,
+    }
+  }
 
   return {
     async participant(userId) {
@@ -66,21 +155,7 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
       }
     },
 
-    async stations(userId) {
-      const [stations, visits] = await db.$transaction([
-        db.station.findMany({
-          where: { isActive: true },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-          select: { id: true, name: true, points: true, displayGroup: true },
-        }),
-        db.stationVisit.findMany({
-          where: { participantId: userId },
-          select: { stationId: true },
-        }),
-      ])
-      const visited = new Set(visits.map((visit) => visit.stationId))
-      return stations.map((station) => ({ ...station, visited: visited.has(station.id) }))
-    },
+    stations: stationsFor,
 
     scan({ participantId, token }) {
       return db.$transaction(async (tx) => {
@@ -88,46 +163,101 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
 
         const station = await tx.station.findUnique({
           where: { qrToken: token },
-          select: {
-            id: true,
-            points: true,
-            isActive: true,
-            displayGroup: true,
-            successMessage: true,
-            event: { select: { isActive: true } },
-          },
+          select: stationScoringSelect,
         })
         if (!station) throw new EventFailure('invalid_station_token', 'Unknown station code')
-        if (!station.isActive) throw new EventFailure('station_inactive', 'Station is not active')
-        if (!station.event.isActive) throw new EventFailure('event_inactive', 'Event is not active')
+        return scoreStation(tx, participantId, station, null)
+      })
+    },
 
-        // One award for the whole "Полимер решений" game, whichever of its ten QR codes is
-        // scanned; every other station is awarded once per station.
-        const polymer = station.displayGroup === POLYMER_GROUP
-        const alreadyCompleted = polymer
-          ? (await tx.activityLog.count({ where: { participantId, actionType: 'polymer' } })) > 0
-          : (await tx.stationVisit.count({
-              where: { participantId, stationId: station.id },
-            })) > 0
+    async searchParticipants(query) {
+      // Every word must match somewhere: «Анна Петрова» is first name AND last name.
+      const users = await db.user.findMany({
+        where: {
+          role: 'user',
+          AND: searchWords(query).map((word) => ({
+            OR: [
+              { firstName: { contains: word, mode: 'insensitive' as const } },
+              { lastName: { contains: word, mode: 'insensitive' as const } },
+              { company: { contains: word, mode: 'insensitive' as const } },
+              { city: { contains: word, mode: 'insensitive' as const } },
+              { email: { contains: word, mode: 'insensitive' as const } },
+            ],
+          })),
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
+        take: HOSTESS_SEARCH_LIMIT,
+        select: hostessParticipantSelect,
+      })
+      const sums = await db.activityLog.groupBy({
+        by: ['participantId'],
+        where: { participantId: { in: users.map((user) => user.id) } },
+        _sum: { pointsAwarded: true },
+      })
+      const totals = new Map(sums.map((row) => [row.participantId, row._sum.pointsAwarded ?? 0]))
+      return users.map((user) => ({
+        id: user.id,
+        fullName: participantFullName(user),
+        company: user.company,
+        city: user.city,
+        email: user.email,
+        totalPoints: totals.get(user.id) ?? 0,
+      }))
+    },
 
-        if (!alreadyCompleted) {
-          await tx.stationVisit.create({ data: { participantId, stationId: station.id } })
-          await tx.activityLog.create({
-            data: {
-              participantId,
-              actionType: polymer ? 'polymer' : 'station_scan',
-              pointsAwarded: station.points,
-              refId: station.id,
-            },
-          })
-        }
+    async participantIdByToken(token) {
+      const user = await db.user.findUnique({
+        where: { personalQrToken: token },
+        select: { id: true, role: true },
+      })
+      return user?.role === 'user' ? user.id : null
+    },
 
-        return {
-          pointsAwarded: alreadyCompleted ? 0 : station.points,
-          totalPoints: await pointsOf(tx, participantId),
-          alreadyCompleted,
-          successMessage: station.successMessage,
-        }
+    async participantDetail(participantId) {
+      const user = await db.user.findFirst({
+        where: { id: participantId, role: 'user' },
+        select: hostessParticipantSelect,
+      })
+      if (!user) return null
+      const [totalPoints, stations] = await Promise.all([
+        pointsOf(db, participantId),
+        stationsFor(participantId),
+      ])
+      return {
+        participant: {
+          id: user.id,
+          fullName: participantFullName(user),
+          company: user.company,
+          city: user.city,
+          email: user.email,
+          totalPoints,
+        },
+        stations,
+      }
+    },
+
+    awardStation({ participantId, stationId, awardedById }) {
+      return db.$transaction(async (tx) => {
+        await acquireParticipantScoringLock(tx, participantId)
+
+        const participant = await tx.user.findFirst({
+          where: { id: participantId, role: 'user' },
+          select: { id: true },
+        })
+        if (!participant) throw new EventFailure('not_found', 'Participant not found')
+        const station = await tx.station.findUnique({
+          where: { id: stationId },
+          select: stationScoringSelect,
+        })
+        if (!station) throw new EventFailure('not_found', 'Station not found')
+
+        const { pointsAwarded, totalPoints, alreadyCompleted } = await scoreStation(
+          tx,
+          participantId,
+          station,
+          awardedById,
+        )
+        return { pointsAwarded, totalPoints, alreadyCompleted }
       })
     },
 

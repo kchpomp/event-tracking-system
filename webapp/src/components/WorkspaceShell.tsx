@@ -16,10 +16,7 @@ import {
   SiteHeader,
 } from '@/components/dashboard'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import {
-  homePathForRole,
-  navigationItemsForRole,
-} from '@/features/navigation'
+import { navigationItemsForRole } from '@/features/navigation'
 
 const iconsByPath = {
   '/app': Home01Icon,
@@ -50,8 +47,8 @@ export function WorkspaceShell({
   const pathname = useLocation({ select: (location) => location.pathname })
   const navigationItems = navigationItemsForRole(user.role)
   const activeItem = navigationItems.find((item) => item.to === pathname)
-  const homePath = homePathForRole(user.role)
-  // Only administrators use this shell; participants have ParticipantShell.
+  // Only administrators use this shell; participants and hostesses have ParticipantShell.
+  const homePath = '/admin'
   const settingsPath = '/admin/settings'
   const items: ReadonlyArray<DashboardNavigationItem> = navigationItems.map((item) => ({
     ...item,

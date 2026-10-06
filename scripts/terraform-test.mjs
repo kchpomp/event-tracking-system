@@ -15,11 +15,6 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const roots = [
-  'infra/digitalocean/bootstrap',
-  'infra/digitalocean/operations',
-  'infra/digitalocean/production',
-  'infra/digitalocean/runtime',
-  'infra/digitalocean/static',
   'infra/yandex/bootstrap',
   'infra/yandex/operations',
   'infra/yandex/production',
@@ -59,7 +54,7 @@ try {
 }
 
 async function testProductionMutationLease() {
-  const sourceRoot = resolve(repoRoot, 'infra/digitalocean/operations')
+  const sourceRoot = resolve(repoRoot, 'infra/yandex/operations')
   const root = resolve(testDirectory, 'lease-root')
   const dataDirectory = resolve(testDirectory, 'lease-terraform-data')
   const statePath = resolve(testDirectory, 'operations.tfstate')
@@ -71,8 +66,9 @@ async function testProductionMutationLease() {
     resolve(sourceRoot, 'main.tf'),
     'utf8',
   )
+  // `\r?` because a Windows checkout has CRLF line endings.
   const localConfiguration = productionConfiguration.replace(
-    /\n  backend "s3" \{[\s\S]*?\n  \}\n/,
+    /\r?\n  backend "s3" \{[\s\S]*?\r?\n  \}\r?\n/,
     '\n',
   )
   if (localConfiguration === productionConfiguration) {

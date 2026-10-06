@@ -44,7 +44,8 @@ model User {
 
   // Event participation; remove together with prisma/schema/event.prisma.
   stationVisits  StationVisit[]
-  activityLog    ActivityLog[]
+  activityLog    ActivityLog[]  @relation("ActivityParticipant")
+  awardedPoints  ActivityLog[]  @relation("ActivityAwardedBy")
   connectionsAsA Connection[]   @relation("ConnectionA")
   connectionsAsB Connection[]   @relation("ConnectionB")
   ideas          Idea[]
@@ -70,6 +71,8 @@ model PasswordResetToken {
 enum UserRole {
   user
   admin
+  /// Event staff: finds participants and awards station points on their behalf.
+  hostess
 
   @@map("user_role")
 }

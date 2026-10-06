@@ -9,7 +9,7 @@
 | Путь | Назначение | Руководство |
 | --- | --- | --- |
 | `backend` | API на Bun/Hono, Prisma/PostgreSQL, Zod, JWT, OpenAPI, задачи. Модуль события: `backend/src/modules/event` | [backend/README.md](backend/README.md) |
-| `webapp` | React SPA: регистрация, вход, экраны участника (`/app`), администратор (`/admin`) | [webapp/README.md](webapp/README.md) |
+| `webapp` | React SPA: регистрация, вход, экраны участника (`/app`), хостес (`/hostess`), администратор (`/admin`) | [webapp/README.md](webapp/README.md) |
 | `website` | Astro: публичная страница входа | [website/README.md](website/README.md) |
 | `packages/contracts` | Общие схемы Zod и типы API | [packages/contracts/README.md](packages/contracts/README.md) |
 | `mobile` | Приложение Expo. Отложено: участники работают в браузере телефона | [mobile/README.md](mobile/README.md) |
@@ -69,6 +69,7 @@ bun run dev:website    # http://localhost:4321
 | Файлы, почта | [STORAGE.md](docs/STORAGE.md), [EMAIL.md](docs/EMAIL.md) |
 | Вход через Apple и Google, подписки магазинов (выключены) | [SOCIAL_AUTH.md](docs/SOCIAL_AUTH.md), [IAP.md](docs/IAP.md) |
 | Деплой в Yandex Cloud по шагам (для владельца) | [YANDEX_DEPLOY.md](docs/YANDEX_DEPLOY.md) |
+| Как обновлять приложение в облаке | [YANDEX_UPDATE.md](docs/YANDEX_UPDATE.md) |
 | Деплой, справочники | [DEPLOYMENT.md](docs/DEPLOYMENT.md), [YANDEX_CLOUD.md](docs/YANDEX_CLOUD.md), [infra/README.md](infra/README.md) |
 
 ## Лицензия

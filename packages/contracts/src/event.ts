@@ -108,6 +108,54 @@ export const adminStationsResponseSchema = z
   })
   .strict()
 
+// ---- Hostesses: staff who help participants (find them, award a station on their behalf) ----
+
+export const HOSTESS_SEARCH_MIN = 2
+export const HOSTESS_SEARCH_MAX = 100
+export const HOSTESS_SEARCH_LIMIT = 20
+
+/** What staff see about a participant: enough to tell two people with one name apart. */
+export const hostessParticipantSchema = z
+  .object({
+    id: z.string(),
+    fullName: z.string(),
+    company: z.string().nullable(),
+    city: z.string().nullable(),
+    email: z.string(),
+    totalPoints: z.number().int().nonnegative(),
+  })
+  .strict()
+
+export const hostessSearchQuerySchema = z
+  .object({ q: z.string().trim().min(HOSTESS_SEARCH_MIN).max(HOSTESS_SEARCH_MAX) })
+  .strict()
+
+export const hostessParticipantsResponseSchema = z
+  .object({ participants: z.array(hostessParticipantSchema) })
+  .strict()
+
+export const hostessParticipantParamsSchema = z.object({ participantId: z.uuid() }).strict()
+
+/** A scanned participant QR (the token of «Показать мой QR»). */
+export const hostessResolveRequestSchema = z.object({ token: tokenSchema }).strict()
+
+/** The participant and every active station, each marked visited for THAT participant. */
+export const hostessParticipantResponseSchema = z
+  .object({ participant: hostessParticipantSchema, stations: z.array(stationSummarySchema) })
+  .strict()
+
+export const hostessAwardRequestSchema = z
+  .object({ participantId: z.uuid(), stationId: z.uuid() })
+  .strict()
+
+export const hostessAwardResponseSchema = z
+  .object({
+    pointsAwarded: z.number().int().nonnegative(),
+    totalPoints: z.number().int().nonnegative(),
+    alreadyCompleted: z.boolean(),
+  })
+  .strict()
+
 export const updateEventRequestSchema = z.object({ isActive: z.boolean() }).strict()
 export const updateEventResponseSchema = z
   .object({ event: z.object({ id: z.string(), isActive: z.boolean() }).strict() })
@@ -128,5 +176,11 @@ export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>
 export type LeaderboardResponse = z.infer<typeof leaderboardResponseSchema>
 export type AdminStation = z.infer<typeof adminStationSchema>
 export type AdminStationsResponse = z.infer<typeof adminStationsResponseSchema>
+export type HostessParticipant = z.infer<typeof hostessParticipantSchema>
+export type HostessParticipantsResponse = z.infer<typeof hostessParticipantsResponseSchema>
+export type HostessResolveRequest = z.infer<typeof hostessResolveRequestSchema>
+export type HostessParticipantResponse = z.infer<typeof hostessParticipantResponseSchema>
+export type HostessAwardRequest = z.infer<typeof hostessAwardRequestSchema>
+export type HostessAwardResponse = z.infer<typeof hostessAwardResponseSchema>
 export type UpdateEventRequest = z.infer<typeof updateEventRequestSchema>
 export type UpdateEventResponse = z.infer<typeof updateEventResponseSchema>

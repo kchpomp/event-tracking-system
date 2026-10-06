@@ -16,6 +16,7 @@ export const workspaceRoutesByRole = {
     '/app/profile',
   ],
   admin: ['/admin', '/admin/users', '/admin/stations', '/admin/settings'],
+  hostess: ['/hostess', '/hostess/scan', '/hostess/participant/$participantId'],
 } as const satisfies Record<UserRole, ReadonlyArray<`/${string}`>>
 
 type WorkspaceRouteTable = Record<UserRole, ReadonlyArray<string>>
@@ -40,14 +41,22 @@ const navigationByRole = {
     { label: 'Станции', to: '/admin/stations' },
     { label: 'Настройки', to: '/admin/settings' },
   ],
+  // Hostesses, like participants, use the phone shell without a sidebar.
+  hostess: [],
 } as const satisfies Record<UserRole, ReadonlyArray<{ label: string; to: WorkspaceRoutePath }>>
 
 export function navigationItemsForRole(role: UserRole) {
   return navigationByRole[role]
 }
 
-export function homePathForRole(role: UserRole): '/app' | '/admin' {
-  return role === 'admin' ? '/admin' : '/app'
+const homeByRole = {
+  user: '/app',
+  admin: '/admin',
+  hostess: '/hostess',
+} as const satisfies Record<UserRole, `/${string}`>
+
+export function homePathForRole(role: UserRole) {
+  return homeByRole[role]
 }
 
 export function resolveRoleDestination(role: UserRole, pathname: string): string {

@@ -17,6 +17,22 @@ export function orderedPair(first: string, second: string): [string, string] {
   return first < second ? [first, second] : [second, first]
 }
 
+type Named = { firstName: string | null; lastName: string | null; displayName: string | null }
+
+/** First and last name, else the display name, else «Участник»: as the leaderboard shows people. */
+export function participantFullName(user: Named) {
+  return (
+    [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+    user.displayName?.trim() ||
+    'Участник'
+  )
+}
+
+/** A staff search split into words: «Анна Петрова» must match first name Анна AND last name Петрова. */
+export function searchWords(query: string) {
+  return query.trim().split(/\s+/).filter(Boolean).slice(0, 5)
+}
+
 type Workplace = { city: string | null; company: string | null }
 
 const normalized = (value: string | null) => value?.trim().toLowerCase() ?? null

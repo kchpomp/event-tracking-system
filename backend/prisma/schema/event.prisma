@@ -60,7 +60,11 @@ model ActivityLog {
   pointsAwarded Int            @map("points_awarded")
   /// The station / connection / idea the row is about.
   refId         String         @map("ref_id") @db.Uuid
-  participant   User           @relation(fields: [participantId], references: [id], onDelete: Cascade, map: "activity_log_participant_id_fkey")
+  /// The hostess who awarded the row on the participant's behalf; null for rows the participant
+  /// scored themselves.
+  awardedById   String?        @map("awarded_by_id") @db.Uuid
+  participant   User           @relation("ActivityParticipant", fields: [participantId], references: [id], onDelete: Cascade, map: "activity_log_participant_id_fkey")
+  awardedBy     User?          @relation("ActivityAwardedBy", fields: [awardedById], references: [id], onDelete: SetNull, map: "activity_log_awarded_by_id_fkey")
 
   /// Nothing is scored twice.
   @@unique([participantId, actionType, refId], map: "activity_log_once_per_ref")
