@@ -42,8 +42,9 @@ Cron, the scheduler, and the worker use `createBackgroundRuntime`. It replaces `
 - `EMAIL_DELIVERY`: the schema default is `disabled`; `.env.example` sets `console`, which prints reset links. Production refuses `console`. With `disabled`, a reset request answers normally but creates no token or task. See [EMAIL](../docs/EMAIL.md).
 - `PRIVATE_STORAGE_DRIVER`: `filesystem` (default) writes to `backend/.storage` without cloud or Docker. `s3` works with the local container (`bun run storage:local:start`) or a real bucket. Production refuses `filesystem`. See [STORAGE](../docs/STORAGE.md).
 - Production-like runtimes (`NODE_ENV=production` or `COOKIE_SECURE=true`) require HTTPS `CORS_ORIGINS` and a `JWT_SECRET` of at least 64 hex characters (`openssl rand -hex 32`). `NODE_ENV=production` also requires `COOKIE_SECURE=true`.
+- `EVENT_RATE_LIMIT_MAX` and `EVENT_RATE_LIMIT_WINDOW_SECONDS`: the per-address budget of `/api/event/*` (default 6000 a minute). A whole venue shares one Wi-Fi address, so the 60 a minute of the account budget cannot serve it. Auth routes keep their own budget.
 - `src/db.ts` adds `uselibpqcompat=true` to a `DATABASE_URL` with `sslmode=require`, so TLS behaves as in libpq.
-- Seeds: `bun run dev:seed` creates the local admin and user from `DEV_SEED_*`, with no subscription or premium access. It refuses production and non-loopback database URLs. A rerun with unchanged passwords keeps the hashes, sessions, and push registrations. A changed password is rehashed, and that account's sessions and push registrations are revoked. `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` feed only `db:deploy`, which creates the first production admin (12–128 characters, no placeholder or repeated pattern).
+- Seeds: `bun run dev:seed` creates the local admin and user from `DEV_SEED_*`, with no subscription or premium access. It refuses production and non-loopback database URLs. A rerun with unchanged passwords keeps the hashes, sessions, and push registrations. A changed password is rehashed, and that account's sessions and push registrations are revoked. `dev:seed`, `event:seed` and `db:deploy` also create the first event with its 15 stations, only when the database has none, so printed QR codes are never regenerated. `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` feed only `db:deploy`, which creates the first production admin (12–128 characters, no placeholder or repeated pattern).
 - Push: `ENABLE_TEST_PUSH=true` opens the test endpoint; keep it off outside a check. `EXPO_PUSH_ACCESS_TOKEN` is needed only when the Expo project enables push security. APNs and FCM keys live in Expo, not here. Setup: [mobile/README](../mobile/README.md).
 - Apple and Google sign-in (`APPLE_AUTH_*`, `GOOGLE_AUTH_CLIENT_IDS`) ship switched off: the route and the buttons are not wired. See [SOCIAL_AUTH](../docs/SOCIAL_AUTH.md).
 - Store subscriptions (`APPLE_IAP_*`, `GOOGLE_PLAY_*`, and the `IAP_*` and `WEBHOOK_*` body and rate limits of their routes) ship switched off. Turn them on or remove them with [IAP](../docs/IAP.md).
@@ -56,7 +57,8 @@ Cron, the scheduler, and the worker use `createBackgroundRuntime`. It replaces `
 | --- | --- | --- |
 | `/api/auth/*` | auth | Browser cookie sessions, `/api/auth/token/*` for native apps, password reset |
 | `/api/users/*` | users | The current user's profile |
-| `/api/admin/*` | users | Dashboard, user directory, role changes; `admin` only |
+$1| `/api/admin/stations`, `/api/admin/event` | event | Station list with QR tokens, opening and closing the event; `admin` only |
+| `/api/event/*` | event | A participant's profile and progress, stations, scan, connections, ideas, leaderboard; `user` only |
 | `/api/uploads/*` | uploads | Avatar upload, finalize, read, and delete |
 | `/api/notifications/*` | notifications | Push token registration and unregistration; a test push only with `ENABLE_TEST_PUSH=true` |
 | `/storage/*` | storage | Signed local URLs; `filesystem` driver only |

@@ -1,6 +1,8 @@
 # Mobile
 
-The Expo app lives on the `mobile` branch, not on `master`. It serves ordinary users on iOS, Android, and Expo Web. It uses the same API contracts as `webapp` (`@web-app-demo/contracts`). Administration and the demo admin account belong to `webapp`.
+**Status: deferred.** The Event Tracking System serves participants in the phone browser through `webapp`, so this app is not configured or built: no Expo account, EAS project, or Maestro run ([CHECKLIST](../CHECKLIST.md), section 3). Before you activate it, adapt `src/features/auth`: registration now needs `firstName`, `lastName`, `company`, `city`, and `consent` (the old `displayName` body is rejected), and the event screens live only in `webapp/src/features/event`.
+
+The Expo app lives on the `mobile` branch, not on `master`. It serves ordinary users on iOS, Android, and Expo Web. It uses the same API contracts as `webapp` (`@event-tracking-system/contracts`). Administration and the demo admin account belong to `webapp`.
 
 The branch adds the Expo app, development builds, Maestro E2E, and Expo Push. Social sign-in and App Store and Google Play subscriptions are implemented but switched off.
 
@@ -34,7 +36,7 @@ Stop setup if the ancestry check fails; the template owner must merge `master` i
 
 ## Run locally
 
-Prepare the backend with the root [quick start](../README.md#quick-start). The seed user signs in to the app:
+Prepare the backend with the root [quick start](../README.md#быстрый-старт). The seed user signs in to the app:
 
 | Email | Password | Screen after sign-in |
 | --- | --- | --- |
@@ -61,7 +63,7 @@ The iOS Simulator can hide this error, because its loopback address reaches the 
 ## Stack
 
 - Expo SDK 57, React Native, TypeScript, and Expo Router.
-- TanStack Query and Form, and Zod from `@web-app-demo/contracts`.
+- TanStack Query and Form, and Zod from `@event-tracking-system/contracts`.
 - Expo SecureStore and Expo Notifications.
 - Expo ImagePicker, ImageManipulator, and FileSystem for the profile photo.
 - Expo Apple Authentication and React Native Google Sign-In for the optional social sign-in.
@@ -139,7 +141,7 @@ After a change to Maestro, its launch options, or mobile E2E behavior, run the a
 bun run --cwd mobile e2e:maestro:audit
 ```
 
-Before Maestro starts, the runner checks `EXPO_PUBLIC_E2E=1`, the API health URL, and Metro. It builds the dev-client scheme `exp+<slug>` from the app config and targets the app ID `com.webappdemo.mobile`. After you change the bundle identifier or package, set `MAESTRO_APP_ID`.
+Before Maestro starts, the runner checks `EXPO_PUBLIC_E2E=1`, the API health URL, and Metro. It builds the dev-client scheme `exp+<slug>` from the app config and targets the app ID `com.eventtrackingsystem.mobile`. After you change the bundle identifier or package, set `MAESTRO_APP_ID`.
 
 ## Code rules
 

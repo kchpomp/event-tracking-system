@@ -60,7 +60,7 @@ export default async function globalSetup() {
 
   if (process.env.E2E_SKIP_DOCKER !== '1') {
     run('docker', [...composeArgs, 'up', '-d', postgresTestService], env)
-    await waitForComposePostgres(postgresTestService, 'web_app_demo_test', env)
+    await waitForComposePostgres(postgresTestService, 'event_tracking_system_test', env)
   }
 
   run('bun', ['run', '--cwd', 'backend', 'prisma:deploy'], env)

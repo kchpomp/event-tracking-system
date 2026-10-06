@@ -13,9 +13,9 @@ import {
   type PushInstallationRegistration,
 } from './push-installation-state';
 
-const pushTokenKey = 'web_app_demo_expo_push_token';
-const pushTokenCleanupKey = 'web_app_demo_expo_push_token_cleanup';
-const pushInstallationStateKey = 'web_app_demo_push_installation';
+const pushTokenKey = 'event_tracking_system_expo_push_token';
+const pushTokenCleanupKey = 'event_tracking_system_expo_push_token_cleanup';
+const pushInstallationStateKey = 'event_tracking_system_push_installation';
 const pushTokenCleanupLimit = 10;
 export type { PushInstallationMutation, PushInstallationRegistration };
 type PushTokenStorageOperationOptions = {

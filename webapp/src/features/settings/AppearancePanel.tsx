@@ -26,9 +26,9 @@ const themes = ['system', 'light', 'dark'] as const
 type Theme = typeof themes[number]
 
 const themeOptions = {
-  system: { icon: ComputerIcon, label: 'System' },
-  light: { icon: Sun01Icon, label: 'Light' },
-  dark: { icon: Moon02Icon, label: 'Dark' },
+  system: { icon: ComputerIcon, label: 'Как в системе' },
+  light: { icon: Sun01Icon, label: 'Светлая' },
+  dark: { icon: Moon02Icon, label: 'Тёмная' },
 } as const
 
 export function AppearancePanel() {
@@ -39,15 +39,15 @@ export function AppearancePanel() {
     <Card>
       <CardHeader>
         <Typography as="h2" variant="h6">
-          Appearance
+          Оформление
         </Typography>
         <CardDescription>
-          Follow your device preference or keep a consistent light or dark theme.
+          Следовать настройке устройства или всегда держать светлую или тёмную тему.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Field>
-          <FieldLabel htmlFor="appearance-theme">Theme</FieldLabel>
+          <FieldLabel htmlFor="appearance-theme">Тема</FieldLabel>
           <Select
             onValueChange={(value) => {
               if (isTheme(value)) setTheme(value)
@@ -67,7 +67,7 @@ export function AppearancePanel() {
             </SelectContent>
           </Select>
           <FieldDescription>
-            Changes are saved in this browser and applied immediately.
+            Выбор сохраняется в этом браузере и применяется сразу.
           </FieldDescription>
         </Field>
       </CardContent>

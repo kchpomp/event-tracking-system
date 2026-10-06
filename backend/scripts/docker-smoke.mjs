@@ -12,10 +12,10 @@ import {
   repositoryRoot,
 } from '../../scripts/repo-env.mjs'
 
-const imageName = process.env.BACKEND_DOCKER_SMOKE_IMAGE ?? 'vibecoding-template-backend:smoke'
+const imageName = process.env.BACKEND_DOCKER_SMOKE_IMAGE ?? 'event-tracking-system-backend:smoke'
 const containerName =
   process.env.BACKEND_DOCKER_SMOKE_CONTAINER ??
-  `vibecoding-template-backend-smoke-${repositoryHash}-${process.pid}`
+  `event-tracking-system-backend-smoke-${repositoryHash}-${process.pid}`
 const hostPort = process.env.BACKEND_DOCKER_SMOKE_PORT ?? String(await findOpenPort())
 const smokeComposeProjectName = `${composeProjectName}-backend-smoke-${process.pid}`
 const networkName = `${smokeComposeProjectName}_default`
@@ -28,7 +28,7 @@ const databaseUrlForHost =
   defaultTestDatabaseUrl(postgresHostPort)
 const databaseUrlForContainer =
   process.env.BACKEND_DOCKER_SMOKE_DATABASE_URL ??
-  'postgresql://superuser:superpassword@postgres_test:5432/web_app_demo_test?schema=public'
+  'postgresql://superuser:superpassword@postgres_test:5432/event_tracking_system_test?schema=public'
 assertTestDatabaseUrl(databaseUrlForHost)
 assertTestDatabaseUrl(databaseUrlForContainer, {
   allowEnvName: 'BACKEND_DOCKER_SMOKE_ALLOW_NON_TEST_DATABASE',
@@ -86,7 +86,7 @@ async function waitForComposePostgres() {
         '-U',
         'superuser',
         '-d',
-        'web_app_demo_test',
+        'event_tracking_system_test',
       ],
       {
         cwd: repositoryRoot,

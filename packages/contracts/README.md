@@ -1,6 +1,6 @@
 # Contracts
 
-`@web-app-demo/contracts` holds the shared Zod schemas and inferred TypeScript types for API requests, responses, and errors. The backend, `webapp`, and `mobile` import them. Never redefine these shapes in an app. The contracts-first workflow, including which consumers to check after a change, is in [ARCHITECTURE](../../docs/ARCHITECTURE.md).
+`@event-tracking-system/contracts` holds the shared Zod schemas and inferred TypeScript types for API requests, responses, and errors. The backend, `webapp`, and `mobile` import them. Never redefine these shapes in an app. The contracts-first workflow, including which consumers to check after a change, is in [ARCHITECTURE](../../docs/ARCHITECTURE.md).
 
 ## Rules
 

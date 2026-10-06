@@ -8,7 +8,7 @@ type BrowserLockManager = {
   ) => Promise<T>
 }
 
-const browserAuthLockName = 'web_app_demo:auth-cookie-mutation'
+const browserAuthLockName = 'event_tracking_system:auth-cookie-mutation'
 
 /**
  * Serializes cookie auth mutations (login, refresh, logout) across every tab through Web Locks.

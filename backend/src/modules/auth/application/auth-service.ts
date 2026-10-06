@@ -5,7 +5,7 @@ import type {
   RegisterPayload,
   SocialAuthPayload,
   SocialAuthProvider,
-} from '@web-app-demo/contracts'
+} from '@event-tracking-system/contracts'
 
 import { AuthFailure } from '../domain/errors'
 import { sessionExpiresAt, type SessionMetadata } from '../domain/session'
@@ -69,7 +69,7 @@ export class AuthService {
     const now = this.dependencies.clock.now()
     const refreshToken = this.dependencies.refreshTokens.create()
     const { user, session } = await this.dependencies.repository.createPasswordUserWithSession({
-      user: { ...input, passwordHash },
+      user: { ...input, passwordHash, consentedAt: now },
       session: {
         refreshTokenHash: this.dependencies.refreshTokens.hash(refreshToken),
         refreshTokenFamilyHash: this.dependencies.refreshTokens.familyHash(refreshToken),

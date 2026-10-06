@@ -1,4 +1,4 @@
-import type { Avatar } from '@web-app-demo/contracts';
+import type { Avatar } from '@event-tracking-system/contracts';
 
 /**
  * The longest edge a stored avatar needs.

@@ -54,6 +54,7 @@ export function createAuthModule({
       executeAuth(() => service.authenticateAccessToken(accessToken)),
     requireAuth,
     requireAdmin: createRequireRole('admin'),
+    requireParticipant: createRequireRole('user'),
     routes: createAuthRoutes({ env, requireAuth, service }),
   }
 }

@@ -1,4 +1,4 @@
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@event-tracking-system/contracts'
 import { useId, useState, type FormEvent } from 'react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -31,17 +31,17 @@ export function ProfilePanel({ user }: { user: UserDto }) {
     <Card>
       <CardHeader>
         <Typography as="h2" variant="h6">
-          Profile details
+          Профиль
         </Typography>
         <CardDescription>
-          Update the name shown throughout your workspace. Your email is managed separately.
+          Имя, которое показывается в кабинете. Email меняется отдельно.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="grid gap-5" noValidate onSubmit={submit}>
           <FieldGroup>
             <Field data-invalid={displayNameInvalid}>
-              <FieldLabel htmlFor="profile-display-name">Display name</FieldLabel>
+              <FieldLabel htmlFor="profile-display-name">Отображаемое имя</FieldLabel>
               <Input
                 aria-describedby={errorId(displayNameErrors, displayNameErrorId)}
                 aria-invalid={displayNameInvalid}
@@ -53,10 +53,10 @@ export function ProfilePanel({ user }: { user: UserDto }) {
                   setDisplayName(event.target.value)
                   mutation.reset()
                 }}
-                placeholder="Your name"
+                placeholder="Ваше имя"
                 value={displayName}
               />
-              <FieldDescription>Leave empty to use your email instead.</FieldDescription>
+              <FieldDescription>Оставьте пустым, чтобы показывался email.</FieldDescription>
               <FieldError id={displayNameErrorId} errors={displayNameErrors} />
             </Field>
             <Field>
@@ -67,26 +67,26 @@ export function ProfilePanel({ user }: { user: UserDto }) {
                 readOnly
                 value={user.email}
               />
-              <FieldDescription>Email changes are not enabled in this template.</FieldDescription>
+              <FieldDescription>Смена email пока недоступна.</FieldDescription>
             </Field>
           </FieldGroup>
 
           {validation.errors?.formError && (
             <Alert variant="destructive">
-              <AlertTitle>Profile cannot be saved</AlertTitle>
+              <AlertTitle>Профиль нельзя сохранить</AlertTitle>
               <AlertDescription>{validation.errors.formError}</AlertDescription>
             </Alert>
           )}
           {mutation.isError && (
             <Alert variant="destructive">
-              <AlertTitle>Profile was not saved</AlertTitle>
+              <AlertTitle>Профиль не сохранён</AlertTitle>
               <AlertDescription>{mutation.error.message}</AlertDescription>
             </Alert>
           )}
           {mutation.isSuccess && (
             <Alert>
-              <AlertTitle>Profile saved</AlertTitle>
-              <AlertDescription>Your display name is up to date.</AlertDescription>
+              <AlertTitle>Профиль сохранён</AlertTitle>
+              <AlertDescription>Отображаемое имя обновлено.</AlertDescription>
             </Alert>
           )}
 
@@ -96,7 +96,7 @@ export function ProfilePanel({ user }: { user: UserDto }) {
               disabled={mutation.isPending || validation.errors !== null}
               type="submit"
             >
-              {mutation.isPending ? 'Saving…' : 'Save profile'}
+              {mutation.isPending ? 'Сохраняем…' : 'Сохранить'}
             </Button>
           </div>
         </form>

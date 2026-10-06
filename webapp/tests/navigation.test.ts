@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import type { UserRole } from '@web-app-demo/contracts'
+import type { UserRole } from '@event-tracking-system/contracts'
 
 import {
   homePathForRole,

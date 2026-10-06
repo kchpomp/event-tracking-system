@@ -25,6 +25,14 @@ export const apiErrorCodeSchema = z.enum([
   'UPLOAD_NOT_COMPLETED',
   'UPLOAD_REJECTED',
   'UPLOAD_EXPIRED',
+  // Event participation: each is a different thing for the participant to do next, so the client
+  // maps every code to its own Russian sentence instead of parsing a message.
+  'EVENT_INVALID_STATION_TOKEN',
+  'EVENT_STATION_INACTIVE',
+  'EVENT_NOT_ACTIVE',
+  'DIFFUSION_INVALID_PARTICIPANT_TOKEN',
+  'DIFFUSION_SELF',
+  'DIFFUSION_SAME_CITY_AND_COMPANY',
   'INTERNAL_ERROR',
 ])
 

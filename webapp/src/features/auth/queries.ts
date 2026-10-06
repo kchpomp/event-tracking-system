@@ -11,7 +11,7 @@ import type {
   MeResponse,
   PasswordResetConfirmRequest,
   RegisterRequest,
-} from '@web-app-demo/contracts'
+} from '@event-tracking-system/contracts'
 
 import type { AuthApi } from './api'
 

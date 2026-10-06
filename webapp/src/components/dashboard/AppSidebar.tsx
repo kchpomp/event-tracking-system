@@ -1,4 +1,4 @@
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@event-tracking-system/contracts'
 
 import {
   Sidebar,
@@ -38,14 +38,14 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild size="lg" tooltip="web_app_demo">
+            <SidebarMenuButton asChild size="lg" tooltip="Формула Будущего">
               <DashboardLink to={homePath}>
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Typography variant="control">W</Typography>
+                  <Typography variant="control">Ф</Typography>
                 </span>
                 <span className="grid min-w-0 gap-0.5 group-data-[collapsible=icon]:hidden">
                   <Typography variant="control" truncate>
-                    web_app_demo
+                    Формула Будущего
                   </Typography>
                   <Typography variant="caption" tone="muted" truncate>
                     {workspaceLabel}

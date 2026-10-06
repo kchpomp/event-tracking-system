@@ -20,7 +20,7 @@ describe('drainOptionsFromEnv', () => {
     // Dropping one here would silently ignore an operator's setting: the drain would fall back
     // to its own default and nothing would say so.
     const env = loadEnv({
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
       JWT_SECRET: '12345678901234567890123456789012',
       TASK_OUTBOX_BATCH_LIMIT: '7',
       TASK_OUTBOX_LEASE_STALE_MS: '90000',

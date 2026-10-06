@@ -7,7 +7,8 @@ import {
   validateMobileCapabilityContract,
 } from './check-mobile-template.mjs'
 
-const currentChecklist = readFileSync(resolve(import.meta.dir, '..', 'CHECKLIST.md'), 'utf8')
+// Normalised: on Windows git checks the file out with CRLF line endings, which the regexes below do not expect.
+const currentChecklist = readFileSync(resolve(import.meta.dir, '..', 'CHECKLIST.md'), 'utf8').replace(/\r\n/g, '\n')
 
 test('the mobile publication gate executes every local safety layer in order', () => {
   const calls = []

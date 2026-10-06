@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@event-tracking-system/contracts'
 import { afterEach, beforeEach, expect, test } from 'bun:test'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'

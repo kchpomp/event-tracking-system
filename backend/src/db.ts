@@ -172,6 +172,23 @@ export function acquireUserAvatarMutationLock(
   )
 }
 
+/**
+ * Serialises everything that scores for one participant (a scan, a connection, an idea).
+ *
+ * The rules "one Polymer award per person", "the first 3 connections score" and "the first 5
+ * ideas score" each read the participant's earlier ledger rows and then write one more, so two
+ * requests at once would both read the old count. With this lock they queue. A connection takes
+ * the locks of BOTH people, lowest id first, so two people scanning each other cannot deadlock.
+ */
+export function acquireParticipantScoringLock(
+  prisma: Pick<DbClient, '$executeRaw'>,
+  participantId: string,
+) {
+  return prisma.$executeRaw(
+    Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`participant-scoring:${participantId}`}, 0))`,
+  )
+}
+
 export function normalizePgConnectionString(connectionString: string) {
   const url = new URL(connectionString)
   const sslMode = url.searchParams.get('sslmode')

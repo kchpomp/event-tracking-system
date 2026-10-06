@@ -27,7 +27,7 @@ export function passwordConfirmationErrors(
   password: string,
   confirmation: string,
 ): FormError[] | undefined {
-  return password === confirmation ? undefined : [{ message: 'Passwords do not match' }]
+  return password === confirmation ? undefined : [{ message: 'Пароли не совпадают' }]
 }
 
 export function clearFieldError(
@@ -57,9 +57,13 @@ function describeIssue(issue: z.ZodIssue) {
 
 function isFieldName(field: unknown): field is FieldName {
   return (
+    field === 'city' ||
+    field === 'company' ||
     field === 'confirmPassword' ||
     field === 'displayName' ||
     field === 'email' ||
+    field === 'firstName' ||
+    field === 'lastName' ||
     field === 'password'
   )
 }

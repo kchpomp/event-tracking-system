@@ -2,7 +2,7 @@ import {
   ADMIN_USERS_MAX_PAGE,
   type AdminUserSummary,
   type UpdateUserRoleResponse,
-} from '@web-app-demo/contracts'
+} from '@event-tracking-system/contracts'
 
 type AdminUsersQueryState = {
   isError: boolean

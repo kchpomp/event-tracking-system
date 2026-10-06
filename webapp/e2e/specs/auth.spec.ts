@@ -1,43 +1,34 @@
-import {
-  expect,
-  fillSignupForm,
-  logIn,
-  logOut,
-  signUp,
-  test,
-  uniqueEmail,
-} from '../helpers/test'
+import { expect, fillSignupForm, logIn, logOut, signUp, test, uniqueEmail } from '../helpers/test'
 
-test('registers, restores the session, opens protected UI, and logs out', async ({ page }) => {
+test('registers, restores the session, opens the profile, and logs out and in again', async ({ page }) => {
   const email = uniqueEmail()
-  const displayName = 'Web E2E User'
 
-  await signUp(page, email, displayName)
+  await signUp(page, email, { firstName: 'Ирина', lastName: 'Орлова', company: 'Завод', city: 'Омск' })
 
   await expect(page).toHaveURL(/\/app$/)
-  await expect(page.getByTestId('primary-navigation')).toBeVisible()
-  await expect(page.getByTestId('nav-link-app')).toBeVisible()
-  await expect(page.getByTestId('nav-link-admin')).toHaveCount(0)
-  await expect(page.getByTestId('current-user-email')).toHaveText(email)
+  await expect(page.getByTestId('total-points')).toBeVisible()
 
   // The access token lives in memory, so after a reload only the refresh cookie can sign in.
   await page.reload()
-  await expect(page.getByTestId('current-user-email')).toHaveText(email)
+  await expect(page.getByTestId('total-points')).toBeVisible()
 
-  await page.getByTestId('nav-link-app-profile').click()
+  await page.getByTestId('nav-profile').click()
   await expect(page).toHaveURL(/\/app\/profile$/)
-  await expect(page.getByTestId('profile-display-name')).toHaveValue(displayName)
-  await page.getByTestId('profile-display-name').fill('  Updated Web User  ')
-  await page.getByTestId('profile-save').click()
-  await expect(page.getByTestId('profile-display-name')).toHaveValue('Updated Web User')
-  await page.reload()
-  await expect(page.getByTestId('profile-display-name')).toHaveValue('Updated Web User')
+  await expect(page.getByTestId('profile-email')).toHaveText(email)
+  await expect(page.getByTestId('profile-firstName')).toHaveText('Ирина')
 
   await logOut(page)
   await expect(page.getByTestId('login-form')).toBeVisible()
   await logIn(page, email)
+  // The page the person left from is restored: they signed out on the profile page.
   await expect(page).toHaveURL(/\/app\/profile$/)
-  await expect(page.getByTestId('profile-display-name')).toHaveValue('Updated Web User')
+  await expect(page.getByTestId('profile-email')).toHaveText(email)
+})
+
+test('shows a clear message for a wrong password', async ({ page }) => {
+  await page.goto('/login')
+  await logIn(page, uniqueEmail('nobody'), 'wrong-password-123')
+  await expect(page.getByText('Неверный email или пароль.')).toBeVisible()
 })
 
 test('shows generic forgot-password success and handles an invalid reset link', async ({ page }) => {
@@ -65,9 +56,8 @@ test('keeps one logical browser session active across concurrent tabs', async ({
   await expect(secondPage).toHaveURL(/\/app$/)
 
   await Promise.all([page.reload(), secondPage.reload()])
-
-  await expect(page.getByTestId('current-user-email')).toHaveText(email)
-  await expect(secondPage.getByTestId('current-user-email')).toHaveText(email)
+  await expect(page.getByTestId('total-points')).toBeVisible()
+  await expect(secondPage.getByTestId('total-points')).toBeVisible()
 
   await page.route('**/api/auth/logout', async (route) => {
     await route.fulfill({
@@ -78,7 +68,7 @@ test('keeps one logical browser session active across concurrent tabs', async ({
   })
   await logOut(page)
   await expect(page.getByTestId('logout-error')).toBeVisible()
-  await expect(page.getByTestId('current-user-email')).toHaveText(email)
+  await expect(page.getByTestId('total-points')).toBeVisible()
 
   await logOut(secondPage)
   await expect(secondPage.getByTestId('login-form')).toBeVisible()
@@ -101,16 +91,16 @@ test('concurrent account changes converge every tab on the winning cookie sessio
 
   await expect(page).toHaveURL(/\/app$/)
   await expect(secondPage).toHaveURL(/\/app$/)
+
+  const emailOf = async (tab: typeof page) => {
+    await tab.goto('/app/profile')
+    return tab.getByTestId('profile-email').textContent()
+  }
   await expect
     .poll(async () => {
-      const [firstTab, secondTab] = await Promise.all(
-        [page, secondPage].map((tab) => tab.getByTestId('current-user-email').allTextContents()),
-      )
-      const signedInEmail = firstTab.length === 1 ? firstTab[0] : undefined
-      return signedInEmail !== undefined &&
-        secondTab.length === 1 &&
-        secondTab[0] === signedInEmail &&
-        [firstEmail, secondEmail].includes(signedInEmail)
+      const first = await emailOf(page)
+      const second = await emailOf(secondPage)
+      return first !== null && first === second && [firstEmail, secondEmail].includes(first)
     })
     .toBe(true)
 })

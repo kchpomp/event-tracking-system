@@ -1,12 +1,21 @@
-import type { UserRole } from '@web-app-demo/contracts'
+import type { UserRole } from '@event-tracking-system/contracts'
 
 // Every path pattern registered under the role's workspace layout in `src/routes.tsx`, in TanStack
 // syntax (`$param` segments). This is the return-path allow-list: a protected route survives the
 // login round-trip whether or not the sidebar links to it. `tests/navigation.test.ts` fails when
 // this table and the router drift apart.
 export const workspaceRoutesByRole = {
-  user: ['/app', '/app/profile', '/app/settings'],
-  admin: ['/admin', '/admin/users', '/admin/settings'],
+  user: [
+    '/app',
+    '/app/scan',
+    '/app/station/$stationId',
+    '/app/diffusion',
+    '/app/diffusion/scan',
+    '/app/ideas',
+    '/app/polymer',
+    '/app/profile',
+  ],
+  admin: ['/admin', '/admin/users', '/admin/stations', '/admin/settings'],
 } as const satisfies Record<UserRole, ReadonlyArray<`/${string}`>>
 
 type WorkspaceRouteTable = Record<UserRole, ReadonlyArray<string>>
@@ -20,15 +29,16 @@ export type WorkspaceRoutePath = UserRoutePath | AdminRoutePath
 
 // The sidebar menu is a presentation subset of the workspace routes; the type keeps it one.
 const navigationByRole = {
+  // Participants have no sidebar (see ParticipantShell); the entry only keeps the table total.
   user: [
-    { label: 'Home', to: '/app' },
-    { label: 'Profile', to: '/app/profile' },
-    { label: 'Settings', to: '/app/settings' },
+    { label: 'Главная', to: '/app' },
+    { label: 'Профиль', to: '/app/profile' },
   ],
   admin: [
-    { label: 'Dashboard', to: '/admin' },
-    { label: 'Users', to: '/admin/users' },
-    { label: 'Settings', to: '/admin/settings' },
+    { label: 'Обзор', to: '/admin' },
+    { label: 'Пользователи', to: '/admin/users' },
+    { label: 'Станции', to: '/admin/stations' },
+    { label: 'Настройки', to: '/admin/settings' },
   ],
 } as const satisfies Record<UserRole, ReadonlyArray<{ label: string; to: WorkspaceRoutePath }>>
 

@@ -51,12 +51,12 @@ module.exports = {
     scheme: 'mobile',
     userInterfaceStyle: 'automatic',
     ios: {
-      bundleIdentifier: 'com.webappdemo.mobile',
+      bundleIdentifier: 'com.eventtrackingsystem.mobile',
       icon: './assets/expo.icon',
       usesAppleSignIn: true,
     },
     android: {
-      package: 'com.webappdemo.mobile',
+      package: 'com.eventtrackingsystem.mobile',
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/images/android-icon-foreground.png',

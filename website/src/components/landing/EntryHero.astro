@@ -1,0 +1,62 @@
+---
+import { buttonVariants } from '@/components/ui/button'
+
+interface Props {
+  actions: { login: string; signup: string } | null
+}
+
+const { actions } = Astro.props
+---
+
+<section class="relative isolate overflow-hidden" id="top" aria-labelledby="entry-title">
+  <!-- The molecule / polymer chain of the brand: points that join into a structure. -->
+  <svg
+    class="absolute inset-0 -z-10 h-full w-full text-primary/25"
+    preserveAspectRatio="xMidYMid slice"
+    viewBox="0 0 400 300"
+    aria-hidden="true"
+  >
+    <path
+      d="M30 70L110 120L200 55L290 125L370 75M110 120L150 215L255 195L290 125M150 215L55 260M255 195L345 250M200 55L235 15"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.2"
+    ></path>
+    <g fill="currentColor">
+      <circle cx="30" cy="70" r="4"></circle>
+      <circle cx="110" cy="120" r="6"></circle>
+      <circle cx="200" cy="55" r="5"></circle>
+      <circle cx="290" cy="125" r="7"></circle>
+      <circle cx="370" cy="75" r="4"></circle>
+      <circle cx="150" cy="215" r="5"></circle>
+      <circle cx="255" cy="195" r="6"></circle>
+      <circle cx="55" cy="260" r="4"></circle>
+      <circle cx="345" cy="250" r="5"></circle>
+      <circle cx="235" cy="15" r="3"></circle>
+    </g>
+  </svg>
+
+  <div class="site-container flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center gap-8 py-20 text-center">
+    <h1 class="font-heading text-5xl leading-tight font-semibold text-balance sm:text-6xl" id="entry-title">
+      Формула <span class="text-primary">Будущего</span>
+    </h1>
+    <p class="max-w-xl text-lg leading-8 text-muted-foreground text-pretty">
+      Знакомьтесь с коллегами, предлагайте идеи и проходите интерактивы: ваш вклад складывается в «Индекс влияния».
+    </p>
+    {
+      actions ? (
+        <div class="flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
+          <a class={buttonVariants({ className: 'h-12 rounded-full px-8', size: 'lg', variant: 'outline' })} href={actions.login}>
+            Войти
+          </a>
+          <a class={buttonVariants({ className: 'h-12 rounded-full px-8 font-bold', size: 'lg' })} href={actions.signup}>
+            Зарегистрироваться
+          </a>
+        </div>
+      ) : (
+        <p class="text-sm text-muted-foreground">Вход откроется, когда будет указан адрес приложения.</p>
+      )
+    }
+    <p class="font-heading text-xl text-primary">Сила — в соединении.</p>
+  </div>
+</section>

@@ -1,6 +1,6 @@
 # Website
 
-`website` is the Astro project for SEO pages: the landing page, content, and the public catalog. It builds static HTML (SSG) by default. Signed-in screens live in [webapp](../webapp/README.md). Auth scope, carts, checkout, and build-time backend data follow [WEB_SURFACES](../docs/WEB_SURFACES.md).
+`website` is the Astro project for SEO pages. Today it is one entry page (title, description, «Войти» and «Зарегистрироваться» buttons to the webapp, motto). It builds static HTML (SSG) by default. Signed-in screens live in [webapp](../webapp/README.md). Auth scope, carts, checkout, and build-time backend data follow [WEB_SURFACES](../docs/WEB_SURFACES.md).
 
 ## Rules
 
@@ -10,15 +10,11 @@
 
 ## Stack and layout
 
-Astro with static output, Tailwind CSS 4 through `@tailwindcss/vite`, shadcn/ui React components (`radix-vega` style, lucide icons), and React Three Fiber for the hero scene. `@astrojs/react` renders React components to static HTML; a component ships JavaScript only with a `client:*` directive.
+Astro with static output, Tailwind CSS 4 through `@tailwindcss/vite`, shadcn/ui React components (`radix-vega` style, lucide icons). `@astrojs/react` renders React components to static HTML; a component ships JavaScript only with a `client:*` directive.
 
 Sections live in `src/components/landing`, the shadcn registry in `src/components/ui`, pages in `src/pages`, and metadata in `src/layouts/BaseLayout.astro`.
 
-Add `@web-app-demo/contracts` when the site first reads API data.
-
-### Hero scene
-
-The SSG HTML always contains the CSS hero. `HeroScene` hydrates with `client:idle` and imports the R3F canvas only on viewports at least 1024 px wide without a reduced-motion request. Phones and reduced-motion users never download 3D code. Keep SEO text out of the scene. `bun run test:build-contracts` checks the fallback and the lazy chunk.
+Add `@event-tracking-system/contracts` when the site first reads API data.
 
 ## Commands
 
@@ -33,7 +29,7 @@ Storybook renders `src/components/ui` modules and sample compositions in the dar
 Copy [.env.example](.env.example) to `website/.env` for local values. Each release sets both values from Terraform.
 
 - `PUBLIC_WEBSITE_URL`: the canonical origin, such as `https://www.example.com`. Without it, pages omit `canonical` and `og:url`.
-- `PUBLIC_WEBAPP_URL`: the webapp origin, such as `https://app.example.com`. Without it, the landing page keeps a local next-step link and builds without a webapp. A value that is not an absolute `http(s)` URL fails the build.
+- `PUBLIC_WEBAPP_URL`: the webapp origin, such as `https://app.example.com`. Without it, the entry page shows a note instead of the sign-in and registration buttons and builds without a webapp. A value that is not an absolute `http(s)` URL fails the build.
 
 ## Rendering ladder
 

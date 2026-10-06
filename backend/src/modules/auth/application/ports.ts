@@ -2,7 +2,7 @@ import type {
   PasswordResetRequestResponse,
   RegisterPayload,
   SocialAuthProvider,
-} from '@web-app-demo/contracts'
+} from '@event-tracking-system/contracts'
 
 import type { SessionMetadata } from '../domain/session'
 import type { AuthUserRecord } from '../domain/user'
@@ -16,7 +16,7 @@ export type AccessTokenPayload = {
 export type AuthRepository = {
   findUserByEmail(email: string): Promise<AuthUserRecord | null>
   createPasswordUserWithSession(input: {
-    user: RegisterPayload & { passwordHash: string }
+    user: RegisterPayload & { consentedAt: Date; passwordHash: string }
     session: {
       refreshTokenHash: string
       refreshTokenFamilyHash: string

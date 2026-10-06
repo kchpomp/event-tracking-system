@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { PROFILE_FIELD_MAX } from './event'
 import { expoPushTokenSchema } from './notifications'
 
 const displayNameSchema = z
@@ -11,8 +12,8 @@ export const emailSchema = z.string().trim().toLowerCase().email().max(254)
 
 export const passwordSchema = z
   .string()
-  .min(8, 'Password must be at least 8 characters')
-  .max(128, 'Password must be at most 128 characters')
+  .min(8, 'Пароль должен содержать не менее 8 символов')
+  .max(128, 'Пароль должен содержать не более 128 символов')
 
 export const userRoleSchema = z.enum(['user', 'admin'])
 
@@ -26,10 +27,23 @@ export const userSchema = z.object({
   createdAt: z.string().datetime(),
 })
 
+const profileTextSchema = z
+  .string()
+  .trim()
+  .min(1, 'Заполните поле')
+  .max(PROFILE_FIELD_MAX, `Не более ${PROFILE_FIELD_MAX} символов`)
+
+// Event participant registration: the profile fields are the public name and the "Диффузия" rule
+// (a different city or company), and `consent` is the personal-data consent. The server rejects a
+// sign-up without it, so the consent record cannot be skipped by calling the API directly.
 export const registerRequestSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  displayName: displayNameSchema,
+  firstName: profileTextSchema,
+  lastName: profileTextSchema,
+  company: profileTextSchema,
+  city: profileTextSchema,
+  consent: z.literal(true, { error: 'Не получено соглашение на обработку персональных данных' }),
 })
 
 export const loginRequestSchema = z.object({

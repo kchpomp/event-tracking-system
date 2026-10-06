@@ -24,6 +24,16 @@ import {
   unregisterPushTokenRequestSchema,
 } from './index'
 
+const validRegistration = {
+  email: 'user@example.com',
+  password: 'password123',
+  firstName: 'Анна',
+  lastName: 'Петрова',
+  company: 'Завод',
+  city: 'Тюмень',
+  consent: true,
+} as const
+
 const validUser = {
   id: 'user_1',
   email: 'user@example.com',
@@ -36,11 +46,11 @@ describe('auth contracts', () => {
   test('normalizes registration, login, and social auth input', () => {
     expect(
       registerRequestSchema.parse({
+        ...validRegistration,
         email: ' USER@Example.COM ',
-        password: 'password123',
-        displayName: ' Jane ',
+        firstName: ' Анна ',
       }),
-    ).toEqual({ email: 'user@example.com', password: 'password123', displayName: 'Jane' })
+    ).toEqual({ ...validRegistration, email: 'user@example.com', firstName: 'Анна' })
     expect(
       loginRequestSchema.parse({ email: ' USER@Example.COM ', password: 'password123' }),
     ).toEqual({ email: 'user@example.com', password: 'password123' })
@@ -55,12 +65,16 @@ describe('auth contracts', () => {
   test('rejects invalid auth request payloads', () => {
     // One violation per payload. A payload breaking all three rules at once throws whichever rule
     // you delete, so it asserts none of them.
-    const valid = { email: 'user@example.com', password: 'password123', displayName: 'Jane' }
+    const valid = validRegistration
 
     expect(registerRequestSchema.parse(valid)).toMatchObject({ email: 'user@example.com' })
     expect(() => registerRequestSchema.parse({ ...valid, email: 'not-an-email' })).toThrow()
     expect(() => registerRequestSchema.parse({ ...valid, password: 'short' })).toThrow()
-    expect(() => registerRequestSchema.parse({ ...valid, displayName: 'A' })).toThrow()
+    expect(() => registerRequestSchema.parse({ ...valid, firstName: '  ' })).toThrow()
+    expect(() => registerRequestSchema.parse({ ...valid, city: 'x'.repeat(101) })).toThrow()
+    // The consent is server-enforced: absent or false never registers.
+    expect(() => registerRequestSchema.parse({ ...valid, consent: false })).toThrow()
+    expect(() => registerRequestSchema.parse({ ...valid, consent: undefined })).toThrow()
     expect(() =>
       loginRequestSchema.parse({ email: 'user@example.com', password: 'short' }),
     ).toThrow()

@@ -22,7 +22,12 @@ export function createPrismaAuthRepository(db: DbClient): AuthRepository {
             data: {
               email: input.user.email,
               passwordHash: input.user.passwordHash,
-              displayName: input.user.displayName,
+              displayName: `${input.user.firstName} ${input.user.lastName}`,
+              firstName: input.user.firstName,
+              lastName: input.user.lastName,
+              company: input.user.company,
+              city: input.user.city,
+              consentedAt: input.user.consentedAt,
               role: 'user',
             },
           })

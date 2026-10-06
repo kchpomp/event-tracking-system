@@ -39,7 +39,7 @@ bun run --cwd backend prisma:deploy
 bun run dev:seed                       # optional: demo accounts from DEV_SEED_* in backend/.env
 ```
 
-`DATABASE_URL` in `backend/.env` holds the connection: `localhost:54329`, database `web_app_demo`, user `superuser`, password `superpassword`.
+`DATABASE_URL` in `backend/.env` holds the connection: `localhost:54329`, database `event_tracking_system`, user `superuser`, password `superpassword`.
 
 The seed refuses `NODE_ENV=production` and non-loopback database URLs. Deployments run `db:deploy`, not the seed.
 

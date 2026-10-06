@@ -1,7 +1,7 @@
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
 import { expect, fillSignupForm, logIn, signUp, test, uniqueEmail } from '../helpers/test'
 
-test('keeps user and administrator workspaces separate', async ({ browser, page }) => {
+test('keeps participant and administrator workspaces separate', async ({ browser, page }) => {
   await page.goto('/admin/users')
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fadmin%2Fusers$/)
   await page.getByTestId('signup-link').click()
@@ -9,9 +9,8 @@ test('keeps user and administrator workspaces separate', async ({ browser, page 
   await page.getByTestId('signup-submit').click()
 
   await expect(page).toHaveURL(/\/app$/)
-  await expect(page.getByTestId('nav-link-app')).toBeVisible()
-  await expect(page.getByTestId('nav-link-admin')).toHaveCount(0)
-  await page.getByTestId('nav-link-app-profile').click()
+  await expect(page.getByTestId('total-points')).toBeVisible()
+  await page.getByTestId('nav-profile').click()
   await expect(page).toHaveURL(/\/app\/profile$/)
   await page.goto('/admin/users')
   await expect(page).toHaveURL(/\/app$/)
@@ -24,7 +23,7 @@ test('keeps user and administrator workspaces separate', async ({ browser, page 
   await expect(adminPage).toHaveURL(/\/admin$/)
   await expect(adminPage.getByTestId('primary-navigation')).toBeVisible()
   await expect(adminPage.getByTestId('nav-link-admin')).toBeVisible()
-  await expect(adminPage.getByTestId('nav-link-app')).toHaveCount(0)
+  await expect(adminPage.getByTestId('nav-link-admin-stations')).toBeVisible()
   await adminPage.goto('/app/profile')
   await expect(adminPage).toHaveURL(/\/admin$/)
 
@@ -64,7 +63,6 @@ test('promoting a user revokes the old session and opens the admin workspace aft
 
   await expect(page).toHaveURL(/\/admin$/)
   await expect(page.getByTestId('nav-link-admin')).toBeVisible()
-  await expect(page.getByTestId('nav-link-app')).toHaveCount(0)
 
   await adminContext.close()
 })

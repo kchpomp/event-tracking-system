@@ -1,5 +1,5 @@
-import { Outlet, useLocation, useRouter, useSearch } from '@tanstack/react-router'
-import type { UserDto, UserRole } from '@web-app-demo/contracts'
+import { Outlet, useLocation, useParams, useRouter, useSearch } from '@tanstack/react-router'
+import type { UserDto, UserRole } from '@event-tracking-system/contracts'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import {
@@ -7,6 +7,7 @@ import {
   SessionErrorSection,
   SessionLoadingSection,
 } from '@/components/WebRouteSections'
+import { ParticipantShell } from '@/components/ParticipantShell'
 import { WorkspaceShell } from '@/components/WorkspaceShell'
 import { AdminDashboard, AdminSettings, AdminUsers } from '@/features/admin'
 import {
@@ -19,8 +20,18 @@ import {
   ResetPasswordForm,
   useAuth,
 } from '@/features/auth'
+import {
+  AdminStations,
+  DiffusionPage,
+  DiffusionScanPage,
+  EventDashboard,
+  IdeasPage,
+  PolymerPage,
+  ProfilePage,
+  StationPage,
+  StationScanPage,
+} from '@/features/event'
 import { homePathForRole, safeReturnPath } from '@/features/navigation'
-import { UserHome, UserProfile, UserSettings } from '@/features/users'
 
 export function HomePage() {
   const auth = useAuth()
@@ -88,18 +99,41 @@ export function ResetPasswordPage() {
 }
 
 export function UserHomePage() {
-  const user = useWorkspaceUser('user')
-  return <UserHome user={user} />
+  return <EventDashboard />
+}
+
+export function UserScanPage() {
+  return <StationScanPage />
+}
+
+export function UserStationPage() {
+  const { stationId } = useParams({ from: '/userWorkspace/app/station/$stationId' })
+  return <StationPage stationId={stationId} />
+}
+
+export function UserDiffusionPage() {
+  return <DiffusionPage />
+}
+
+export function UserDiffusionScanPage() {
+  return <DiffusionScanPage />
+}
+
+export function UserIdeasPage() {
+  return <IdeasPage />
+}
+
+export function UserPolymerPage() {
+  return <PolymerPage />
 }
 
 export function UserProfilePage() {
   const user = useWorkspaceUser('user')
-  return <UserProfile user={user} />
+  return <ProfilePage user={user} />
 }
 
-export function UserSettingsPage() {
-  const auth = useAuth()
-  return <UserSettings onLogout={auth.logout} />
+export function AdminStationsPage() {
+  return <AdminStations />
 }
 
 export function AdminDashboardPage() {
@@ -150,6 +184,15 @@ function WorkspaceRoute({ role }: { role: UserRole }) {
   }
   if (auth.user.role !== role) {
     return <HrefRedirect href={homePathForRole(auth.user.role)} />
+  }
+
+  // Participants use their phones: one narrow column. Administrators keep the sidebar workspace.
+  if (auth.user.role === 'user') {
+    return (
+      <ParticipantShell onLogout={auth.logout}>
+        <Outlet />
+      </ParticipantShell>
+    )
   }
 
   return (

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 export const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 export const repositoryHash = createHash('sha256').update(repositoryRoot).digest('hex').slice(0, 12)
 export const composeProjectName =
-  process.env.COMPOSE_PROJECT_NAME ?? `vibecoding-template-${repositoryHash}`
+  process.env.COMPOSE_PROJECT_NAME ?? `event-tracking-system-${repositoryHash}`
 /**
  * Repository-derived test database port, before any `POSTGRES_TEST_PORT` override. The E2E port
  * planner starts its free-port search here, so both runners agree on the first choice.
@@ -109,7 +109,7 @@ export function localPrivateStorageCorsRule(allowedOrigins, allowedHeaders, expo
 }
 
 export function defaultTestDatabaseUrl(port = defaultPostgresTestPort) {
-  return `postgresql://superuser:superpassword@localhost:${port}/web_app_demo_test?schema=public`
+  return `postgresql://superuser:superpassword@localhost:${port}/event_tracking_system_test?schema=public`
 }
 
 export function postgresPortFromDatabaseUrl(databaseUrl) {

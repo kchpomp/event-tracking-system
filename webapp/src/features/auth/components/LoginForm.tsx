@@ -1,13 +1,13 @@
 import { useForm } from '@tanstack/react-form'
 import { Link } from '@tanstack/react-router'
-import { loginRequestSchema, type LoginRequest } from '@web-app-demo/contracts'
+import { loginRequestSchema, type LoginRequest } from '@event-tracking-system/contracts'
 import { useId, useState } from 'react'
 
 import { Typography } from '@/components/typography'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { ApiRequestError } from '@/platform/api'
+import { authErrorMessage } from '../auth-errors'
 import { useAuth } from '../use-auth'
 import { FormAlert } from './form-errors'
 import type { FieldErrors } from './form-model'
@@ -39,9 +39,7 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
       try {
         await auth.login(result.data as LoginRequest)
       } catch (caughtError) {
-        setFormError(
-          caughtError instanceof ApiRequestError ? caughtError.message : 'Unexpected auth error',
-        )
+        setFormError(authErrorMessage(caughtError, 'login'))
       }
     },
   })
@@ -58,10 +56,10 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
       <FieldGroup className="gap-5">
         <div className="flex flex-col items-center gap-1 text-center">
           <Typography as="h1" variant="h3" balance>
-            Login to your account
+            Вход
           </Typography>
           <Typography variant="bodySm" tone="muted" balance>
-            Enter your email below to login to your account
+            Введите email и пароль, чтобы войти
           </Typography>
         </div>
 
@@ -73,7 +71,9 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
               <Input
                 aria-describedby={errorId(fieldErrors.email, emailErrorId)}
                 aria-invalid={hasErrors(fieldErrors.email)}
-                autoComplete="email"
+                autoCapitalize="off"
+                autoComplete="username"
+                autoCorrect="off"
                 className="bg-background"
                 data-testid="login-email"
                 id={emailId}
@@ -85,7 +85,8 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
                   clearFieldError('email', setFieldErrors)
                   setFormError(null)
                 }}
-                placeholder="m@example.com"
+                placeholder="вы@email.com"
+                spellCheck={false}
                 type="email"
                 value={field.state.value}
               />
@@ -99,14 +100,14 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
           children={(field) => (
             <Field data-invalid={hasErrors(fieldErrors.password)}>
               <div className="flex items-center">
-                <FieldLabel htmlFor={passwordId}>Password</FieldLabel>
+                <FieldLabel htmlFor={passwordId}>Пароль</FieldLabel>
                 <Typography asChild variant="bodySm">
                   <Link
                     className="ml-auto underline-offset-4 hover:underline"
                     data-testid="forgot-password-link"
                     to="/forgot-password"
                   >
-                    Forgot your password?
+                    Забыли пароль?
                   </Link>
                 </Typography>
               </div>
@@ -116,6 +117,7 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
                 autoComplete="current-password"
                 className="bg-background"
                 data-testid="login-password"
+                enterKeyHint="go"
                 id={passwordId}
                 name={field.name}
                 onBlur={field.handleBlur}
@@ -131,23 +133,29 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
           )}
         />
 
-        <FormAlert message={formError} />
+        <FormAlert message={formError} title="Не удалось войти" />
 
         <Field>
           <form.Subscribe
             selector={(state) => state.isSubmitting}
             children={(isSubmitting) => (
-              <Button data-testid="login-submit" disabled={isSubmitting} type="submit">
-                {isSubmitting ? 'Signing in…' : 'Login'}
+              <Button
+                className="h-11"
+                data-testid="login-submit"
+                disabled={isSubmitting}
+                size="lg"
+                type="submit"
+              >
+                {isSubmitting ? 'Выполняется вход…' : 'Войти'}
               </Button>
             )}
           />
         </Field>
 
         <FieldDescription className="text-center">
-          Don&apos;t have an account?{' '}
+          Нет аккаунта?{' '}
           <Link data-testid="signup-link" search={{ returnTo }} to="/signup">
-            Sign up
+            Зарегистрироваться
           </Link>
         </FieldDescription>
       </FieldGroup>

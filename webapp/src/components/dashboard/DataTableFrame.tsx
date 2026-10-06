@@ -60,7 +60,7 @@ export function DataTableFrame({
             type="button"
             variant="outline"
           >
-            Previous
+            Назад
           </Button>
           <Button
             disabled={nextDisabled}
@@ -68,7 +68,7 @@ export function DataTableFrame({
             type="button"
             variant="outline"
           >
-            Next
+            Далее
           </Button>
         </div>
       </CardFooter>

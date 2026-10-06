@@ -4,7 +4,7 @@
 
 ## Stack
 
-React, TypeScript, Vite, Tailwind CSS, shadcn/ui (Radix UI, Hugeicons), TanStack Router, Query, and Form (writes use `useMutation`), Zod from `@web-app-demo/contracts`, Storybook, Playwright, and ESLint.
+React, TypeScript, Vite, Tailwind CSS, shadcn/ui (Radix UI, Hugeicons), TanStack Router, Query, and Form (writes use `useMutation`), Zod from `@event-tracking-system/contracts`, Storybook, Playwright, and ESLint.
 
 ## Commands
 
@@ -31,7 +31,7 @@ From the root: `bun run dev:webapp`, `build:webapp`, `typecheck:webapp`, `lint`,
 `src/routes.tsx` registers the routes, and `src/pages.tsx` composes them from public feature APIs.
 
 - Public pages: `/login`, `/signup`, `/forgot-password` (guest-only), and `/reset-password`. The reset page reads the one-time token from the URL fragment and removes it from history.
-- Role `user` owns the `/app` workspace, and role `admin` owns `/admin`. `workspaceRoutesByRole` in `src/features/navigation/model.ts` lists every workspace route; the sidebar shows a subset.
+- Role `user` owns the `/app` workspace, and role `admin` owns `/admin`. Participants get `ParticipantShell`, one narrow column built for a phone; administrators get the sidebar `WorkspaceShell`. `workspaceRoutesByRole` in `src/features/navigation/model.ts` lists every workspace route; the sidebar shows a subset.
 - Guards wait for the session restore; a restore error shows a retry.
 - A guest on `/` goes to `/login`; on a workspace route, to `/login?returnTo=<path>`.
 - After sign-in, `safeReturnPath` accepts only a same-origin path from the user's own workspace list. Otherwise, the user goes to the role home (`/app` or `/admin`).
@@ -74,3 +74,13 @@ Playwright specs live in `e2e/specs`. Setup and commands are in [TESTING](../doc
 ## Deployment
 
 Follow [DEPLOYMENT](../docs/DEPLOYMENT.md). Every host must serve `index.html` for unknown paths so client routes load. Both Terraform stacks do.
+
+## Event feature
+
+`src/features/event` is the participant app and the administrator's stations page. Everything is Russian.
+
+- Pages: the dashboard (`/app`: progress, activity list, leaderboard), `/app/scan`, `/app/station/$stationId`, `/app/diffusion` and `/app/diffusion/scan`, `/app/ideas`, `/app/polymer`, `/app/profile` (read only), and `/admin/stations` (QR codes to print, event on and off).
+- `QrScanner` uses `html5-qrcode` directly with the rear camera and no file upload; the library and `qrcode` (the participant's own QR) load on demand. The camera works only on HTTPS or `localhost`.
+- Page copy is in `content.ts`; its rules are in the file header. Backend refusals map to one Russian sentence each in `errors.ts`; nothing raw from the server reaches a participant.
+- The registration popups «Не все обязательные поля заполнены» and «Не получено соглашение на обработку персональных данных» are exact product wording. The consent text (`features/auth/consent-text.ts`) is a template with empty operator details and needs a lawyer before launch.
+- The brand heading font is Playfair Display (`--font-heading` in `src/index.css`); the brand colour comes from `theme.json`.

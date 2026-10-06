@@ -65,7 +65,7 @@ try {
     cwd: backendRoot,
     env: {
       ...process.env,
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:5432/web_app_demo?schema=public',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:5432/event_tracking_system?schema=public',
     },
     stdio: 'inherit',
   })

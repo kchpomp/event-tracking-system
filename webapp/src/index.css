@@ -4,11 +4,14 @@
 /* THEME_FONT_IMPORT_START */
 @import "@fontsource-variable/figtree";
 /* THEME_FONT_IMPORT_END */
+/* The brand heading font, with Cyrillic: the product name and the page titles. */
+@import "@fontsource/playfair-display/cyrillic-600.css";
+@import "@fontsource/playfair-display/latin-600.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
+    --font-heading: 'Playfair Display', Georgia, serif;
     /* THEME_FONT_START */
     --font-sans: 'Figtree Variable', sans-serif;
     /* THEME_FONT_END */
@@ -60,7 +63,7 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    --primary: oklch(0.563 0.125 57.627);
     --primary-foreground: oklch(0.985 0 0);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
@@ -71,21 +74,21 @@
     --destructive: oklch(0.505 0.213 27.518);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
+    --ring: oklch(0.655 0.125 57.627);
+    --chart-1: oklch(0.87 0.083 57.627);
+    --chart-2: oklch(0.556 0.125 57.627);
+    --chart-3: oklch(0.439 0.105 57.627);
+    --chart-4: oklch(0.371 0.089 57.627);
+    --chart-5: oklch(0.269 0.065 57.627);
+    --radius: 0.75rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary: oklch(0.563 0.125 57.627);
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.97 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar-ring: oklch(0.655 0.125 57.627);
     /* THEME_TOKENS_END */
 }
 
@@ -97,7 +100,7 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
+    --primary: oklch(0.655 0.125 57.627);
     --primary-foreground: oklch(0.205 0 0);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
@@ -108,20 +111,20 @@
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --ring: oklch(0.655 0.125 57.627);
+    --chart-1: oklch(0.87 0.083 57.627);
+    --chart-2: oklch(0.556 0.125 57.627);
+    --chart-3: oklch(0.439 0.105 57.627);
+    --chart-4: oklch(0.371 0.089 57.627);
+    --chart-5: oklch(0.269 0.065 57.627);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.922 0 0);
+    --sidebar-primary: oklch(0.655 0.125 57.627);
     --sidebar-primary-foreground: oklch(0.205 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --sidebar-ring: oklch(0.655 0.125 57.627);
     /* THEME_TOKENS_END */
 }
 

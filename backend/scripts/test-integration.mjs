@@ -98,7 +98,7 @@ export async function runBackendIntegration({
           '-U',
           'superuser',
           '-d',
-          'web_app_demo_test',
+          'event_tracking_system_test',
         ],
         {
           cwd: repositoryRoot,

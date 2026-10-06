@@ -3,7 +3,7 @@ import type {
   UpdateProfileRequest,
   UpdateUserRoleRequest,
   UserDto,
-} from '@web-app-demo/contracts'
+} from '@event-tracking-system/contracts'
 
 import type { AuthenticatedPrincipal } from '../../auth'
 import type {

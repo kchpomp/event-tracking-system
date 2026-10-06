@@ -53,6 +53,15 @@ GoogleService-Info.plist
 backend/certs/
 .aws/
 .gcloud/
+# Yandex Cloud service account keys (`yc iam key create --output key.json`)
+key.json
+authorized_key*.json
+sa-key*.json
+
+# Local agent state: absolute paths and machine-specific permissions
+.claude/settings.local.json
+.unlazy/
+.unlazy-hook-state.json
 
 # Terraform working data and secret-bearing local inputs
 **/.terraform/

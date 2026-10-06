@@ -1,4 +1,4 @@
-import { emailSchema, passwordSchema } from '@web-app-demo/contracts'
+import { emailSchema, passwordSchema } from '@event-tracking-system/contracts'
 
 import type { DevelopmentSeedAccounts } from '../src/modules/users/infrastructure/development-bootstrap'
 

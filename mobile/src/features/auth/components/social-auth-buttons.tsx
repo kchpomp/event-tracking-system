@@ -1,4 +1,4 @@
-import type { SocialAuthProvider, SocialAuthRequest } from '@web-app-demo/contracts';
+import type { SocialAuthProvider, SocialAuthRequest } from '@event-tracking-system/contracts';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';

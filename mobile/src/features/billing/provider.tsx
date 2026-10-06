@@ -1,4 +1,4 @@
-import type { SubscriptionSnapshot } from '@web-app-demo/contracts';
+import type { SubscriptionSnapshot } from '@event-tracking-system/contracts';
 import {
   deepLinkToSubscriptions,
   getAvailablePurchases as getAvailablePurchasesFromStore,

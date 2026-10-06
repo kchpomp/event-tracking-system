@@ -1,4 +1,4 @@
-import type { TokenLogoutRequest } from '@web-app-demo/contracts';
+import type { TokenLogoutRequest } from '@event-tracking-system/contracts';
 
 import type { AuthApiPort } from './api';
 

@@ -1,4 +1,4 @@
-import type { SubscriptionSnapshot } from '@web-app-demo/contracts';
+import type { SubscriptionSnapshot } from '@event-tracking-system/contracts';
 
 import { DataRow } from '@/components/dashboard/DataRow';
 import { SectionCard } from '@/components/dashboard/SectionCard';

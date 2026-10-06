@@ -5,7 +5,7 @@ import {
   type AdminUserSummary,
   type UserDto,
   type UserRole,
-} from '@web-app-demo/contracts'
+} from '@event-tracking-system/contracts'
 import { useState, type FormEvent } from 'react'
 
 import { DataTableFrame } from '@/components/dashboard'
@@ -119,36 +119,36 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
   }
 
   const summary = usersQuery.data
-    ? `Page ${usersQuery.data.page} of ${pagination?.totalPages ?? 1} · ${usersQuery.data.total} users${
+    ? `Страница ${usersQuery.data.page} из ${pagination?.totalPages ?? 1} · пользователей: ${usersQuery.data.total}${
         pagination?.wasBounded
-          ? ` · First ${pagination.reachableUsers} matches available`
+          ? ` · доступны первые ${pagination.reachableUsers} совпадений`
           : ''
       }`
     : viewState === 'error'
-      ? 'Users unavailable'
-      : 'Loading users'
+      ? 'Пользователи недоступны'
+      : 'Загрузка пользователей'
 
   return (
     <>
       <div className="grid gap-4">
         {mutationFeedback?.kind === 'success' && (
           <Alert data-testid="role-change-success">
-            <AlertTitle>Role changed</AlertTitle>
+            <AlertTitle>Роль изменена</AlertTitle>
             <AlertDescription>
-              {mutationFeedback.user.email} is now {mutationFeedback.user.role}.
-              Their previous sessions have been revoked.
+              {mutationFeedback.user.email}: теперь {mutationFeedback.user.role === 'admin' ? 'администратор' : 'участник'}.
+              Прежние сессии пользователя завершены.
             </AlertDescription>
           </Alert>
         )}
 
         <DataTableFrame
-          description="Role changes revoke the affected user’s active sessions."
+          description="Смена роли завершает все активные сессии пользователя."
           nextDisabled={!pagination?.canGoNext}
           onNext={() => setPage((current) => current + 1)}
           onPrevious={() => setPage((current) => Math.max(1, current - 1))}
           previousDisabled={page <= 1}
           summary={summary}
-          title="User directory"
+          title="Пользователи"
           toolbar={
             <form className="flex flex-col gap-2 sm:flex-row" onSubmit={submitSearch}>
               <InputGroup>
@@ -156,14 +156,14 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
                   <HugeiconsIcon aria-hidden icon={Search01Icon} strokeWidth={2} />
                 </InputGroupAddon>
                 <InputGroupInput
-                  aria-label="Search users"
+                  aria-label="Поиск пользователей"
                   data-testid="user-search-input"
                   onChange={(event) => setDraftQuery(event.target.value)}
-                  placeholder="Search by email or name"
+                  placeholder="Поиск по email или имени"
                   value={draftQuery}
                 />
               </InputGroup>
-              <Button data-testid="user-search-submit" type="submit">Search</Button>
+              <Button data-testid="user-search-submit" type="submit">Найти</Button>
             </form>
           }
         >
@@ -219,9 +219,9 @@ function UserTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Created</TableHead>
+          <TableHead>Пользователь</TableHead>
+          <TableHead>Роль</TableHead>
+          <TableHead>Создан</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -271,14 +271,14 @@ function UserList({
   return (
     // Explicit `role="list"`: WebKit drops list semantics from an unstyled `<ul>`, and phones
     // are exactly where this markup renders.
-    <ul aria-label="Users" className="grid gap-3" role="list">
+    <ul aria-label="Пользователи" className="grid gap-3" role="list">
       {users.map((user) => (
         <Item asChild key={user.id} variant="outline">
           <li data-testid="user-row">
             <dl className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3">
               <div className="grid min-w-0">
                 <Typography as="dt" variant="srOnly">
-                  User
+                  Пользователь
                 </Typography>
                 <dd className="grid">
                   <Typography variant="bodySmMedium">
@@ -291,7 +291,7 @@ function UserList({
               </div>
               <div>
                 <Typography as="dt" variant="srOnly">
-                  Role
+                  Роль
                 </Typography>
                 <dd>
                   <RoleSelect
@@ -304,7 +304,7 @@ function UserList({
               </div>
               <div className="col-span-2 flex items-center justify-between border-t pt-3">
                 <Typography as="dt" variant="caption" tone="muted">
-                  Created
+                  Создан
                 </Typography>
                 <Typography as="dd" variant="bodySm">
                   {formatDate(user.createdAt)}
@@ -341,7 +341,7 @@ function RoleSelect({
       value={user.role}
     >
       <SelectTrigger
-        aria-label={`Role for ${user.email}`}
+        aria-label={`Роль: ${user.email}`}
         className="w-28 capitalize"
         data-testid="role-select"
       >
@@ -353,9 +353,9 @@ function RoleSelect({
           disabled={user.id === currentUser.id && user.role === 'admin'}
           value="user"
         >
-          User
+          Участник
         </SelectItem>
-        <SelectItem data-testid="role-option-admin" value="admin">Admin</SelectItem>
+        <SelectItem data-testid="role-option-admin" value="admin">Администратор</SelectItem>
       </SelectContent>
     </Select>
   )
@@ -363,7 +363,7 @@ function RoleSelect({
 
 function DirectoryLoading() {
   return (
-    <div aria-label="Loading users" className="grid gap-3 py-2" role="status">
+    <div aria-label="Загрузка пользователей" className="grid gap-3 py-2" role="status">
       <Skeleton className="h-12 w-full" />
       <Skeleton className="h-12 w-full" />
       <Skeleton className="h-12 w-full" />
@@ -380,11 +380,11 @@ function DirectoryError({
 }) {
   return (
     <Alert variant="destructive">
-      <AlertTitle>Users are unavailable</AlertTitle>
+      <AlertTitle>Пользователи недоступны</AlertTitle>
       <AlertDescription>{error.message}</AlertDescription>
       <AlertAction>
         <Button onClick={onRetry} size="sm" type="button" variant="outline">
-          Try again
+          Повторить
         </Button>
       </AlertAction>
     </Alert>
@@ -395,11 +395,11 @@ function DirectoryEmpty({ hasQuery }: { hasQuery: boolean }) {
   return (
     <Empty data-testid="user-directory-empty">
       <EmptyHeader>
-        <EmptyTitle>No users found</EmptyTitle>
+        <EmptyTitle>Пользователи не найдены</EmptyTitle>
         <EmptyDescription>
           {hasQuery
-            ? 'Try a different name or email.'
-            : 'No accounts are available yet.'}
+            ? 'Попробуйте другое имя или email.'
+            : 'Аккаунтов пока нет.'}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

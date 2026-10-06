@@ -79,6 +79,11 @@ const envSchema = z.object({
   AUTH_BODY_LIMIT_BYTES: z.coerce.number().int().positive().max(1024 * 1024).default(64 * 1024),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   AUTH_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  // The participant routes (/api/event/*) have their own, much larger budget per client address:
+  // everyone at a venue shares one Wi-Fi address, so the 60 a minute of the account budget would
+  // lock the whole room out within a minute. Size it for the busiest address you expect.
+  EVENT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(6000),
+  EVENT_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   ADMIN_USERS_READ_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
   ADMIN_USERS_READ_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   IAP_BODY_LIMIT_BYTES: z.coerce.number().int().positive().max(1024 * 1024).default(64 * 1024),

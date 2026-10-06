@@ -1,4 +1,4 @@
-import type { GooglePlayPurchaseReference, SubscriptionSnapshot } from '@web-app-demo/contracts';
+import type { GooglePlayPurchaseReference, SubscriptionSnapshot } from '@event-tracking-system/contracts';
 import type { ExpoPurchaseError, ProductSubscription, Purchase, RequestPurchaseProps, SubscriptionOffer } from 'expo-iap';
 import { ErrorCode } from 'expo-iap/build/types';
 

@@ -1,4 +1,4 @@
-import { apiErrorSchema } from '@web-app-demo/contracts'
+import { apiErrorSchema } from '@event-tracking-system/contracts'
 
 const errorResponseContent = {
   'application/json': {

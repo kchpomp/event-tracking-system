@@ -1,14 +1,14 @@
 {
   "webapp": {
-    "brand": null,
-    "radius": 0.625,
+    "brand": "#c97b3a",
+    "radius": 0.75,
     "font": {
       "family": "'Figtree Variable'",
       "package": "@fontsource-variable/figtree"
     }
   },
   "website": {
-    "brand": null,
+    "brand": "#c97b3a",
     "radius": 0.75,
     "font": {
       "family": "'Helvetica Neue', Helvetica, Arial, 'Inter Variable'",

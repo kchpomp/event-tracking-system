@@ -2,7 +2,7 @@ import {
   updateProfileRequestSchema,
   updateProfileResponseSchema,
   type UpdateProfileRequest,
-} from '@web-app-demo/contracts'
+} from '@event-tracking-system/contracts'
 
 import type { AuthenticatedTransport } from '@/platform/api'
 

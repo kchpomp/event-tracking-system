@@ -43,12 +43,12 @@ export function createPasswordResetNotifier(
       await send(
         {
           to: email,
-          subject: 'Reset your password',
+          subject: 'Сброс пароля',
           text: [
-            'Use the link below to reset your password:',
+            'Чтобы сбросить пароль, перейдите по ссылке:',
             resetUrl.toString(),
-            `This link expires at ${expiresAt.toISOString()}.`,
-            'If you did not request this change, you can ignore this email.',
+            `Ссылка действует до ${expiresAt.toISOString()} (UTC).`,
+            'Если вы не запрашивали сброс, просто проигнорируйте это письмо.',
           ].join('\n\n'),
         },
         signal,
@@ -58,8 +58,8 @@ export function createPasswordResetNotifier(
       await send(
         {
           to: email,
-          subject: 'Your password was changed',
-          text: 'Your password was changed and existing sessions were signed out. If this was not you, contact support immediately.',
+          subject: 'Пароль изменён',
+          text: 'Ваш пароль изменён, все текущие сессии завершены. Если это были не вы, срочно обратитесь к организаторам.',
         },
         signal,
       )

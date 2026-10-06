@@ -1,6 +1,6 @@
 # Deployment
 
-Production setup, release, and recovery. The hosting choice is in [CHECKLIST](../CHECKLIST.md). Roots, command flow, the lease, and the release-source guard: [infra/README](../infra/README.md). Provider details: [DIGITALOCEAN](DIGITALOCEAN.md), [YANDEX_CLOUD](YANDEX_CLOUD.md).
+Production setup, release, and recovery. The hosting choice is in [CHECKLIST](../CHECKLIST.md). Roots, command flow, the lease, and the release-source guard: [infra/README](../infra/README.md). Provider details: [YANDEX_CLOUD](YANDEX_CLOUD.md).
 
 **Never run raw `terraform apply`, `-target`, or state edits, and never unlock a live lock; use `scripts/infra.mjs` (manual Terraform only in documented recovery steps).**
 
@@ -8,14 +8,20 @@ Define resource sizes and composition in Terraform. Ask the user only for what T
 
 ## Production composition
 
-Both clouds use Managed PostgreSQL 18, a container registry, and private versioned buckets for media and Terraform state. Both run every job in [`job-schedules.json`](../backend/src/job-schedules.json).
+Yandex Cloud runs Managed PostgreSQL 18, a container registry, and private versioned buckets for media and Terraform state. It runs every job in [`job-schedules.json`](../backend/src/job-schedules.json).
 
-- DigitalOcean: App Platform runs the API service, the scheduler worker, and Static Sites with a built-in CDN. Terraform creates the alerts.
 - Yandex Cloud: Serverless Containers run the API behind API Gateway and one timed container per job. Public buckets serve the static sites, optionally through Cloud CDN. Alerts are manual.
 
-The start profile (one database node, one DigitalOcean API instance) is cheap, not highly available. Scale up before the load grows.
+The start profile (one database node) is cheap, not highly available. Scale up before the load grows.
 
-`RATE_LIMIT_STORE` sets where the per-address and admin rate limits count. DigitalOcean runs one API process with the default `memory`. Yandex containers scale out (`concurrency` limits requests per instance, not the instance count), so Terraform sets `database`. Self-hosting with several API processes also needs `database`.
+`RATE_LIMIT_STORE` sets where the per-address and admin rate limits count. Yandex containers scale out (`concurrency` limits requests per instance, not the instance count), so Terraform sets `database`. Self-hosting with several API processes also needs `database`.
+
+## This project
+
+- Hosting is Yandex Cloud only: the users are in Russia and their data must stay there. Use `project_slug = "event-tracking-system"` in both `terraform.tfvars`. The DigitalOcean roots and guide were removed.
+- `bun run --cwd backend db:deploy` (the release runs it in the migration container) also creates the first event with its 15 stations when the database has none. Sign in to the webapp as the seeded administrator and print the QR codes from `/admin/stations`. A repeat deploy never regenerates codes that are already printed.
+- Everyone at a venue shares one Wi-Fi address, so `/api/event/*` has its own per-address budget, `EVENT_RATE_LIMIT_MAX` (default 6000 a minute). Raise it through `extra_runtime_env` if the busiest address can send more. The auth and account budgets stay at 60 a minute.
+- The Expo app, push notifications, store subscriptions and social sign-in are not deployed ([mobile/README](../mobile/README.md)).
 
 ## Release order
 
@@ -98,7 +104,7 @@ The update to per-component secrets works this way. Its release removes `JWT_SEC
 
 ### Extra runtime variables
 
-`extra_runtime_env` holds extra non-secret settings. Extra secrets go in `extra_runtime_secret_env` on DigitalOcean and in `extra_secret_bindings` on Yandex Cloud. By default, each extra variable reaches the API and every job; the mobile groups below have narrower defaults. To narrow one, add it to `extra_env_components` in the production `terraform.tfvars`. Map the variable name to `api`, `jobs`, or job keys from `backend/src/job-schedules.json`:
+`extra_runtime_env` holds extra non-secret settings. Extra secrets go in `extra_secret_bindings`. By default, each extra variable reaches the API and every job; the mobile groups below have narrower defaults. To narrow one, add it to `extra_env_components` in the production `terraform.tfvars`. Map the variable name to `api`, `jobs`, or job keys from `backend/src/job-schedules.json`:
 
 ```hcl
 extra_env_components = {
@@ -110,7 +116,7 @@ extra_env_components = {
 - Give every variable of one env group the same targets as its secret. The backend refuses a partial group at startup.
 - The mobile groups have default targets, the components that read them: the `APPLE_IAP_*` group reaches `api`; the `GOOGLE_PLAY_*` group reaches `api` and `maintenance`, which reconciles purchases; `EXPO_PUSH_ACCESS_TOKEN` reaches only `notifications`, which sends pushes. An entry in `extra_env_components` replaces a default. `runtime-inputs.tf` in each production root lists them.
 - Keep a variable that every component validates on all components, for example `EMAIL_RESEND_API_KEY` with `EMAIL_DELIVERY`.
-- DigitalOcean runs every job in one scheduler worker, so any job target reaches that worker. Yandex Cloud gives each job its own container.
+- Yandex Cloud gives each job its own container.
 - Every plan rejects an unknown name or target, an empty target list, and an extra variable that repeats a built-in one. It also rejects a job key named `api` or `jobs`, because those are target names.
 - Yandex Cloud grants each extra Lockbox secret to the one runtime service account that every container uses. Scoping controls which containers bind the secret, not who may read it.
 
@@ -125,9 +131,9 @@ bun run infra:import -- <provider> <root> <terraform-address> <provider-resource
 bun run infra:plan -- <provider>
 ```
 
-Bootstrap resources can go into local state before backend keys exist; the next bootstrap, without `--new`, migrates them. Release roots need exact immutable inputs: `--runtime-image-digest=sha256:<64-hex>` for `runtime` and Yandex `migration`, and `--release-revision=<40-char-sha> --source-branch=infra-release/<40-char-sha>` for DigitalOcean `static`. Use the provider's current import ID format. Import linked timers and static apps before you accept a clean plan. A matching name does not prove ownership.
+Bootstrap resources can go into local state before backend keys exist; the next bootstrap, without `--new`, migrates them. Release roots need exact immutable inputs: `--runtime-image-digest=sha256:<64-hex>` for `runtime` and Yandex `migration`. Use the provider's current import ID format. Import linked timers and static apps before you accept a clean plan. A matching name does not prove ownership.
 
-Keys (`digitalocean_spaces_key`, `yandex_iam_service_account_static_access_key`) cannot be imported, and their secret exists only at creation. Import the bucket, service account, Lockbox secret, and policy. Let Terraform create a new key. Apply, release, verify state, media, and static sites, and then revoke the old key. Revoke an old state key only after a second successful init and plan with the new one.
+Keys (`yandex_iam_service_account_static_access_key`) cannot be imported, and their secret exists only at creation. Import the bucket, service account, Lockbox secret, and policy. Let Terraform create a new key. Apply, release, verify state, media, and static sites, and then revoke the old key. Revoke an old state key only after a second successful init and plan with the new one.
 
 An imported database keeps its object owners, and `db:deploy` stops until the migration owner owns the public schema and its objects. List the other owners' objects through a privileged legacy connection, kept in the environment only:
 

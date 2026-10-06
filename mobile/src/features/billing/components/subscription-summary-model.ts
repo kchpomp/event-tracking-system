@@ -1,4 +1,4 @@
-import type { SubscriptionState } from '@web-app-demo/contracts';
+import type { SubscriptionState } from '@event-tracking-system/contracts';
 
 export function formatSubscriptionState(state: SubscriptionState) {
   const label = state.replaceAll('_', ' ');
