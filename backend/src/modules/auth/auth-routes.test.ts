@@ -127,7 +127,7 @@ describe('auth routes', () => {
         lastName: 'Петрова',
         company: 'Завод',
         city: 'Тюмень',
-        consent: true,
+        consent: true, privacyPolicy: true,
       }),
     })
     const untrustedRegisterBody = await untrustedRegister.json()

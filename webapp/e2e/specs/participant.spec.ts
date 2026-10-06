@@ -47,7 +47,7 @@ async function registerOther(request: APIRequestContext, city: string) {
       lastName: 'Иванов',
       company: 'Другое предприятие',
       city,
-      consent: true,
+      consent: true, privacyPolicy: true,
     },
     headers: { Origin: origin() },
   })
@@ -58,7 +58,7 @@ async function registerOther(request: APIRequestContext, city: string) {
   return profile.personalQrToken
 }
 
-test('the registration form checks required fields, then the consent, then registers', async ({ page }) => {
+test('the registration form checks required fields, then the consent, then the privacy policy, then registers', async ({ page }) => {
   await page.goto('/signup')
 
   // 1. Nothing filled: the first popup, with the product's exact wording.
@@ -67,7 +67,7 @@ test('the registration form checks required fields, then the consent, then regis
   await page.getByRole('button', { name: 'ОК' }).click()
 
   // 2. Everything filled but the consent: the second popup.
-  await fillSignupForm(page, uniqueEmail('web-e2e-form'), { consent: false })
+  await fillSignupForm(page, uniqueEmail('web-e2e-form'), { consent: false, privacy: false })
   await page.getByTestId('signup-submit').click()
   await expect(page.getByTestId('signup-notice')).toHaveText(
     'Не получено соглашение на обработку персональных данных',
@@ -83,6 +83,20 @@ test('the registration form checks required fields, then the consent, then regis
   await expect(page.getByTestId('consent-agree')).toBeEnabled()
   await page.getByTestId('consent-agree').click()
   await expect(page.getByTestId('signup-consent')).toBeChecked()
+
+  // 4. Consent given, privacy policy not yet: the third popup, then the policy is read the same way.
+  await page.getByTestId('signup-submit').click()
+  await expect(page.getByTestId('signup-notice')).toHaveText(
+    'Не подтверждено ознакомление с Политикой конфиденциальности',
+  )
+  await page.getByRole('button', { name: 'ОК' }).click()
+  await page.getByTestId('privacy-link').click()
+  await expect(page.getByTestId('privacy-agree')).toBeDisabled()
+  await page.getByRole('dialog').locator('div.overflow-y-auto').evaluate((element) => {
+    element.scrollTo(0, element.scrollHeight)
+  })
+  await page.getByTestId('privacy-agree').click()
+  await expect(page.getByTestId('signup-privacy')).toBeChecked()
 
   await page.getByTestId('signup-submit').click()
   await expect(page).toHaveURL(/\/app$/)

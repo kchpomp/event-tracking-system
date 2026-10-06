@@ -213,7 +213,7 @@ test('AuthApi preserves backend error status, code, and message', async () => {
       lastName: 'Петрова',
       company: 'Завод',
       city: 'Тюмень',
-      consent: true,
+      consent: true, privacyPolicy: true,
     }),
   ).rejects.toMatchObject({
     status: 409,

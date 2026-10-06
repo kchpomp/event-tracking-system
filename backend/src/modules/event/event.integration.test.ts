@@ -35,7 +35,7 @@ async function register(overrides: Record<string, unknown> = {}): Promise<Person
       lastName: `Фамилия${counter}`,
       company: `Предприятие ${counter}`,
       city: `Город ${counter}`,
-      consent: true,
+      consent: true, privacyPolicy: true,
       ...overrides,
     }),
   })
@@ -96,14 +96,19 @@ describe('event participation API', () => {
     await prisma.$disconnect()
   })
 
-  test('registration stores the profile and the consent, and rejects a sign-up without consent', async () => {
+  test('registration stores the profile and the consent, and rejects a sign-up without consent or privacy policy', async () => {
     const person = await register({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень' })
     const user = await prisma.user.findUniqueOrThrow({ where: { id: person.id } })
     expect(user).toMatchObject({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень' })
     expect(user.consentedAt).toBeInstanceOf(Date)
     expect(person.qr.length).toBeGreaterThan(20)
 
-    for (const consent of [false, undefined]) {
+    for (const missing of [
+      { consent: false },
+      { consent: undefined },
+      { privacyPolicy: false },
+      { privacyPolicy: undefined },
+    ]) {
       const response = await app.request('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
@@ -114,7 +119,9 @@ describe('event participation API', () => {
           lastName: 'Б',
           company: 'В',
           city: 'Г',
-          consent,
+          consent: true,
+          privacyPolicy: true,
+          ...missing,
         }),
       })
       expect(response.status).toBe(400)

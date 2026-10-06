@@ -965,7 +965,7 @@ describe('users and admin API integration', () => {
         lastName: 'Петрова',
         company: 'Завод',
         city: 'Тюмень',
-        consent: true,
+        consent: true, privacyPolicy: true,
         email,
         password: 'password123',
       }),

@@ -114,7 +114,7 @@ describe('auth rate limits across backend processes', () => {
       app.request('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': clientIp },
-        body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true,  email: 'invalid', password: 'short' }),
+        body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true,  email: 'invalid', password: 'short' }),
       })
 
     expect((await register(apps[0], '203.0.113.10')).status).toBe(400)

@@ -3,6 +3,7 @@ export { bootstrapAuthSession } from './bootstrap'
 export { AuthPageShell } from './components/AuthPageShell'
 export { ForgotPasswordForm } from './components/ForgotPasswordForm'
 export { LoginForm } from './components/LoginForm'
+export { splitTextBlocks } from './consent-text'
 export { RegisterForm } from './components/RegisterForm'
 export { ResetPasswordForm } from './components/ResetPasswordForm'
 export { errorId, hasErrors, toValidationErrors } from './components/form-validation'
@@ -10,6 +11,7 @@ export {
   clearPasswordResetTokenHash,
   readPasswordResetToken,
 } from './password-reset-location'
+export { PRIVACY_TEXT } from './privacy-text'
 export { AuthProvider } from './provider'
 export { authQueryKeys, sessionQueryKeys } from './queries'
 export { useAuth } from './use-auth'

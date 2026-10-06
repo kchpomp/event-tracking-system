@@ -31,7 +31,7 @@ const validRegistration = {
   lastName: 'Петрова',
   company: 'Завод',
   city: 'Тюмень',
-  consent: true,
+  consent: true, privacyPolicy: true,
 } as const
 
 const validUser = {
@@ -75,6 +75,9 @@ describe('auth contracts', () => {
     // The consent is server-enforced: absent or false never registers.
     expect(() => registerRequestSchema.parse({ ...valid, consent: false })).toThrow()
     expect(() => registerRequestSchema.parse({ ...valid, consent: undefined })).toThrow()
+    // So is the separate privacy-policy acknowledgement.
+    expect(() => registerRequestSchema.parse({ ...valid, privacyPolicy: false })).toThrow()
+    expect(() => registerRequestSchema.parse({ ...valid, privacyPolicy: undefined })).toThrow()
     expect(() =>
       loginRequestSchema.parse({ email: 'user@example.com', password: 'short' }),
     ).toThrow()
