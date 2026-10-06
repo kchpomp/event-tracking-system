@@ -399,6 +399,7 @@ Remove-Item Env:ADMIN_SEED_EMAIL, Env:ADMIN_SEED_PASSWORD
 | --- | --- |
 | `yc targets cloud/folder ..., expected ...` | `yc` смотрит в другой каталог: `yc config set cloud-id ...` и `yc config set folder-id ...` |
 | `terraform is not installed` или не скачиваются провайдеры | Нет Terraform в `PATH` или нет файла `terraform.rc` с зеркалом (шаг 5) |
+| `i/o timeout` или `DeadlineExceeded` при обращении к `api.cloud.yandex.net`, `iam.api.cloud.yandex.net` или `cr.yandex` | Включён VPN (например, WireGuard): через него API Yandex Cloud и реестр образов часто недоступны. Отключите VPN на время деплоя и повторите команду. Проверка: `Test-NetConnection api.cloud.yandex.net -Port 443` должна показать `TcpTestSucceeded : True` |
 | `Failed to install provider` или `dial tcp ... terraform-mirror.yandexcloud.net` | Зеркало Yandex иногда обрывает соединение: подождите минуту и повторите команду, при необходимости несколько раз |
 | Релиз пишет, что рабочее дерево не чистое, а вы ничего не меняли | Первый `terraform init` на Windows дописал хеш провайдера в `.terraform.lock.hcl`. Выполните `git add -A`, коммит и `git push` (обновлённые файлы блокировки должны быть в репозитории) |
 | `REPLACE_WITH_` в сообщении | В tfvars остался шаблон |

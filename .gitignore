@@ -76,6 +76,8 @@ sa-key*.json
 !*.backend.hcl.example
 crash.log
 crash.*.log
+# Temporary Terraform override files (the local backend of the first bootstrap)
+*_override.tf
 
 # Prisma generated client
 backend/src/generated/prisma/

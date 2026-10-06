@@ -28,6 +28,13 @@ const terraformEnvironment = {
   TF_INPUT: '0',
 }
 
+// Terraform 1.16 refuses to plan while the `backend "s3"` block is not initialised, and
+// `init -backend=false` does not initialise it. The first, local bootstrap therefore swaps the
+// backend for a local one through this override file, which is removed again before the state
+// moves into the bucket.
+const localBackendOverrideName = 'zz_local_backend_override.tf'
+const localBackendOverride = 'terraform {\n  backend "local" {}\n}\n'
+
 const protectedResourcePatterns = [
   /digitalocean_container_registry\.production/,
   /digitalocean_database_(cluster|db|firewall|user)\./,
@@ -1552,39 +1559,46 @@ async function bootstrap(provider, options) {
         bootstrap_folder_storage_access: true,
       })
     }
-    terraformInit(paths.bootstrapRoot, process.env, ['-backend=false'])
+    const localBackendPath = resolve(paths.bootstrapRoot, localBackendOverrideName)
+    writeFileSync(localBackendPath, localBackendOverride)
+    let localOutputs
     try {
-      terraformPlan({
-        root: paths.bootstrapRoot,
-        env: process.env,
-        apply: !options.dryRun,
-        allowedDestroyAddresses: options.allowedDestroyAddresses,
-        label: `${provider}-bootstrap-local`,
-      })
-    } finally {
-      if (options.dryRun && existsSync(bootstrapAccessPath))
+      terraformInit(paths.bootstrapRoot, process.env)
+      try {
+        terraformPlan({
+          root: paths.bootstrapRoot,
+          env: process.env,
+          apply: !options.dryRun,
+          allowedDestroyAddresses: options.allowedDestroyAddresses,
+          label: `${provider}-bootstrap-local`,
+        })
+      } finally {
+        if (options.dryRun && existsSync(bootstrapAccessPath))
+          rmSync(bootstrapAccessPath)
+      }
+      if (options.dryRun) return
+
+      if (provider === 'yandex') {
+        writeJsonFile(bootstrapAccessPath, {
+          bootstrap_folder_storage_access: false,
+        })
+        terraformPlan({
+          root: paths.bootstrapRoot,
+          env: process.env,
+          apply: true,
+          allowedDestroyAddresses: [
+            ...options.allowedDestroyAddresses,
+            ...yandexBootstrapCleanupAddresses,
+          ],
+          label: 'yandex-bootstrap-tighten-state-access',
+        })
         rmSync(bootstrapAccessPath)
-    }
-    if (options.dryRun) return
+      }
 
-    if (provider === 'yandex') {
-      writeJsonFile(bootstrapAccessPath, {
-        bootstrap_folder_storage_access: false,
-      })
-      terraformPlan({
-        root: paths.bootstrapRoot,
-        env: process.env,
-        apply: true,
-        allowedDestroyAddresses: [
-          ...options.allowedDestroyAddresses,
-          ...yandexBootstrapCleanupAddresses,
-        ],
-        label: 'yandex-bootstrap-tighten-state-access',
-      })
-      rmSync(bootstrapAccessPath)
+      localOutputs = terraformOutputs(paths.bootstrapRoot, process.env)
+    } finally {
+      rmSync(localBackendPath, { force: true })
     }
-
-    const localOutputs = terraformOutputs(paths.bootstrapRoot, process.env)
     writeBackendArtifacts(provider, localOutputs, paths)
     const remoteEnvironment = backendEnvironment(
       readStateEnvironment(paths.stateEnvironment),
