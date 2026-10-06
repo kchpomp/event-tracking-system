@@ -31,7 +31,7 @@ To drain at once, run `bun run --cwd backend start:cron -- outbox:drain`.
 
 ## Choose a provider
 
-Follow the hosting in [CHECKLIST](../CHECKLIST.md). Use Postbox for Yandex Cloud or a data-residency requirement, and Resend otherwise. Terraform supports `postbox` on Yandex Cloud and `resend` on DigitalOcean. Both services are for transactional mail, not marketing.
+Follow the hosting in [CHECKLIST](../CHECKLIST.md). Use Postbox for Yandex Cloud or a data-residency requirement, and Resend otherwise. Terraform supports `postbox` on Yandex Cloud; this project uses it. Both services are for transactional mail, not marketing.
 
 ## Delivery contract
 
@@ -63,7 +63,7 @@ Each suite sends one real message to `EMAIL_LIVE_TEST_TO`. Then it checks that a
 
 ## Provider setup
 
-- Resend: verify the sending domain and create an API key. For DigitalOcean, see [DIGITALOCEAN](DIGITALOCEAN.md).
+- Resend: verify the sending domain and create an API key. Terraform does not wire it on Yandex Cloud, so it fits only a self-hosted run.
 - Postbox: verify the sender and check the quotas before launch. On Yandex Cloud, Terraform keeps the sender key in Lockbox. See [YANDEX_CLOUD](YANDEX_CLOUD.md). Never reuse the storage key. The driver calls the SESv2 API with SigV4, not SMTP.
 
 ## Security and privacy

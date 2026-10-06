@@ -1,4 +1,4 @@
-import type { AvatarContentType } from '@web-app-demo/contracts'
+import type { AvatarContentType } from '@event-tracking-system/contracts'
 
 import type { PrivateStorage } from '../../../storage/port'
 

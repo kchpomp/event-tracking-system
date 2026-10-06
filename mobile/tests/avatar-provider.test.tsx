@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { AvatarResponse } from '@web-app-demo/contracts';
+import type { AvatarResponse } from '@event-tracking-system/contracts';
 import { beforeEach, expect, mock, test } from 'bun:test';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';

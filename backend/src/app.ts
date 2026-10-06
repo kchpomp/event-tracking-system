@@ -21,6 +21,7 @@ import { createAuthModule, type AuthHttpEnv } from './modules/auth'
 //   type AppStoreSubscriptionVerifier,
 //   type GooglePlaySubscriptionVerifier,
 // } from './modules/billing'
+import { createEventModule } from './modules/event'
 import { createNotificationsModule } from './modules/notifications'
 import { createUploadsModule } from './modules/uploads'
 import { createUsersModule } from './modules/users'
@@ -91,6 +92,12 @@ export function createApp({
     requireAdmin: auth.requireAdmin,
     requireAuth: auth.requireAuth,
   })
+  const event = createEventModule({
+    db: prisma,
+    requireAdmin: auth.requireAdmin,
+    requireAuth: auth.requireAuth,
+    requireParticipant: auth.requireParticipant,
+  })
   const uploads = createUploadsModule({
     backgroundTasks,
     db: prisma,
@@ -147,6 +154,16 @@ export function createApp({
   })) {
     app.use('/api/notifications/*', middleware)
   }
+  // The participant routes: one venue Wi-Fi address serves hundreds of phones, so this budget is
+  // far larger than the account one (EVENT_RATE_LIMIT_MAX) while the body limit still applies.
+  for (const middleware of createIngressSecurity({
+    ...publicWriteSecurity,
+    rateLimitMax: env.EVENT_RATE_LIMIT_MAX,
+    rateLimitWindowSeconds: env.EVENT_RATE_LIMIT_WINDOW_SECONDS,
+    store: rateLimitStore('event'),
+  })) {
+    app.use('/api/event/*', middleware)
+  }
   // Ingress budget for the subscription routes, uncomment together with them. Without a `store`
   // they count in process memory whatever RATE_LIMIT_STORE says; add their policies to
   // RateLimitPolicy (rate-limit/port.ts) and pass `store: rateLimitStore(...)` when enabling.
@@ -171,6 +188,7 @@ export function createApp({
   // Every other API route shares the account budget, so a new route is limited without an edit.
   const routesWithOwnBudget = [
     '/api/auth/*',
+    '/api/event/*',
     '/api/notifications/*',
     // Uncomment together with the subscription budgets above:
     // '/api/iap/*',
@@ -185,7 +203,7 @@ export function createApp({
   )
   app.get('/', (c) => {
     return c.json({
-      name: 'web_app_demo backend',
+      name: 'event_tracking_system backend',
       status: 'ok',
     })
   })
@@ -218,6 +236,8 @@ export function createApp({
   app.route('/api/auth', auth.routes)
   app.route('/api/users', users.userRoutes)
   app.route('/api/admin', users.adminRoutes)
+  app.route('/api/admin', event.adminRoutes)
+  app.route('/api/event', event.participantRoutes)
   // app.route('/api/iap', billing.createRoutes(auth.authenticateAccessToken))
   app.route('/api/notifications', notifications.createRoutes(auth.authenticateAccessToken))
   app.route('/api/uploads', uploads.routes)
@@ -231,7 +251,7 @@ export function createApp({
 
   app.doc('/openapi.json', {
     openapi: '3.0.0',
-    info: { title: 'web_app_demo API', version: '1.0.0' },
+    info: { title: 'event_tracking_system API', version: '1.0.0' },
   })
   app.notFound((c) => c.json(errorResponse('NOT_FOUND', 'Route not found'), 404))
   app.onError(handleError)

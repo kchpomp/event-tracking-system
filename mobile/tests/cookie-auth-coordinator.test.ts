@@ -254,7 +254,7 @@ test('cookie auth releases its in-process coordinator after response parsing fai
 
   const auth = createAuthApi('cookie', state);
   const register = auth.register(
-    { email: 'account-a@example.com', password: 'password123' },
+    { email: 'account-a@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true as const },
     state.generation,
   );
   await waitForEvent(events, 'register:fetch');
@@ -368,7 +368,7 @@ test('browser auth coordinator serializes mutations within the tab when Web Lock
 test('browser session coordinator accepts remote events and advances its monotonic epoch', async () => {
   if (typeof BroadcastChannel === 'undefined') return;
 
-  const remoteChannel = new BroadcastChannel('web_app_demo:expo-web-auth-session');
+  const remoteChannel = new BroadcastChannel('event_tracking_system:expo-web-auth-session');
   const remoteEpoch = browserSessionCoordinator.current().epoch + 1_000_000;
   const received = new Promise<{ epoch: number; state: string; userId?: string }>((resolve) => {
     const unsubscribe = browserSessionCoordinator.subscribe((event) => {
@@ -435,7 +435,7 @@ test('native token auth never enters the browser cookie coordinator', async () =
   };
 
   const auth = createAuthApi('token', state, coordinator);
-  await auth.register({ email: 'account-a@example.com', password: 'password123' });
+  await auth.register({ email: 'account-a@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true as const });
   await auth.login({ email: 'account-a@example.com', password: 'password123' });
   await auth.socialAuth('google', { idToken: 'google-id-token' });
   await auth.refresh();

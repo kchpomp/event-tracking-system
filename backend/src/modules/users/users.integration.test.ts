@@ -961,12 +961,20 @@ describe('users and admin API integration', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        firstName: 'Анна',
+        lastName: 'Петрова',
+        company: 'Завод',
+        city: 'Тюмень',
+        consent: true,
         email,
         password: 'password123',
-        displayName,
       }),
     })
     expect(response.status).toBe(201)
+    // Registration derives the display name from the participant fields; these tests name users directly.
+    if (displayName !== undefined) {
+      await prisma.user.update({ where: { email }, data: { displayName } })
+    }
     return response.json()
   }
 

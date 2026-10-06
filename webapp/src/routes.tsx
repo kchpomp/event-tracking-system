@@ -65,10 +65,40 @@ const userProfileRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'UserProfilePage'),
 })
 
-const userSettingsRoute = createRoute({
+const userScanRoute = createRoute({
   getParentRoute: () => userWorkspaceRoute,
-  path: '/app/settings',
-  component: lazyRouteComponent(() => import('./pages'), 'UserSettingsPage'),
+  path: '/app/scan',
+  component: lazyRouteComponent(() => import('./pages'), 'UserScanPage'),
+})
+
+const userStationRoute = createRoute({
+  getParentRoute: () => userWorkspaceRoute,
+  path: '/app/station/$stationId',
+  component: lazyRouteComponent(() => import('./pages'), 'UserStationPage'),
+})
+
+const userDiffusionRoute = createRoute({
+  getParentRoute: () => userWorkspaceRoute,
+  path: '/app/diffusion',
+  component: lazyRouteComponent(() => import('./pages'), 'UserDiffusionPage'),
+})
+
+const userDiffusionScanRoute = createRoute({
+  getParentRoute: () => userWorkspaceRoute,
+  path: '/app/diffusion/scan',
+  component: lazyRouteComponent(() => import('./pages'), 'UserDiffusionScanPage'),
+})
+
+const userIdeasRoute = createRoute({
+  getParentRoute: () => userWorkspaceRoute,
+  path: '/app/ideas',
+  component: lazyRouteComponent(() => import('./pages'), 'UserIdeasPage'),
+})
+
+const userPolymerRoute = createRoute({
+  getParentRoute: () => userWorkspaceRoute,
+  path: '/app/polymer',
+  component: lazyRouteComponent(() => import('./pages'), 'UserPolymerPage'),
 })
 
 const adminWorkspaceRoute = createRoute({
@@ -89,6 +119,12 @@ const adminUsersRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'AdminUsersPage'),
 })
 
+const adminStationsRoute = createRoute({
+  getParentRoute: () => adminWorkspaceRoute,
+  path: '/admin/stations',
+  component: lazyRouteComponent(() => import('./pages'), 'AdminStationsPage'),
+})
+
 const adminSettingsRoute = createRoute({
   getParentRoute: () => adminWorkspaceRoute,
   path: '/admin/settings',
@@ -103,12 +139,18 @@ const routeTree = rootRoute.addChildren([
   resetPasswordRoute,
   userWorkspaceRoute.addChildren([
     userHomeRoute,
+    userScanRoute,
+    userStationRoute,
+    userDiffusionRoute,
+    userDiffusionScanRoute,
+    userIdeasRoute,
+    userPolymerRoute,
     userProfileRoute,
-    userSettingsRoute,
   ]),
   adminWorkspaceRoute.addChildren([
     adminDashboardRoute,
     adminUsersRoute,
+    adminStationsRoute,
     adminSettingsRoute,
   ]),
 ])

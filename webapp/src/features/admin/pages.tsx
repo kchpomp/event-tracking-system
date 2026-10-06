@@ -1,4 +1,4 @@
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@event-tracking-system/contracts'
 
 import { PageContainer, PageHeader } from '@/components/PageLayout'
 import { AppearancePanel } from '@/features/settings'
@@ -10,8 +10,8 @@ export function AdminDashboard() {
   return (
     <PageContainer>
       <PageHeader
-        description="A live overview of accounts and administrator coverage."
-        title="Dashboard"
+        description="Сводка по аккаунтам и администраторам."
+        title="Обзор"
       />
       <AdminMetrics />
     </PageContainer>
@@ -22,8 +22,8 @@ export function AdminUsers({ currentUser }: { currentUser: UserDto }) {
   return (
     <PageContainer>
       <PageHeader
-        description="Find accounts and manage access without exposing credential data."
-        title="Users"
+        description="Поиск аккаунтов и управление доступом. Пароли здесь не видны."
+        title="Пользователи"
       />
       <UserDirectory currentUser={currentUser} />
     </PageContainer>
@@ -34,8 +34,8 @@ export function AdminSettings({ user }: { user: UserDto }) {
   return (
     <PageContainer>
       <PageHeader
-        description="Manage your administrator identity and workspace appearance."
-        title="Settings"
+        description="Ваше имя администратора и оформление."
+        title="Настройки"
       />
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <ProfilePanel user={user} />

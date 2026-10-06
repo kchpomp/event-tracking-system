@@ -18,7 +18,7 @@ const browserOrigin = 'http://localhost:5173'
 async function createFilesystemSetup() {
   const root = await mkdtemp(join(tmpdir(), 'private-storage-'))
   const env = loadEnv({
-    DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+    DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
     JWT_SECRET: '12345678901234567890123456789012',
     CORS_ORIGINS: browserOrigin,
     PRIVATE_STORAGE_LOCAL_ROOT: root,

@@ -1,0 +1,108 @@
+// =============================================================================
+// EVENT PARTICIPATION
+//
+// One event, its stations, and the points ledger every score is summed from. Ported from the
+// earlier Supabase project (events, stations, station_visits, activity_log, connections, ideas).
+// The database enforces what Prisma can express (primary keys, unique pairs); the rules that need
+// a lookup first (one Polymer award per person, three scoring connections, five scoring ideas)
+// live in backend/src/modules/event and run under a per-participant advisory lock.
+// =============================================================================
+
+/// Scans are accepted only while the event is active. One row is enough for now; the admin
+/// stations page switches it.
+model Event {
+  id        String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  isActive  Boolean   @default(false) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  stations  Station[]
+
+  @@map("events")
+}
+
+model Station {
+  id             String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventId        String         @map("event_id") @db.Uuid
+  name           String
+  points         Int
+  /// Random and secret: whoever holds it can claim the station's points. Never sent to
+  /// participants; only the admin stations endpoint returns it.
+  qrToken        String         @unique @map("qr_token")
+  isActive       Boolean        @default(true) @map("is_active")
+  /// Rows that share a group show as ONE card (the ten "polymer_solutions" placements).
+  displayGroup   String?        @map("display_group")
+  /// Custom text of the "points awarded" popup.
+  successMessage String?        @map("success_message")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade, map: "stations_event_id_fkey")
+  visits         StationVisit[]
+
+  @@index([eventId], map: "stations_event_id_idx")
+  @@map("stations")
+}
+
+/// Which stations a participant has visited; the app marks the cards done from this.
+model StationVisit {
+  participantId String  @map("participant_id") @db.Uuid
+  stationId     String  @map("station_id") @db.Uuid
+  participant   User    @relation(fields: [participantId], references: [id], onDelete: Cascade, map: "station_visits_participant_id_fkey")
+  station       Station @relation(fields: [stationId], references: [id], onDelete: Cascade, map: "station_visits_station_id_fkey")
+
+  @@id([participantId, stationId], map: "station_visits_pkey")
+  @@index([stationId], map: "station_visits_station_id_idx")
+  @@map("station_visits")
+}
+
+/// The points ledger ("Индекс влияния"): the ONE table every score is summed from.
+model ActivityLog {
+  id            String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  participantId String         @map("participant_id") @db.Uuid
+  actionType    ActivityAction @map("action_type")
+  pointsAwarded Int            @map("points_awarded")
+  /// The station / connection / idea the row is about.
+  refId         String         @map("ref_id") @db.Uuid
+  participant   User           @relation(fields: [participantId], references: [id], onDelete: Cascade, map: "activity_log_participant_id_fkey")
+
+  /// Nothing is scored twice.
+  @@unique([participantId, actionType, refId], map: "activity_log_once_per_ref")
+  @@index([participantId], map: "activity_log_participant_id_idx")
+  @@map("activity_log")
+}
+
+enum ActivityAction {
+  station_scan
+  polymer
+  connection
+  idea
+
+  @@map("activity_action")
+}
+
+/// "Диффузия": ONE row per unordered pair of participants. Stored ordered (participantA <
+/// participantB) so (A,B) and (B,A) are the same row; the application orders the pair.
+model Connection {
+  id           String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  participantA String @map("participant_a") @db.Uuid
+  participantB String @map("participant_b") @db.Uuid
+  a            User   @relation("ConnectionA", fields: [participantA], references: [id], onDelete: Cascade, map: "connections_participant_a_fkey")
+  b            User   @relation("ConnectionB", fields: [participantB], references: [id], onDelete: Cascade, map: "connections_participant_b_fkey")
+
+  @@unique([participantA, participantB], map: "connections_pair_key")
+  @@index([participantB], map: "connections_participant_b_idx")
+  @@map("connections")
+}
+
+/// "Колба идей". The length limits live in the contract (packages/contracts/src/event.ts).
+model Idea {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  title          String
+  direction      String
+  problem        String
+  description    String
+  expectedResult String   @map("expected_result")
+  createdAt      DateTime @default(now()) @map("created_at")
+  author         User     @relation(fields: [authorId], references: [id], onDelete: Cascade, map: "ideas_author_id_fkey")
+
+  @@index([authorId], map: "ideas_author_id_idx")
+  @@map("ideas")
+}

@@ -1,4 +1,4 @@
-import { updateProfileRequestSchema } from '@web-app-demo/contracts'
+import { updateProfileRequestSchema } from '@event-tracking-system/contracts'
 import { expect, test } from 'bun:test'
 
 import { validateProfileForm } from '../src/features/users/profile-form'

@@ -4,7 +4,7 @@ import {
   registerRequestSchema,
   type LoginRequest,
   type RegisterRequest,
-} from '@web-app-demo/contracts';
+} from '@event-tracking-system/contracts';
 import { Redirect, type Href } from 'expo-router';
 import { useState } from 'react';
 

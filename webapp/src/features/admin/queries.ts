@@ -1,5 +1,5 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { AdminUsersQuery, UserRole } from '@web-app-demo/contracts'
+import type { AdminUsersQuery, UserRole } from '@event-tracking-system/contracts'
 
 import { useAuth } from '@/features/auth'
 import type { AuthenticatedTransport } from '@/platform/api'

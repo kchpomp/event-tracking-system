@@ -1,4 +1,12 @@
-export type FieldName = 'confirmPassword' | 'displayName' | 'email' | 'password'
+export type FieldName =
+  | 'city'
+  | 'company'
+  | 'confirmPassword'
+  | 'displayName'
+  | 'email'
+  | 'firstName'
+  | 'lastName'
+  | 'password'
 export type FormError = { message?: string }
 export type FieldErrors = Partial<Record<FieldName, FormError[]>>
 export type ValidationErrors = {

@@ -1,4 +1,4 @@
-import type { PushMutationResponse, UnregisterPushTokenRequest } from '@web-app-demo/contracts';
+import type { PushMutationResponse, UnregisterPushTokenRequest } from '@event-tracking-system/contracts';
 
 type ModernUnregisterPushTokenRequest = Extract<
   UnregisterPushTokenRequest,

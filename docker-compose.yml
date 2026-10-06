@@ -3,7 +3,7 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: web_app_demo
+      POSTGRES_DB: event_tracking_system
       POSTGRES_USER: superuser
       POSTGRES_PASSWORD: superpassword
     ports:
@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_18_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U superuser -d web_app_demo"]
+      test: ["CMD-SHELL", "pg_isready -U superuser -d event_tracking_system"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,7 +21,7 @@ services:
     # Test runners start and remove this service; it must not come back after a Docker restart.
     restart: "no"
     environment:
-      POSTGRES_DB: web_app_demo_test
+      POSTGRES_DB: event_tracking_system_test
       POSTGRES_USER: superuser
       POSTGRES_PASSWORD: superpassword
     ports:
@@ -29,7 +29,7 @@ services:
     volumes:
       - postgres_18_test_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U superuser -d web_app_demo_test"]
+      test: ["CMD-SHELL", "pg_isready -U superuser -d event_tracking_system_test"]
       interval: 5s
       timeout: 5s
       retries: 10

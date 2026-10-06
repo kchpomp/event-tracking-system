@@ -18,7 +18,10 @@ import { Glob } from 'bun'
  * affects rather than in a list here.
  */
 export function backendTestFiles(backendRoot) {
-  const all = [...new Glob('{src,scripts}/**/*.test.{ts,mjs}').scanSync(backendRoot)].sort()
+  // Bun's Glob yields backslashes on Windows; the runners and `selectBackendTestRun` compare with `/`.
+  const all = [...new Glob('{src,scripts}/**/*.test.{ts,mjs}').scanSync(backendRoot)]
+    .map((file) => file.replaceAll('\\', '/'))
+    .sort()
 
   const parked = all.filter((file) => isParked(join(backendRoot, file)))
   const active = all.filter((file) => !parked.includes(file))

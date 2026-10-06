@@ -9,7 +9,7 @@ import type { DbClient } from '../../db'
 import { loadEnv } from '../../env'
 
 const env = loadEnv({
-  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
   JWT_SECRET: '12345678901234567890123456789012',
 })
 

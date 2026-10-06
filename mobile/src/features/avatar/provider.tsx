@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Avatar, AvatarResponse } from '@web-app-demo/contracts';
+import type { Avatar, AvatarResponse } from '@event-tracking-system/contracts';
 
 import { useAuth } from '@/features/auth';
 import type { UploadSender } from '@/platform/uploads';

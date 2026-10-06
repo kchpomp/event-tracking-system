@@ -41,7 +41,7 @@ describe('auth API integration', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'user@example.com',
         password: 'password123',
         displayName: 'User',
@@ -141,7 +141,7 @@ describe('auth API integration', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'logout-push@example.com',
         password: 'password123',
       }),
@@ -195,7 +195,7 @@ describe('auth API integration', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'stale-logout-push@example.com',
         password: 'password123',
       }),
@@ -249,7 +249,7 @@ describe('auth API integration', () => {
     const registered = await app.request('/api/auth/token/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'rollback@example.com', password: 'password123' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, email: 'rollback@example.com', password: 'password123' }),
     })
     expect(registered.status).toBe(201)
 
@@ -300,7 +300,7 @@ describe('auth API integration', () => {
     const register = await emailApp.request('/api/auth/token/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'reset@example.com',
         password: 'password123',
       }),
@@ -372,7 +372,7 @@ describe('auth API integration', () => {
     expect(confirmations.map(({ status }) => status).sort()).toEqual([204, 400])
     const successfulConfirm = confirmations.find(({ status }) => status === 204)!
     const rejectedConfirm = confirmations.find(({ status }) => status === 400)!
-    expect(successfulConfirm.headers.get('set-cookie')).toContain('web_app_demo_refresh=')
+    expect(successfulConfirm.headers.get('set-cookie')).toContain('event_tracking_system_refresh=')
     expect(successfulConfirm.headers.get('set-cookie')).toContain('Max-Age=0')
     expect((await rejectedConfirm.json()).error.code).toBe('AUTH_PASSWORD_RESET_INVALID')
     await drain()
@@ -455,7 +455,7 @@ describe('auth API integration', () => {
     const register = await floodApp.request('/api/auth/token/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'victim@example.com', password: 'password123' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, email: 'victim@example.com', password: 'password123' }),
     })
     expect(register.status).toBe(201)
 
@@ -518,7 +518,7 @@ describe('auth API integration', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'race@example.com',
         password: 'password123',
       }),
@@ -591,7 +591,7 @@ describe('auth API integration', () => {
     const register = await app.request('/api/auth/token/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'reuse@example.com', password: 'password123' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, email: 'reuse@example.com', password: 'password123' }),
     })
     const registered = await register.json()
     const refresh = await app.request('/api/auth/token/refresh', {
@@ -653,7 +653,7 @@ describe('auth API integration', () => {
     const register = await app.request('/api/auth/token/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'forged-family@example.com', password: 'password123' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, email: 'forged-family@example.com', password: 'password123' }),
     })
     const registered = await register.json()
     const [familyId] = registered.refreshToken.split('.')
@@ -687,7 +687,7 @@ describe('auth API integration', () => {
         'Content-Type': 'application/json',
         'X-Client-Platform': 'mobile',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'web-cookie@example.com',
         password: 'password123',
       }),
@@ -697,7 +697,7 @@ describe('auth API integration', () => {
 
     expect(register.status).toBe(201)
     expect(registerBody.refreshToken).toBeUndefined()
-    expect(setCookie).toContain('web_app_demo_refresh=')
+    expect(setCookie).toContain('event_tracking_system_refresh=')
     expect(setCookie).toContain('HttpOnly')
     expect(setCookie).toContain('SameSite=Lax')
 
@@ -731,7 +731,7 @@ describe('auth API integration', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: `web_app_demo_refresh=${refreshToken}`,
+        Cookie: `event_tracking_system_refresh=${refreshToken}`,
       },
       body: JSON.stringify({}),
     })
@@ -753,7 +753,7 @@ describe('auth API integration', () => {
         'Content-Type': 'application/json',
         Origin: 'https://web.example.com',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'production-cookie@example.com',
         password: 'password123',
       }),
@@ -765,7 +765,7 @@ describe('auth API integration', () => {
     expect(register.headers.get('access-control-allow-origin')).toBe('https://web.example.com')
     expect(register.headers.get('access-control-allow-credentials')).toBe('true')
     expect(registerBody.refreshToken).toBeUndefined()
-    expect(setCookie).toContain('web_app_demo_refresh=')
+    expect(setCookie).toContain('event_tracking_system_refresh=')
     expect(setCookie).toContain('HttpOnly')
     expect(setCookie).toContain('Secure')
     expect(setCookie).toContain('SameSite=None')
@@ -786,7 +786,7 @@ describe('auth API integration', () => {
         'Content-Type': 'application/json',
         Origin: 'https://web.example.com',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'csrf-cookie@example.com',
         password: 'password123',
       }),
@@ -837,7 +837,7 @@ describe('auth API integration', () => {
     const invalidRegister = await app.request('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email: 'not-an-email',
         password: 'short',
       }),
@@ -946,6 +946,11 @@ describe('auth API integration', () => {
     const payload = {
       email: 'dupe@example.com',
       password: 'password123',
+      firstName: 'Анна',
+      lastName: 'Петрова',
+      company: 'Завод',
+      city: 'Тюмень',
+      consent: true,
     }
 
     await app.request('/api/auth/register', {
@@ -976,6 +981,11 @@ describe('auth API integration', () => {
     const payload = {
       email: 'register-race@example.com',
       password: 'password123',
+      firstName: 'Анна',
+      lastName: 'Петрова',
+      company: 'Завод',
+      city: 'Тюмень',
+      consent: true,
     }
 
     const [first, second] = await Promise.all([
@@ -1008,7 +1018,7 @@ describe('auth API integration', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email,
         password: 'password123',
       }),

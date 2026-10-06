@@ -36,7 +36,7 @@ bun run --cwd webapp e2e -- auth.spec.ts -g "registers, restores"
 
 ## Backend integration
 
-The repository Compose project is `COMPOSE_PROJECT_NAME` or `vibecoding-template-<hash>` from `scripts/repo-env.mjs`, not the development database's project. Each integration run starts `postgres_test` in its own project, `<repository project>-integration-<id>`. It applies migrations and runs the selected files. Then it removes that run's container, volume, and network, also after a failed start. Development data and local storage stay.
+The repository Compose project is `COMPOSE_PROJECT_NAME` or `event-tracking-system-<hash>` from `scripts/repo-env.mjs`, not the development database's project. Each integration run starts `postgres_test` in its own project, `<repository project>-integration-<id>`. It applies migrations and runs the selected files. Then it removes that run's container, volume, and network, also after a failed start. Development data and local storage stay.
 
 Each test gets 3 minutes, not Bun's 5 s. Password hashing is slow on a busy machine, and the budget must outlast the longest transaction timeout in `backend/src/db.ts`, 140 s, so a held lock fails its request rather than the harness. Override with `--timeout=<ms>`.
 
@@ -51,7 +51,7 @@ Start the database once, then iterate on one test. Iterations still apply new mi
 
 ```bash
 TEST_KEEP_DOCKER=1 bun run test:backend:integration -- src/modules/users/users.integration.test.ts
-TEST_SKIP_DOCKER=1 TEST_DATABASE_URL="postgresql://superuser:superpassword@localhost:<port>/web_app_demo_test?schema=public" \
+TEST_SKIP_DOCKER=1 TEST_DATABASE_URL="postgresql://superuser:superpassword@localhost:<port>/event_tracking_system_test?schema=public" \
   bun run test:backend:integration -- src/modules/users/users.integration.test.ts -t "name"
 ```
 
@@ -97,8 +97,7 @@ Specs find elements by `data-testid`. Reports and failure traces, screenshots, a
 - `E2E_SKIP_DOCKER=1`: use a running database. Start and remove nothing.
 - `E2E_KEEP_DOCKER=1`: keep the database.
 
-Screenshot tour (`bun run screens`): see [UI](UI.md). It seeds ~40 fixed fixture users and a
-sample avatar for realistic list, pagination, and empty-state screenshots; plain E2E specs and
+Screenshot tour (`bun run screens`): see [UI](UI.md). It seeds ~40 fixed fixture users for realistic list, pagination, and empty-state screenshots; plain E2E specs and
 `bun run dev:seed` do not get them unless asked, see [COMMANDS](COMMANDS.md).
 
 ## Mobile E2E
@@ -109,7 +108,7 @@ Requirements:
 
 - Java 17+ and the Maestro CLI. `bun run --cwd mobile e2e:maestro:setup` installs the pinned version with the official installer; `MAESTRO_VERSION` overrides it. Then add `$HOME/.maestro/bin` to `PATH`. The runner requires 2.4.0 or later (`MAESTRO_MIN_VERSION`).
 - Xcode with the iOS Simulator, or Android Studio with an emulator.
-- An installed Expo development build with the ID `com.webappdemo.mobile`. Expo Go does not work. [mobile/README](../mobile/README.md) shows how to build one.
+- An installed Expo development build with the ID `com.eventtrackingsystem.mobile`. Expo Go does not work. [mobile/README](../mobile/README.md) shows how to build one.
 - `EXPO_PUBLIC_E2E=1` for Metro and the runner. It turns off push registration and other integrations that disturb the flow.
 
 Create `backend/.env` from `backend/.env.example` first. Then run the test database with an API on it, Metro, and the flow, each in its own terminal from the repository root. LAN addresses work for simulators and devices. The database port must match `POSTGRES_TEST_PORT`; Compose defaults to 54330.
@@ -117,7 +116,7 @@ Create `backend/.env` from `backend/.env.example` first. Then run the test datab
 ```bash
 # 1: test database and API
 docker compose --env-file backend/.env up -d postgres_test
-export TEST_DATABASE_URL="postgresql://superuser:superpassword@localhost:54330/web_app_demo_test?schema=public"
+export TEST_DATABASE_URL="postgresql://superuser:superpassword@localhost:54330/event_tracking_system_test?schema=public"
 DATABASE_URL="$TEST_DATABASE_URL" bun run --cwd backend prisma:deploy
 PORT=3000 DATABASE_URL="$TEST_DATABASE_URL" JWT_SECRET="mobile-e2e-secret-at-least-thirty-two-characters" \
   CORS_ORIGINS="http://<LAN_IP>:8081,http://localhost:8081" COOKIE_SECURE=false bun run --cwd backend start:raw
@@ -154,3 +153,9 @@ The template keeps no `ios` or `android` directory. A product that owns them can
 - When no fix exists, add `--ignore=<GHSA-id>` to the `audit` script in the root `package.json`. State the reason and a review date in the commit message.
 - Root `overrides` set minimum safe versions for transitive packages. After an update, remove them one at a time. Keep an override removed if the audit still passes.
 - Prisma packages have an exact version pin; see [ARCHITECTURE](ARCHITECTURE.md).
+
+## Windows
+
+- `bun` installed with `npm install -g bun` is a `.cmd` shim that a `spawnSync('bun')` call cannot start, so the E2E global setup fails with a bare "Command failed". Put the folder of the real `bun.exe` (`%APPDATA%\npm\node_modules\bun\bin`) first in `PATH` for the run.
+- To use an installed Chrome instead of the Playwright download, set `E2E_BROWSER_CHANNEL=chrome`; video recording is then off, because it needs Playwright's own ffmpeg. Without the variable, run `bun run --cwd webapp e2e:install` once.
+- Pass a backend test file to the runners with forward slashes: `bun run test:backend:integration -- src/modules/event/event.integration.test.ts`.

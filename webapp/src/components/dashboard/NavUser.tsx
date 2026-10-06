@@ -5,7 +5,7 @@ import {
   UserCircle02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@event-tracking-system/contracts'
 import { useState } from 'react'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -61,7 +61,7 @@ export function NavUser({
     <>
       {logoutError && (
         <Typography data-testid="logout-error" role="alert" variant="caption" tone="destructive">
-          Logout failed. Please try again.
+          Не удалось выйти. Попробуйте ещё раз.
         </Typography>
       )}
       <SidebarMenu>
@@ -69,7 +69,7 @@ export function NavUser({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
-                aria-label="Open account menu"
+                aria-label="Меню аккаунта"
                 data-testid="account-menu"
                 size="lg"
                 tooltip={user.displayName ?? user.email}
@@ -129,14 +129,14 @@ export function NavUser({
                   <DropdownMenuItem asChild>
                     <DashboardLink to={accountPath}>
                       <HugeiconsIcon icon={UserCircle02Icon} strokeWidth={2} />
-                      Profile
+                      Профиль
                     </DashboardLink>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
                   <DashboardLink to={settingsPath}>
                     <HugeiconsIcon icon={Settings01Icon} strokeWidth={2} />
-                    Settings
+                    Настройки
                   </DashboardLink>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -148,7 +148,7 @@ export function NavUser({
                 variant="destructive"
               >
                 <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} />
-                {logoutPending ? 'Logging out…' : 'Log out'}
+                {logoutPending ? 'Выходим…' : 'Выйти'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

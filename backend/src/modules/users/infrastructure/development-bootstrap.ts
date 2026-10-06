@@ -46,7 +46,12 @@ async function bootstrapDevelopmentUser(
     try {
       return await db.user.create({
         data: {
-          displayName: 'Development User',
+          displayName: 'Демо Участник',
+          firstName: 'Демо',
+          lastName: 'Участник',
+          company: 'Демо-предприятие',
+          city: 'Тюмень',
+          consentedAt: new Date(),
           email: credentials.email,
           passwordHash: await Bun.password.hash(credentials.password, { algorithm: 'argon2id' }),
           role: 'user',

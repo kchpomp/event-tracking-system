@@ -76,7 +76,7 @@ function DialogContent({
               size="icon-sm"
             >
               <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">Закрыть</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -89,7 +89,8 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      // px-6 keeps a centred title clear of the corner close button.
+      className={cn("flex flex-col items-center gap-2 px-6 text-center", className)}
       {...props}
     />
   )
@@ -107,7 +108,8 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        // Narrow: full-width column, the main action (last in the markup) on top. Wide: one centred row.
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-center sm:*:min-w-32",
         className
       )}
       {...props}
@@ -115,7 +117,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">Закрыть</Button>
         </DialogPrimitive.Close>
       )}
     </div>

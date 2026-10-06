@@ -1,4 +1,4 @@
-import type { AvatarContentType } from '@web-app-demo/contracts'
+import type { AvatarContentType } from '@event-tracking-system/contracts'
 
 import { acquireUserAvatarMutationLock, type DbClient } from '../../../db'
 import type {

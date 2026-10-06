@@ -12,6 +12,16 @@ model User {
   email         String        @unique
   passwordHash  String?       @map("password_hash")
   displayName   String?       @map("display_name")
+  // Participant profile (the event app). Null for accounts that did not register through the
+  // participant form, such as the seeded admin.
+  firstName     String?       @map("first_name") @db.VarChar(100)
+  lastName      String?       @map("last_name") @db.VarChar(100)
+  company       String?       @db.VarChar(100)
+  city          String?       @db.VarChar(100)
+  /// What the participant's own "Диффузия" QR encodes. Random, shown only to its owner.
+  personalQrToken String      @unique(map: "users_personal_qr_token_key") @default(dbgenerated("gen_random_uuid()::text")) @map("personal_qr_token")
+  /// Stamped by the server at sign-up: the personal-data consent record.
+  consentedAt   DateTime?     @map("consented_at")
   role          UserRole      @default(user)
   appleSubject  String?       @unique @map("apple_subject")
   googleSubject String?       @unique @map("google_subject")
@@ -31,6 +41,13 @@ model User {
   pushDeliveries         PushDelivery[]
   passwordResetTokens    PasswordResetToken[]
   avatars                UserAvatar[]
+
+  // Event participation; remove together with prisma/schema/event.prisma.
+  stationVisits  StationVisit[]
+  activityLog    ActivityLog[]
+  connectionsAsA Connection[]   @relation("ConnectionA")
+  connectionsAsB Connection[]   @relation("ConnectionB")
+  ideas          Idea[]
 
   @@index([role], map: "users_role_idx")
   @@map("users")

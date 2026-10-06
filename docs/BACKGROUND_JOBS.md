@@ -97,7 +97,6 @@ Delivery through Expo is at least once. Make notification links and effects idem
 `outbox:drain` is an ordinary scheduled job. Both Terraform stacks deploy its runner:
 
 - Local: `bun run dev` starts the scheduler next to the API.
-- DigitalOcean: an App Platform worker runs `bun run start:scheduler`, because scheduled jobs there run at most every 15 minutes. Alerts: [DIGITALOCEAN](DIGITALOCEAN.md).
 - Yandex Cloud: a timer and an HTTP container, `cron.ts --http <job>`, per schedule entry. Alerts are manual: [YANDEX_CLOUD](YANDEX_CLOUD.md).
 - Under one minute: a `workerLoops` entry with `intervalMs` and `singleInstance` off, run by `start:worker`, which no stack deploys. Row claims protect concurrent drains.
 - Your own server: under systemd with `Restart=always`, run `bun run --cwd backend start:scheduler`. Under Docker, run the API image with `bun run start:scheduler` and `restart: unless-stopped`.
@@ -135,7 +134,6 @@ Each pass logs `Job outbox:drain completed.` and a metrics object. No alert read
 
 Provider adapters:
 
-- DigitalOcean: `POST /v2/apps/{app_id}/deployments` rebuilds the website app from Git. Track the deployment and check its revision. The build must fetch its data from the backend.
 - Yandex Cloud: releases build on the operator's machine, so first add a separate protected builder. Keep the website source, toolchain, and broad storage keys out of the backend runtime.
 
 For which data may be static, and for fresher data, see [WEB_SURFACES](WEB_SURFACES.md).

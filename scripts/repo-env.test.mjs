@@ -28,15 +28,15 @@ afterEach(() => {
 test('assertTestDatabaseUrl accepts test databases and rejects development databases', () => {
   expect(() =>
     assertTestDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost:55432/web_app_demo_test?schema=public',
+      'postgresql://superuser:superpassword@localhost:55432/event_tracking_system_test?schema=public',
     ),
   ).not.toThrow()
 
   expect(() =>
     assertTestDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost:54329/web_app_demo?schema=public',
+      'postgresql://superuser:superpassword@localhost:54329/event_tracking_system?schema=public',
     ),
-  ).toThrow(/Refusing to run tests against non-test database "web_app_demo"/)
+  ).toThrow(/Refusing to run tests against non-test database "event_tracking_system"/)
 })
 
 test('assertTestDatabaseUrl accepts non-test databases with an intentional override', () => {
@@ -44,14 +44,14 @@ test('assertTestDatabaseUrl accepts non-test databases with an intentional overr
 
   expect(() =>
     assertTestDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost:54329/web_app_demo?schema=public',
+      'postgresql://superuser:superpassword@localhost:54329/event_tracking_system?schema=public',
     ),
   ).not.toThrow()
 })
 
 test('assertTestDatabaseUrl lets a runner name its own override, and only that name unlocks it', () => {
   const developmentUrl =
-    'postgresql://superuser:superpassword@localhost:54329/web_app_demo?schema=public'
+    'postgresql://superuser:superpassword@localhost:54329/event_tracking_system?schema=public'
   const options = { allowEnvName: 'CUSTOM_ALLOW_NON_TEST_DATABASE' }
 
   process.env.TEST_ALLOW_NON_TEST_DATABASE = '1'

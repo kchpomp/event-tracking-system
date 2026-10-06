@@ -7,11 +7,11 @@ WORKDIR /app
 # remain valid for both repository shapes.
 COPY . .
 
-RUN bun install --frozen-lockfile --filter @web-app-demo/backend
+RUN bun install --frozen-lockfile --filter @event-tracking-system/backend
 
 WORKDIR /app/backend
 
-RUN DATABASE_URL="postgresql://superuser:superpassword@localhost:5432/web_app_demo?schema=public" bun run prisma:generate
+RUN DATABASE_URL="postgresql://superuser:superpassword@localhost:5432/event_tracking_system?schema=public" bun run prisma:generate
 
 FROM oven/bun:1.4.2 AS production-dependencies
 
@@ -19,7 +19,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN bun install --frozen-lockfile --production --filter @web-app-demo/backend
+RUN bun install --frozen-lockfile --production --filter @event-tracking-system/backend
 
 FROM oven/bun:1.4.2 AS runtime
 

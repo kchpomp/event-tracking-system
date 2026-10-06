@@ -99,12 +99,15 @@ export default defineConfig({
     baseURL: frontendUrl,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
-    video: 'retain-on-failure',
+    // Video needs Playwright's own ffmpeg download, which an installed-Chrome run does not have.
+    video: process.env.E2E_BROWSER_CHANNEL ? 'off' : 'retain-on-failure',
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      // E2E_BROWSER_CHANNEL=chrome runs the suite in an installed Chrome instead of the
+      // Playwright download (`bun run --cwd webapp e2e:install`).
+      use: { ...devices['Desktop Chrome'], channel: process.env.E2E_BROWSER_CHANNEL || undefined },
     },
   ],
   webServer: [

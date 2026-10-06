@@ -6,7 +6,7 @@ import { isUsableEmailAddress } from './address'
 import { emailDeliveryConfigFromEnv } from './config'
 
 const base = {
-  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
   JWT_SECRET: '12345678901234567890123456789012',
   WEBAPP_ORIGIN: 'http://localhost:5173',
 }

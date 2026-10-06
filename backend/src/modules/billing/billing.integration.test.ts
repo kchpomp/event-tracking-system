@@ -1036,7 +1036,7 @@ maybeDescribe('iap API integration', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, 
         email,
         password: 'password123',
       }),

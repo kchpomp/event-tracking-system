@@ -1,5 +1,3 @@
-import { GalleryVerticalEndIcon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
@@ -8,19 +6,22 @@ import { Typography } from '@/components/typography'
 export function AuthPageShell({ children }: { children: ReactNode }) {
   return (
     <main className="grid min-h-svh lg:grid-cols-2">
-      <section className="flex flex-col gap-4 p-6 md:p-10">
-        <div className="flex justify-center gap-2 md:justify-start">
-          <Link className="flex items-center gap-2" search={{ returnTo: undefined }} to="/login">
-            <span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <HugeiconsIcon aria-hidden icon={GalleryVerticalEndIcon} size={16} strokeWidth={2} />
-            </span>
-            <Typography as="span" variant="control">
-              web_app_demo
+      <section className="flex flex-col gap-4 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] md:p-10">
+        <div className="flex flex-col items-center gap-1 md:items-start">
+          <Link search={{ returnTo: undefined }} to="/login">
+            <Typography as="span" variant="h4" wrap="nowrap">
+              Формула{' '}
+              <Typography as="span" tone="primary" variant="h4">
+                Будущего
+              </Typography>
             </Typography>
           </Link>
+          <Typography tone="muted" variant="bodySm">
+            Сила — в соединении.
+          </Typography>
         </div>
-        <div className="flex flex-1 items-center justify-center py-8">
-          <div className="w-full max-w-xs">{children}</div>
+        <div className="flex flex-1 items-center justify-center py-4">
+          <div className="w-full max-w-sm">{children}</div>
         </div>
       </section>
       <section aria-hidden className="relative hidden overflow-hidden bg-muted lg:block">

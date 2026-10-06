@@ -1,10 +1,9 @@
 import { mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { test, type APIRequestContext, type Page } from '@playwright/test'
+import { test, type Page } from '@playwright/test'
 
 import { workspaceRoutesByRole } from '../../src/features/navigation/model'
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
-import { pngImage } from '../helpers/images'
 
 // Screenshot tour for visual self-review. Nothing here asserts UI details; a test fails only
 // when a page cannot be opened. Filter with `-g`, for example `-g "/admin/users"` or `-g website`.
@@ -120,63 +119,6 @@ async function capture(
     await page.screenshot({ path: tilePath, fullPage: true, clip, animations: 'disabled', style: hideDevOverlays })
     console.log(tilePath)
   }
-}
-
-// Seeds a real avatar for the demo user, so `/app/profile` shows an image instead of just
-// initials. A hook, not a test, so a `-g` filter cannot skip it. Goes through the same three-step
-// storage API the webapp itself uses (ticket, upload, finalize), so it works unchanged against the
-// filesystem and S3 storage drivers.
-test.beforeAll(async ({ playwright }) => {
-  if (process.env.SCREENS_SEED_DEMO !== '1') return
-
-  const request = await playwright.request.newContext()
-  try {
-    await seedDemoAvatar(request)
-  } finally {
-    await request.dispose()
-  }
-})
-
-async function seedDemoAvatar(request: APIRequestContext) {
-  const backendUrl = process.env.E2E_BACKEND_URL ?? ''
-  const origin = process.env.E2E_WEB_URL ?? ''
-
-  const login = await request.post(`${backendUrl}/api/auth/login`, {
-    data: accounts.user,
-    headers: { Origin: origin },
-  })
-  if (!login.ok()) throw new Error(`Demo avatar: sign-in failed with HTTP ${login.status()}`)
-  const { accessToken } = await login.json()
-  // Every authenticated request carries the access token as a bearer header; there is no session
-  // cookie, so an unauthenticated request context (unlike `page.request`, which shares the
-  // browser's own state) has to attach it explicitly. See `webapp/src/features/auth/api.ts`.
-  const headers = { Authorization: `Bearer ${accessToken}`, Origin: origin }
-
-  const current = await request.get(`${backendUrl}/api/uploads/avatar`, { headers })
-  if (!current.ok()) throw new Error(`Demo avatar: fetch failed with HTTP ${current.status()}`)
-  if ((await current.json()).avatar) return // Already seeded by an earlier run.
-
-  const ticket = await request.post(`${backendUrl}/api/uploads/avatar`, {
-    data: { contentType: pngImage.mimeType, byteSize: pngImage.buffer.byteLength },
-    headers,
-  })
-  if (!ticket.ok()) throw new Error(`Demo avatar: upload ticket failed with HTTP ${ticket.status()}`)
-  const { upload } = await ticket.json()
-
-  const stored = await request.fetch(upload.url, {
-    method: upload.method,
-    headers: upload.headers,
-    data: pngImage.buffer,
-  })
-  if (!stored.ok() && stored.status() !== 412) {
-    throw new Error(`Demo avatar: storage rejected the upload with HTTP ${stored.status()}`)
-  }
-
-  const finalized = await request.post(
-    `${backendUrl}/api/uploads/avatar/${upload.uploadId}/finalize`,
-    { headers },
-  )
-  if (!finalized.ok()) throw new Error(`Demo avatar: finalize failed with HTTP ${finalized.status()}`)
 }
 
 mkdirSync(outputDirectory, { recursive: true })

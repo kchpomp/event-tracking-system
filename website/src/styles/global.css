@@ -7,7 +7,7 @@
 @theme inline {
     --color-brand: var(--brand);
     --color-brand-foreground: var(--brand-foreground);
-    --font-heading: var(--font-sans);
+    --font-heading: 'Playfair Display', Georgia, serif;
     /* Helvetica is the intended face. Arial is metrically compatible on Windows,
        Inter Variable is the bundled fallback for systems that ship neither. */
     /* THEME_FONT_START */
@@ -60,7 +60,7 @@
 :root,
 .dark {
     /* THEME_TOKENS_START */
-    --brand: oklch(1 0 0);
+    --brand: oklch(0.655 0.125 57.627);
     --brand-foreground: oklch(0.06 0 0);
     --background: oklch(0.06 0 0);
     --foreground: oklch(1 0 0);
@@ -68,7 +68,7 @@
     --card-foreground: oklch(1 0 0);
     --popover: oklch(0.11 0 0);
     --popover-foreground: oklch(1 0 0);
-    --primary: oklch(1 0 0);
+    --primary: oklch(0.655 0.125 57.627);
     --primary-foreground: oklch(0.06 0 0);
     --secondary: oklch(0.18 0 0);
     --secondary-foreground: oklch(1 0 0);
@@ -81,21 +81,21 @@
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 12%);
     --input: oklch(1 0 0 / 16%);
-    --ring: oklch(0.85 0 0);
-    --chart-1: oklch(0.97 0 0);
-    --chart-2: oklch(0.8 0 0);
-    --chart-3: oklch(0.63 0 0);
-    --chart-4: oklch(0.46 0 0);
-    --chart-5: oklch(0.3 0 0);
+    --ring: oklch(0.655 0.125 57.627);
+    --chart-1: oklch(0.97 0.017 57.627);
+    --chart-2: oklch(0.8 0.125 57.627);
+    --chart-3: oklch(0.63 0.125 57.627);
+    --chart-4: oklch(0.46 0.11 57.627);
+    --chart-5: oklch(0.3 0.072 57.627);
     --radius: 0.75rem;
     --sidebar: oklch(0.09 0 0);
     --sidebar-foreground: oklch(1 0 0);
-    --sidebar-primary: oklch(1 0 0);
+    --sidebar-primary: oklch(0.655 0.125 57.627);
     --sidebar-primary-foreground: oklch(0.06 0 0);
     --sidebar-accent: oklch(0.18 0 0);
     --sidebar-accent-foreground: oklch(1 0 0);
     --sidebar-border: oklch(1 0 0 / 12%);
-    --sidebar-ring: oklch(0.85 0 0);
+    --sidebar-ring: oklch(0.655 0.125 57.627);
     /* THEME_TOKENS_END */
 }
 

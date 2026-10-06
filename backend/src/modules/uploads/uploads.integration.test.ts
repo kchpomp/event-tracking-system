@@ -62,7 +62,7 @@ describe('avatar upload API integration', () => {
     const response = await app.request('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: 'password-1234' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true,  email, password: 'password-1234' }),
     })
     expect(response.status).toBe(201)
     return (await response.json()) as { accessToken: string; user: { id: string } }
@@ -268,7 +268,7 @@ describe('avatar upload API integration', () => {
     const register = await tightApp.request('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'tight@example.com', password: 'password-1234' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true,  email: 'tight@example.com', password: 'password-1234' }),
     })
     const { accessToken } = await register.json()
 

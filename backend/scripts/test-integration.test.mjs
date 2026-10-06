@@ -5,7 +5,7 @@ import { integrationTestTimeoutMs, runBackendIntegration } from './test-integrat
 
 const integrationFile = 'src/example.integration.test.ts'
 const testDatabaseUrl =
-  'postgresql://superuser:superpassword@localhost:54330/web_app_demo_test?schema=public'
+  'postgresql://superuser:superpassword@localhost:54330/event_tracking_system_test?schema=public'
 
 describe('backend integration Docker lifecycle', () => {
   test('cleans only its own postgres_test service and volume and never runs `down`', async () => {

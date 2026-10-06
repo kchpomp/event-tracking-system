@@ -1,4 +1,4 @@
-import type { UserRole } from '@web-app-demo/contracts'
+import type { UserRole } from '@event-tracking-system/contracts'
 
 import type { DbClient } from '../src/db'
 

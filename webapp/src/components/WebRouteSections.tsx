@@ -24,9 +24,9 @@ type HomeDestination = '/login' | '/app' | '/admin'
 export function SessionLoadingSection() {
   return (
     <RouteStateCard
-      description="Checking session..."
+      description="Проверяем сессию..."
       icon={ShieldUserIcon}
-      title="Loading workspace"
+      title="Загрузка"
     >
       <Spinner />
     </RouteStateCard>
@@ -50,16 +50,16 @@ export function SessionErrorSection({ retry }: { retry: () => Promise<void> }) {
   return (
     <RouteStateCard
       alert
-      description="Your session was not cleared. Check the connection and try again."
+      description="Вы всё ещё в аккаунте. Проверьте соединение и попробуйте ещё раз."
       icon={Alert02Icon}
-      title="Session check is temporarily unavailable"
+      title="Не удалось проверить сессию"
     >
       <Button
         disabled={retryPending}
         onClick={() => void retrySession()}
         type="button"
       >
-        {retryPending ? 'Trying again…' : 'Try again'}
+        {retryPending ? 'Пробуем ещё раз…' : 'Повторить'}
       </Button>
     </RouteStateCard>
   )
@@ -70,15 +70,15 @@ export function NotFoundSection({ destination }: { destination: HomeDestination 
 
   return (
     <RouteStateCard
-      description="The page you requested does not exist or may have moved."
+      description="Такой страницы нет или она переехала."
       icon={FileNotFoundIcon}
-      title="Page not found"
+      title="Страница не найдена"
     >
       <Button asChild>
         {authenticated ? (
-          <Link to={destination}>Return to workspace</Link>
+          <Link to={destination}>На главную</Link>
         ) : (
-          <Link search={{ returnTo: undefined }} to="/login">Return to sign in</Link>
+          <Link search={{ returnTo: undefined }} to="/login">Ко входу</Link>
         )}
       </Button>
     </RouteStateCard>

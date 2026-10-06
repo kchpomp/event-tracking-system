@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
 
 import { createPrisma, type DbClient } from '../src/db'
+import { seedEvent } from '../src/modules/event/infrastructure/event-seed'
 import {
   assertLoginCapableAdmin,
   bootstrapAdmin,
@@ -26,6 +27,8 @@ type DatabaseDeployDependencies = {
     input: { databaseName: string; username: string | null },
   ): Promise<void>
   log(message: string): void
+  /** Creates the first event with its stations when the database has none. Optional in tests. */
+  seedEvent?(db: DbClient): Promise<unknown>
   migrate(
     databaseUrl: string,
     source: Record<string, string | undefined>,
@@ -39,6 +42,7 @@ const defaultDependencies: DatabaseDeployDependencies = {
   createDatabase: createPrisma,
   grantRuntimeAccess: grantRuntimeDatabaseAccess,
   log: console.log,
+  seedEvent,
   migrate(databaseUrl, source) {
     const migration = spawnSync('bun', ['run', 'prisma:deploy'], {
       cwd: resolve(import.meta.dirname, '..'),
@@ -74,6 +78,8 @@ export async function deployDatabase(
       await dependencies.bootstrap(prisma, config.seed)
     }
     await dependencies.assertAdmin(prisma)
+    // After the admin check: the event only matters once someone can sign in to print its codes.
+    await dependencies.seedEvent?.(prisma)
   } finally {
     await prisma.$disconnect()
   }

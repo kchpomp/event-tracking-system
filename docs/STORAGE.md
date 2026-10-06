@@ -35,7 +35,6 @@ Local URLs are signed with a key derived from `JWT_SECRET`. Rotating it invalida
 
 Providers differ in endpoint, region, and path style:
 
-- DigitalOcean Spaces: `https://<region>.digitaloceanspaces.com`, with the bucket in the host name.
 - Yandex Object Storage: `https://storage.yandexcloud.net`, region `ru-central1`.
 - MinIO and self-hosted gateways: `PRIVATE_STORAGE_FORCE_PATH_STYLE=true`.
 
@@ -71,9 +70,9 @@ On web, `expo-file-system` is a stub: its `File` has no size, and its upload ret
 
 Replaced and removed objects are deleted after the response. A failed delete orphans the object, because its row is gone and `uploads:pending:cleanup` covers only unfinished uploads. Deleting a user also orphans the avatar file. Accept this only for small avatars. For other files, or before you add account deletion, delete files explicitly, keep keys longer than their records, and reconcile the bucket.
 
-Terraform versions the media bucket on both clouds. Noncurrent versions expire after 30 days, and incomplete multipart uploads after 7. DigitalOcean does not guarantee this expiry; see [DIGITALOCEAN](DIGITALOCEAN.md). This window is the only undo for media: an operator can remove a delete marker or copy an old version back. On Yandex Cloud, see [YANDEX_CLOUD](YANDEX_CLOUD.md) first. Reconciliation must skip delete markers.
+Terraform versions the media bucket. Noncurrent versions expire after 30 days, and incomplete multipart uploads after 7. This window is the only undo for media: an operator can remove a delete marker or copy an old version back. On Yandex Cloud, see [YANDEX_CLOUD](YANDEX_CLOUD.md) first. Reconciliation must skip delete markers.
 
-The window restores bytes, not ownership, so back up the database separately. Never give the application an account-level access key, which can delete versions. The Yandex Cloud runtime key cannot delete versions; DigitalOcean does not document whether its scoped `readwrite` key can.
+The window restores bytes, not ownership, so back up the database separately. Never give the application an account-level access key, which can delete versions. The Yandex Cloud runtime key cannot delete versions.
 
 ## CORS
 

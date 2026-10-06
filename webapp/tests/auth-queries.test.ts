@@ -11,7 +11,7 @@ import {
   logoutAuthenticatedSession,
   sessionQueryKeys,
 } from '../src/features/auth/queries'
-import { avatarQueryOptions } from '../src/features/avatar/queries'
+import { eventMeQueryOptions } from '../src/features/event/queries'
 import type { HttpRequestOptions } from '../src/platform/api'
 
 const user = {
@@ -200,7 +200,7 @@ test('every session-scoped query forwards its abort signal and is removed by ses
     currentUserQueryOptions(api),
     adminDashboardQueryOptions(transport),
     adminUsersQueryOptions(transport, { page: 1, pageSize: 20 }),
-    avatarQueryOptions(transport),
+    eventMeQueryOptions(transport),
   ] as const
 
   await queryClient.fetchQuery(sessionQueries[0])

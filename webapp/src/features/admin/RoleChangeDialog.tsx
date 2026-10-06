@@ -1,4 +1,4 @@
-import type { AdminUserSummary, UserRole } from '@web-app-demo/contracts'
+import type { AdminUserSummary, UserRole } from '@event-tracking-system/contracts'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -37,23 +37,23 @@ export function RoleChangeDialog({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Change user role?</AlertDialogTitle>
+          <AlertDialogTitle>Изменить роль пользователя?</AlertDialogTitle>
           <AlertDialogDescription>
             {pendingChange
-              ? `${pendingChange.user.email} will become ${pendingChange.role}. Their active sessions will be revoked.`
+              ? `${pendingChange.user.email}: новая роль — ${pendingChange.role === 'admin' ? 'администратор' : 'участник'}. Все активные сессии пользователя будут завершены.`
               : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {failureReason !== null && (
           <Alert variant="destructive">
-            <AlertTitle>Role was not changed</AlertTitle>
+            <AlertTitle>Роль не изменена</AlertTitle>
             <AlertDescription>{failureReason}</AlertDescription>
           </Alert>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Отмена</AlertDialogCancel>
           <Button data-testid="role-change-confirm" disabled={isPending} onClick={onConfirm}>
-            {isPending ? 'Changing…' : 'Change role'}
+            {isPending ? 'Меняем…' : 'Изменить роль'}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

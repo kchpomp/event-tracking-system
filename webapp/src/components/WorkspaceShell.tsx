@@ -1,12 +1,13 @@
 import {
   DashboardSquare01Icon,
   Home01Icon,
+  QrCodeIcon,
   Settings01Icon,
   UserGroupIcon,
   UserIcon,
 } from '@hugeicons/core-free-icons'
 import { useLocation } from '@tanstack/react-router'
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@event-tracking-system/contracts'
 import type { PropsWithChildren } from 'react'
 
 import {
@@ -23,9 +24,9 @@ import {
 const iconsByPath = {
   '/app': Home01Icon,
   '/app/profile': UserIcon,
-  '/app/settings': Settings01Icon,
   '/admin': DashboardSquare01Icon,
   '/admin/users': UserGroupIcon,
+  '/admin/stations': QrCodeIcon,
   '/admin/settings': Settings01Icon,
 } as const
 
@@ -50,7 +51,8 @@ export function WorkspaceShell({
   const navigationItems = navigationItemsForRole(user.role)
   const activeItem = navigationItems.find((item) => item.to === pathname)
   const homePath = homePathForRole(user.role)
-  const settingsPath = user.role === 'admin' ? '/admin/settings' : '/app/settings'
+  // Only administrators use this shell; participants have ParticipantShell.
+  const settingsPath = '/admin/settings'
   const items: ReadonlyArray<DashboardNavigationItem> = navigationItems.map((item) => ({
     ...item,
     icon: iconsByPath[item.to],
@@ -66,11 +68,11 @@ export function WorkspaceShell({
         onLogout={onLogout}
         settingsPath={settingsPath}
         user={user}
-        workspaceLabel={user.role === 'admin' ? 'Admin workspace' : 'User workspace'}
+        workspaceLabel="Администратор"
       />
       <SidebarInset>
         <SiteHeader
-          title={activeItem?.label ?? (user.role === 'admin' ? 'Dashboard' : 'Home')}
+          title={activeItem?.label ?? 'Обзор'}
         />
         <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </SidebarInset>

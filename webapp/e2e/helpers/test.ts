@@ -11,17 +11,29 @@ export function uniqueEmail(prefix = 'web-e2e') {
   return `${prefix}-${timestamp}-${suffix}@example.com`
 }
 
-/** Fills the signup form the page already shows. */
-export async function fillSignupForm(page: Page, email: string, displayName?: string) {
-  if (displayName) await page.getByTestId('signup-display-name').fill(displayName)
-  await page.getByTestId('signup-email').fill(email)
-  await page.getByTestId('signup-password').fill(e2ePassword)
-  await page.getByTestId('signup-confirm-password').fill(e2ePassword)
+type SignupProfile = {
+  city?: string
+  company?: string
+  /** Tick the consent box (default). Pass false to leave it for the consent popup to catch. */
+  consent?: boolean
+  firstName?: string
+  lastName?: string
 }
 
-export async function signUp(page: Page, email: string, displayName?: string) {
+/** Fills the signup form the page already shows. */
+export async function fillSignupForm(page: Page, email: string, profile: SignupProfile = {}) {
+  await page.getByTestId('signup-email').fill(email)
+  await page.getByTestId('signup-firstName').fill(profile.firstName ?? 'Анна')
+  await page.getByTestId('signup-lastName').fill(profile.lastName ?? 'Петрова')
+  await page.getByTestId('signup-company').fill(profile.company ?? 'Завод')
+  await page.getByTestId('signup-city').fill(profile.city ?? 'Тюмень')
+  await page.getByTestId('signup-password').fill(e2ePassword)
+  if (profile.consent !== false) await page.getByTestId('signup-consent').check()
+}
+
+export async function signUp(page: Page, email: string, profile: SignupProfile = {}) {
   await page.goto('/signup')
-  await fillSignupForm(page, email, displayName)
+  await fillSignupForm(page, email, profile)
   await page.getByTestId('signup-submit').click()
 }
 
@@ -32,7 +44,26 @@ export async function logIn(page: Page, email: string, password = e2ePassword) {
   await page.getByTestId('login-submit').click()
 }
 
+/** Participants sign out from the header. */
 export async function logOut(page: Page) {
+  await page.getByTestId('logout').click()
+}
+
+/** Administrators sign out from the account menu of the sidebar. */
+export async function adminLogOut(page: Page) {
   await page.getByTestId('account-menu').click()
   await page.getByTestId('account-menu-logout').click()
+}
+
+/**
+ * A fresh access token for the page's session. The app keeps its own token in memory only, so the
+ * test asks the same refresh endpoint the app uses, with the page's cookie.
+ */
+export async function accessTokenOf(page: Page) {
+  const response = await page.request.post(`${process.env.E2E_BACKEND_URL}/api/auth/refresh`, {
+    data: {},
+    headers: { Origin: process.env.E2E_WEB_URL ?? '' },
+  })
+  if (!response.ok()) throw new Error(`Refresh failed with HTTP ${response.status()}`)
+  return ((await response.json()) as { accessToken: string }).accessToken
 }

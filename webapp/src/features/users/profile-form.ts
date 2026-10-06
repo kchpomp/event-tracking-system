@@ -1,4 +1,4 @@
-import { updateProfileRequestSchema, type UpdateProfileRequest } from '@web-app-demo/contracts'
+import { updateProfileRequestSchema, type UpdateProfileRequest } from '@event-tracking-system/contracts'
 
 import { toValidationErrors, type ValidationErrors } from '@/features/auth'
 

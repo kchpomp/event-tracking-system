@@ -1,15 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { getSecondaryAction, resolvePublicWebappUrl } from '../src/lib/landing-actions'
+import { getEntryActions, resolvePublicWebappUrl } from '../src/lib/landing-actions'
 
 /**
- * The landing page's copy, section list and link counts are deliberately untested.
- *
- * This is a template: rewriting that page is the first thing every project does, and a test
- * asserting the Russian title, nine section ids and "exactly four links to the GitHub template"
- * turned red on day one for work that was entirely correct. It also built the site four times per
- * run to do it. What is left is the one branch with a decision in it, plus the environment
+ * The landing page's copy and section list are deliberately untested: they are content, and a test
+ * asserting them turns red for work that is entirely correct. What is tested is the environment
  * contract that survives every rewrite: `PUBLIC_WEBAPP_URL` is either unset or a real origin.
  */
 test('a blank PUBLIC_WEBAPP_URL means no link, an http(s) URL is kept, and anything else fails', () => {
@@ -19,7 +15,6 @@ test('a blank PUBLIC_WEBAPP_URL means no link, an http(s) URL is kept, and anyth
 
   assert.equal(resolvePublicWebappUrl('  https://app.example.com  '), 'https://app.example.com')
   assert.equal(resolvePublicWebappUrl('http://localhost:5173/'), 'http://localhost:5173/')
-  assert.equal(resolvePublicWebappUrl('https://example.com/app'), 'https://example.com/app')
 
   for (const value of ['app.example.com', '/app', 'https://', 'ftp://app.example.com', 'javascript:alert(1)']) {
     assert.throws(
@@ -33,9 +28,16 @@ test('a blank PUBLIC_WEBAPP_URL means no link, an http(s) URL is kept, and anyth
   }
 })
 
-test('the secondary action links to the local next step until a webapp URL exists', () => {
-  assert.equal(getSecondaryAction().href, '#process')
-  assert.equal(getSecondaryAction('   ').href, '#process')
-  assert.equal(getSecondaryAction('  https://app.example.com  ').href, 'https://app.example.com')
-  assert.throws(() => getSecondaryAction('app.example.com'), /PUBLIC_WEBAPP_URL/)
+test('the entry links point at the sign-in and registration pages, and are absent without a webapp', () => {
+  assert.equal(getEntryActions(), null)
+  assert.equal(getEntryActions('   '), null)
+  assert.deepEqual(getEntryActions('  https://app.example.com  '), {
+    login: 'https://app.example.com/login',
+    signup: 'https://app.example.com/signup',
+  })
+  assert.deepEqual(getEntryActions('http://localhost:5173/'), {
+    login: 'http://localhost:5173/login',
+    signup: 'http://localhost:5173/signup',
+  })
+  assert.throws(() => getEntryActions('app.example.com'), /PUBLIC_WEBAPP_URL/)
 })

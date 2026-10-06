@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { passwordResetConfirmRequestSchema, registerRequestSchema } from '@web-app-demo/contracts'
+import { passwordResetConfirmRequestSchema, registerRequestSchema } from '@event-tracking-system/contracts'
 import { z } from 'zod'
 
 import {
@@ -11,7 +11,11 @@ test('issues on rendered fields become field errors and leave the form-level slo
   const contract = registerRequestSchema.safeParse({
     email: 'not-an-email',
     password: 'short',
-    displayName: 'x',
+    firstName: ' ',
+    lastName: 'Петрова',
+    company: 'Завод',
+    city: 'Тюмень',
+    consent: true,
   })
   const confirmation = z
     .object({ confirmPassword: z.string().min(1, 'Confirm your password') })
@@ -22,8 +26,8 @@ test('issues on rendered fields become field errors and leave the form-level slo
 
   expect(validation.fieldErrors.email).toEqual([{ message: issueMessage(contract, 'email') }])
   expect(validation.fieldErrors.password).toEqual([{ message: issueMessage(contract, 'password') }])
-  expect(validation.fieldErrors.displayName).toEqual([
-    { message: issueMessage(contract, 'displayName') },
+  expect(validation.fieldErrors.firstName).toEqual([
+    { message: issueMessage(contract, 'firstName') },
   ])
   expect(validation.fieldErrors.confirmPassword).toEqual([
     { message: issueMessage(confirmation, 'confirmPassword') },

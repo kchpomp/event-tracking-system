@@ -21,7 +21,7 @@ export function AdminMetrics() {
   if (query.isPending) {
     return (
       <div
-        aria-label="Loading dashboard"
+        aria-label="Загрузка обзора"
         className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
         role="status"
       >
@@ -35,11 +35,11 @@ export function AdminMetrics() {
   if (query.isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Dashboard is unavailable</AlertTitle>
+        <AlertTitle>Обзор недоступен</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
         <AlertAction>
           <Button onClick={() => void query.refetch()} size="sm" type="button" variant="outline">
-            Try again
+            Повторить
           </Button>
         </AlertAction>
       </Alert>
@@ -50,21 +50,21 @@ export function AdminMetrics() {
     <SectionCards
       items={[
         {
-          description: 'All registered accounts.',
+          description: 'Все зарегистрированные аккаунты.',
           icon: UserGroupIcon,
-          label: 'Total users',
+          label: 'Всего пользователей',
           value: query.data.totalUsers.toLocaleString(),
         },
         {
-          description: 'Accounts with administrator access.',
+          description: 'Аккаунты с правами администратора.',
           icon: UserShield01Icon,
-          label: 'Administrators',
+          label: 'Администраторы',
           value: query.data.totalAdmins.toLocaleString(),
         },
         {
-          description: 'Accounts created during the last seven days.',
+          description: 'Аккаунты, созданные за последние семь дней.',
           icon: UserAdd01Icon,
-          label: 'New in 7 days',
+          label: 'Новых за 7 дней',
           value: query.data.newUsersLast7Days.toLocaleString(),
         },
       ]}

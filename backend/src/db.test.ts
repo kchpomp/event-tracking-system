@@ -12,7 +12,7 @@ describe('normalizePgConnectionString', () => {
 
     for (const unchanged of [
       'postgresql://user:pass@db.example.com:25060/defaultdb?sslmode=require&uselibpqcompat=false',
-      'postgresql://superuser:superpassword@localhost:54329/web_app_demo?schema=public',
+      'postgresql://superuser:superpassword@localhost:54329/event_tracking_system?schema=public',
     ]) {
       expect(normalizePgConnectionString(unchanged)).toBe(unchanged)
     }

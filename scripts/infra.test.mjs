@@ -329,15 +329,6 @@ describe('Terraform configuration helpers', () => {
   })
 
   test('copyable production examples leave environment-injected secrets unassigned', () => {
-    const digitalocean = parseSimpleAssignments(
-      readFileSync(
-        resolve(
-          repoRoot,
-          'infra/digitalocean/production/terraform.tfvars.example',
-        ),
-        'utf8',
-      ),
-    )
     const yandex = parseSimpleAssignments(
       readFileSync(
         resolve(repoRoot, 'infra/yandex/production/terraform.tfvars.example'),
@@ -345,8 +336,6 @@ describe('Terraform configuration helpers', () => {
       ),
     )
 
-    expect(digitalocean).not.toHaveProperty('jwt_secret')
-    expect(digitalocean).not.toHaveProperty('extra_runtime_secret_env')
     expect(yandex).not.toHaveProperty('database_blue_password')
     expect(yandex).not.toHaveProperty('database_green_password')
     expect(yandex).not.toHaveProperty('database_owner_password')

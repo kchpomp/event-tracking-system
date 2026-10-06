@@ -5,7 +5,7 @@ import type { DbClient } from '../../db'
 import { loadEnv } from '../../env'
 
 const env = loadEnv({
-  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
   // COOKIE_SECURE=true makes this a production-like runtime, which requires a generated secret.
   JWT_SECRET: '0123456789abcdef'.repeat(4),
   CORS_ORIGINS: 'https://web.example.com',
@@ -70,7 +70,7 @@ describe('auth routes', () => {
 
   test('rejects all secure cookie auth writes from untrusted origins before auth service work', async () => {
     const app = createApp({ env, prisma: {} as DbClient })
-    const refreshCookie = `web_app_demo_refresh=${'r'.repeat(32)}`
+    const refreshCookie = `event_tracking_system_refresh=${'r'.repeat(32)}`
 
     const untrustedLogin = await app.request('/api/auth/login', {
       method: 'POST',
@@ -120,7 +120,15 @@ describe('auth routes', () => {
         'Content-Type': 'application/json',
         Origin: 'https://attacker.example',
       },
-      body: JSON.stringify({ email: 'victim@example.com', password: 'password123' }),
+      body: JSON.stringify({
+        email: 'victim@example.com',
+        password: 'password123',
+        firstName: 'Анна',
+        lastName: 'Петрова',
+        company: 'Завод',
+        city: 'Тюмень',
+        consent: true,
+      }),
     })
     const untrustedRegisterBody = await untrustedRegister.json()
 

@@ -1,4 +1,4 @@
-import type { TokenLogoutRequest } from '@web-app-demo/contracts';
+import type { TokenLogoutRequest } from '@event-tracking-system/contracts';
 import { expect, test } from 'bun:test';
 
 import { createLogoutOperationCoordinator, logoutWithPushCleanup } from '../src/features/auth/logout';

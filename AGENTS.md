@@ -7,12 +7,6 @@
 - Talk to the user in their language (Russian by default). Explain product effects and tradeoffs in plain words. When the user must act, give exact steps and the expected result.
 - Write technical docs and agent instructions in English. Product docs and tasks may be Russian. Plain prose: short sentences, one idea each, consistent terms.
 
-<!-- BOOTSTRAP_ONLY_START -->
-## New project setup
-
-In a new project from this template, finish [Agent setup instructions](README.md#agent-setup-instructions) before feature work. Then delete this section and its markers. Skip it when you work on the template itself.
-<!-- BOOTSTRAP_ONLY_END -->
-
 ## Map
 
 | Area | Path | Read first |
@@ -25,7 +19,8 @@ In a new project from this template, finish [Agent setup instructions](README.md
 | Tests and test databases | all | [TESTING](docs/TESTING.md) |
 | Infrastructure and releases | `infra`, `scripts/infra.mjs` | [DEPLOYMENT](docs/DEPLOYMENT.md) |
 | Product scope and capability registry | [CHECKLIST](CHECKLIST.md) | — |
-| Mobile (Expo) | `mobile` | [mobile/README](mobile/README.md) |
+| Event (stations, QR, points, leaderboard) | `backend/src/modules/event`, `webapp/src/features/event` | [CHECKLIST](CHECKLIST.md) |
+| Mobile (Expo), deferred | `mobile` | [mobile/README](mobile/README.md) |
 
 Read the guide for an area before you change it. Read only the sections you need. Find code with `rg`; do not scan the repository.
 

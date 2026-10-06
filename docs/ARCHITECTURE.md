@@ -31,7 +31,7 @@ Each new broker, cache, search engine, or log store adds deployment, security, m
 
 Add infrastructure only for a measured limit that it removes. Record the measurement next to the capability in `CHECKLIST.md` first. Examples: the outbox backlog grows at the shortest drain interval; PostgreSQL cannot express the required ordering or exactly-once delivery; events must cross backend instances.
 
-Realtime features start in the same backend, with WebSocket connections in instance memory. Add Redis-compatible Pub/Sub only when clients on different instances need the same events. Use DigitalOcean or Yandex managed Valkey, per the hosting in `CHECKLIST.md`, or a Valkey container on an own server.
+Realtime features start in the same backend, with WebSocket connections in instance memory. Add Redis-compatible Pub/Sub only when clients on different instances need the same events. Use Yandex managed Valkey, per the hosting in `CHECKLIST.md`, or a Valkey container on an own server.
 
 Pub/Sub only distributes events. Store messages, notifications, shared state, and audit events in PostgreSQL. Publish short IDs after the commit. After a reconnect, clients recover through the API.
 
@@ -47,7 +47,7 @@ Each protected request verifies the JWT and loads the active session and user, s
 
 Route families:
 
-- `/api/auth/*` (browsers: `webapp` and Expo Web): the refresh token lives only in the HttpOnly cookie `web_app_demo_refresh`, never in JSON. `COOKIE_SECURE=false` (local) sets `SameSite=Lax`. `COOKIE_SECURE=true` (production) sets `Secure; SameSite=None`, and register, login, refresh, and logout require an `Origin` from `CORS_ORIGINS`.
+- `/api/auth/*` (browsers: `webapp` and Expo Web): the refresh token lives only in the HttpOnly cookie `event_tracking_system_refresh`, never in JSON. `COOKIE_SECURE=false` (local) sets `SameSite=Lax`. `COOKIE_SECURE=true` (production) sets `Secure; SameSite=None`, and register, login, refresh, and logout require an `Origin` from `CORS_ORIGINS`.
 - `/api/auth/token/*` (iOS and Android): no cookies. The refresh token travels in JSON and lives in `expo-secure-store`. The access token stays in memory.
 - Access tokens travel as `Authorization: Bearer`. Never keep a browser refresh token in `localStorage`, `sessionStorage`, AsyncStorage, or other JavaScript-readable storage.
 - Browser clients change the cookie only under a Web Lock, so tabs change it one at a time. Without Web Locks (plain http on a LAN address, old browsers), `webapp` serializes the changes within its tab, and Expo Web fails before the request. Client rules: [webapp/README](../webapp/README.md), [mobile/README](../mobile/README.md).

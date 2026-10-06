@@ -43,7 +43,7 @@ Root scripts from [package.json](../package.json). Run `bun run <script>` from t
 
 Run these as `bun run --cwd backend <script>`, except the root `dev:seed`.
 
-- `dev:seed`: creates or updates the local demo accounts ([LOCAL_DATABASE](LOCAL_DATABASE.md)). `DEV_SEED_DEMO=1 bun run dev:seed` also adds ~40 fixed fixture users, for exercising lists and pagination locally.
+$1- `event:seed`: creates the first event with its 15 stations when the database has none. `dev:seed` and `db:deploy` run it too.
 - `prisma:migrate`: creates and applies a development migration.
 - `prisma:deploy`: applies existing migrations.
 - `prisma:validate`: validates the schema in `prisma/schema/`.
@@ -56,7 +56,7 @@ Run these as `bun run --cwd backend <script>`, except the root `dev:seed`.
 
 ## Infrastructure and releases
 
-`<provider>` is `digitalocean` or `yandex`. Follow [infra/README](../infra/README.md).
+`<provider>` is `yandex`. Follow [infra/README](../infra/README.md).
 
 - `infra:bootstrap -- <provider> --new`: creates remote state. Without `--new`, continues.
 - `infra:plan -- <provider>`: the protected production plan; applies nothing.
