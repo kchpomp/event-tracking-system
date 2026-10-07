@@ -11,7 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -21,8 +21,15 @@ const providerRootNames = {
   digitalocean: ['foundation', 'runtime', 'static'],
   yandex: ['foundation', 'migration', 'runtime'],
 }
+// scripts/deploy-setup.ps1 writes a Terraform CLI config that installs the Yandex provider from a
+// local folder (the registry and Yandex's mirror are unreachable from some networks). A window that
+// skipped scripts/deploy-env.ps1 still gets it here, unless TF_CLI_CONFIG_FILE is already set.
+const deployTerraformConfig = resolve(homedir(), '.etsys', 'terraform.rc')
 const terraformEnvironment = {
   ...process.env,
+  ...(!process.env.TF_CLI_CONFIG_FILE && existsSync(deployTerraformConfig)
+    ? { TF_CLI_CONFIG_FILE: deployTerraformConfig }
+    : {}),
   CHECKPOINT_DISABLE: '1',
   TF_IN_AUTOMATION: '1',
   TF_INPUT: '0',
