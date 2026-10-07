@@ -109,6 +109,9 @@ provider_installation {
 $cloudId = ((& yc config get cloud-id 2>$null) | Out-String).Trim()
 $folderId = ((& yc config get folder-id 2>$null) | Out-String).Trim()
 if (-not $cloudId -or -not $folderId) { throw 'yc не настроен. Выполните yc init (шаг 3 гайда) и запустите скрипт ещё раз.' }
+# yc 1.40 has no default API endpoint for the serverless services ("endpoint should be set"), and
+# scripts/infra.mjs calls them. Setting the usual address once in the profile is harmless.
+& yc config set endpoint api.cloud.yandex.net:443 | Out-Null
 if (-not $Domain) { $Domain = (Read-Host 'Ваш домен, например формула-будущего.рф').Trim() }
 $ascii = (New-Object System.Globalization.IdnMapping).GetAscii($Domain.ToLowerInvariant())
 Say "[3/5] Облако $cloudId, каталог $folderId, домен для Terraform: $ascii"

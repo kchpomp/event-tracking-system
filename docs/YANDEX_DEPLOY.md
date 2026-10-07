@@ -77,39 +77,58 @@ git push
 git status
 ```
 
-`git status` должен показать «nothing to commit, working tree clean».
+`git status` должен показать «nothing to commit, working tree clean». Если после этого менять файлы в репозитории (кроме игнорируемых), `release` откажется работать, пока вы снова не сделаете коммит и `git push`.
 
 ## Шаг 6. Запуск
 
-В **каждом новом окне** PowerShell сначала подключите окружение (первый релиз с ключом `-WithAdmin`, он задаёт администратора):
+Запустите **Docker Desktop** и дождитесь, пока он загрузится. В **каждом новом окне** PowerShell подключите окружение (первый релиз с ключом `-WithAdmin`, он задаёт администратора) и проверьте Docker:
 
 ```powershell
 cd "D:\Projects\Event Station Tracker YandexCloud"
 . .\scripts\deploy-env.ps1 -WithAdmin
+docker info --format '{{.ServerVersion}}'
 ```
 
-Команды по порядку (сначала `--dry-run`, потом настоящая). Если команда оборвалась, прочитайте ошибку и запустите её ещё раз: повтор безопасен.
+Последняя команда должна напечатать номер версии (например `29.7.2`), а не ошибку. Дальше команды по порядку, сначала `--dry-run`, потом настоящая. Если команда оборвалась, прочитайте ошибку и запустите её ещё раз: повтор безопасен.
+
+**6.1. Хранилище состояния Terraform:**
 
 ```powershell
 bun run infra:bootstrap -- yandex --new --dry-run
 bun run infra:bootstrap -- yandex --new
 ```
 
-Создаёт хранилище состояния Terraform и файл `infra\yandex\.env.terraform-state`. **Сохраните его копию в менеджере паролей.**
+Создаёт хранилище и файл `infra\yandex\.env.terraform-state`. **Сохраните его копию в менеджере паролей.** Первый запуск обычно заканчивается ошибкой `AccessDenied`: у аккаунта хранилища нет прав на бакет. Это ожидаемо. Выдайте роль и запустите команду ещё раз, **без `--new`**:
+
+```powershell
+$folder = yc config get folder-id
+$sa = (yc iam service-account get event-tracking-system-tf-state --format json | ConvertFrom-Json).id
+yc resource-manager folder add-access-binding $folder --role storage.admin --subject serviceAccount:$sa
+```
+
+Подождите минуту (права применяются не мгновенно) и:
+
+```powershell
+bun run infra:bootstrap -- yandex
+```
+
+**6.2. Основа (сеть, база, реестр, бакеты):**
 
 ```powershell
 bun run infra:apply -- yandex --dry-run
 bun run infra:apply -- yandex
 ```
 
-Создаёт сеть, базу PostgreSQL (15-20 минут), реестр, бакеты, Lockbox, DNS-записи. С этого момента начинаются списания.
+База PostgreSQL создаётся 15-20 минут. С этого момента начинаются списания.
+
+**6.3. Релиз:**
 
 ```powershell
 bun run release -- yandex --dry-run
 bun run release -- yandex
 ```
 
-Собирает образ, запускает миграции, создаёт администратора и мероприятие с 15 станциями, выкладывает приложение и сайт. Администратор создаётся только первым релизом: следующие релизы запускайте **без** `-WithAdmin`.
+Собирает образ (нужен запущенный Docker), запускает миграции, создаёт администратора и мероприятие с 15 станциями, выкладывает приложение и сайт. Администратор создаётся только первым релизом: следующие релизы запускайте **без** `-WithAdmin`.
 
 ## Шаг 7. Проверка
 
@@ -126,19 +145,15 @@ bun run release -- yandex
 | --- | --- |
 | `i/o timeout`, `DeadlineExceeded`, `dial tcp` к `api.cloud.yandex.net`, `iam...`, `cr.yandex` | Выключите VPN. Проверка: `Test-NetConnection api.cloud.yandex.net -Port 443` должна дать `TcpTestSucceeded : True` |
 | `Failed to install provider`, `Invalid provider registry host` | Не подключено окружение или провайдер не скачан: в этом окне выполните `. .\scripts\deploy-env.ps1`, при необходимости `.\scripts\deploy-setup.ps1` (скачает провайдер) |
+| `yc serverless failed with status 1` (в `infra:apply`; при проверке `yc serverless container list` пишет `endpoint should be set`) | В профиле `yc` не задан адрес API: `yc config set endpoint api.cloud.yandex.net:443`, затем повторите команду (его же задаёт `deploy-setup.ps1`) |
 | `Unauthenticated`, `token expired` | Токен живёт 12 часов: снова `. .\scripts\deploy-env.ps1` |
 | В `deploy-setup.ps1` «нет зоны» или «нет сертификата» | Шаг 1 не закончен: зона DNS или сертификаты не созданы, или сертификат ещё не `ISSUED` |
 | Релиз: рабочее дерево не чистое | `git add -A`, коммит, `git push` (в том числе обновлённые `.terraform.lock.hcl`) |
-| `Error acquiring the state lock` ... `AccessDenied` на шаге `infra:bootstrap` (ресурсы созданы, но хранилище состояния не открывается) | Аккаунту хранилища состояния не хватает роли. Выдайте её и запустите команду ещё раз, **без `--new`**: `$folder = yc config get folder-id`, затем `$sa = (yc iam service-account get event-tracking-system-tf-state --format json \| ConvertFrom-Json).id`, затем `yc resource-manager folder add-access-binding $folder --role storage.admin --subject serviceAccount:$sa`, подождите минуту, `bun run infra:bootstrap -- yandex` |
-| `Error updating bucket policy` ... `AccessDenied` на шаге `infra:bootstrap` | У аккаунта хранилища роль `storage.editor`, а менять политику бакета может только `storage.admin`. Выдайте её командой из строки выше (`--role storage.admin`), подождите минуту и запустите `bun run infra:bootstrap -- yandex` ещё раз |
+| `AccessDenied` в `infra:bootstrap` (`Error acquiring the state lock` или `Error updating bucket policy`) | Нет роли у аккаунта хранилища: команды из шага 6.1 (`storage.admin`), подождите минуту, затем `bun run infra:bootstrap -- yandex` без `--new` |
 | `BucketAlreadyExists` | Имя бакета занято: в `infra\yandex\production\terraform.tfvars` (`media_bucket_name`) или `infra\yandex\bootstrap\terraform.tfvars` (`state_bucket_name`) допишите к имени несколько цифр и повторите команду |
 | Письма не приходят | Адрес в Postbox не в статусе Success, либо запустите setup с `-NoMail` |
-| Docker не отвечает | Запустите Docker Desktop |
+| `failed to connect to the docker API`, `dockerDesktopLinuxEngine` | Docker Desktop не запущен: откройте его, дождитесь загрузки, проверьте `docker info --format '{{.ServerVersion}}'` и повторите `bun run release -- yandex` |
 
 ## Репетиция перед мероприятием
 
 С двумя-тремя телефонами (iPhone Safari, Android Chrome): регистрация (обе галочки), вход, «Забыли пароль?»; сканирование станции камерой; «Диффузия» между двумя участниками; «Колба идей»; хостес находит участника и начисляет баллы; администратор закрывает и снова открывает мероприятие на `/admin/stations`. Оповещения в Monitoring: [YANDEX_CLOUD.md](YANDEX_CLOUD.md#alerts). Нагрузка, обновления и откат: [YANDEX_UPDATE.md](YANDEX_UPDATE.md).
-
-## Сколько это стоит
-
-База PostgreSQL платная круглосуточно (цену хоста `s3-c2-m8` и диска смотрите в калькуляторе Yandex Cloud). По данным документации, с НДС: Serverless Containers 18,97 ₽ за млн вызовов (бесплатно 1 млн), API Gateway 142,3 ₽ за млн запросов (бесплатно 100 тысяч), Postbox 2 000 писем в месяц бесплатно, дальше 80,32 ₽ за 1 000, Lockbox около 20 ₽ в месяц за версию секрета. Сертификаты отдельно не тарифицируются.
