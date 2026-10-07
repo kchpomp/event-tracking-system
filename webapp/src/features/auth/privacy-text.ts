@@ -3,6 +3,10 @@
 // TEMPLATE, NOT FINAL: the [bracketed] operator details are placeholders. Replace them with the
 // organiser's real legal-entity data and have the whole text reviewed by a lawyer before launch.
 // Keep section 3 in step with what the app really stores and sets (cookies and localStorage).
+// The one-sentence version for the cookie notice. Keep it consistent with section 3 below.
+export const COOKIE_NOTICE_TEXT =
+  'Сайт использует только технические cookie: они нужны, чтобы вы оставались в аккаунте. Рекламы и аналитики нет.'
+
 export const PRIVACY_TEXT = `ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ
 
 Настоящая Политика описывает, какие данные собирает сервис участников мероприятия «[название мероприятия]» (далее — «Сервис»), как они хранятся и защищаются. Оператор персональных данных: [Наименование оператора — ООО/АО «____», ОГРН ____, адрес: ____] (далее — «Оператор»).

@@ -4,6 +4,7 @@ import { Typography } from '@/components/typography'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -14,7 +15,7 @@ import { splitTextBlocks } from '../consent-text'
 
 /**
  * A legal text (consent or privacy policy), scroll-gated: «Согласен» stays disabled until the text
- * has been read to the end, then ticks its checkbox. The text is static and rendered as plain text,
+ * has been read to the end, then ticks its checkbox; «Закрыть» leaves it unticked. The text is static and rendered as plain text,
  * never as HTML. `testId` prefixes the «Согласен» button's test id (`<testId>-agree`).
  */
 export function ConsentDialog({
@@ -71,6 +72,12 @@ export function ConsentDialog({
           </div>
         </div>
         <DialogFooter>
+          {/* First in the markup: on a narrow screen the main action («Согласен», last) sits on top. */}
+          <DialogClose asChild>
+            <Button data-testid={`${testId}-close`} size="lg" type="button" variant="outline">
+              Закрыть
+            </Button>
+          </DialogClose>
           <Button
             data-testid={`${testId}-agree`}
             disabled={!atEnd}
