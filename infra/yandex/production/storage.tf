@@ -154,6 +154,22 @@ resource "yandex_storage_bucket_iam_binding" "website_admins" {
   members = ["serviceAccount:${yandex_iam_service_account.storage_manager.id}"]
 }
 
+# `release` syncs the two public buckets with the publisher key only. The bucket policies below allow
+# that key by `yc:access-key-id`, but Yandex answered `AccessDenied` to its ListObjectsV2, so the
+# account also holds a bucket-scoped IAM role, like the IaC account above. `storage.editor` lists,
+# uploads and deletes objects in these two buckets and nothing else.
+resource "yandex_storage_bucket_iam_binding" "webapp_publishers" {
+  bucket  = yandex_storage_bucket.webapp.bucket
+  role    = "storage.editor"
+  members = ["serviceAccount:${yandex_iam_service_account.static_publisher.id}"]
+}
+
+resource "yandex_storage_bucket_iam_binding" "website_publishers" {
+  bucket  = yandex_storage_bucket.website.bucket
+  role    = "storage.editor"
+  members = ["serviceAccount:${yandex_iam_service_account.static_publisher.id}"]
+}
+
 resource "yandex_iam_service_account_static_access_key" "static_publisher" {
   service_account_id = yandex_iam_service_account.static_publisher.id
   description        = "Static release uploads for ${var.project_slug}."
