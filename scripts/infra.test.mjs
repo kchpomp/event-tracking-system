@@ -15,6 +15,7 @@ import {
   digitalOceanSpacesKeyProblems,
   digitalOceanTeamIdentityProblems,
   digestFromRepoDigests,
+  dockerfileBaseImages,
   discardDisposableSecrets,
   executePromotionPipeline,
   githubRepositoryFromRemoteUrl,
@@ -1732,6 +1733,27 @@ describe('managed root inputs', () => {
       )
     } finally {
       rmSync(root, { force: true, recursive: true })
+    }
+  })
+})
+
+describe('Docker base images', () => {
+  test('lists each external base image once and skips stage aliases and scratch', () => {
+    const dockerfile = [
+      'FROM oven/bun:1.4.2 AS build',
+      'FROM oven/bun:1.4.2 AS runtime',
+      'FROM --platform=linux/amd64 node:22-alpine AS tools',
+      'FROM build AS again',
+      'FROM scratch AS export',
+    ].join('\n')
+
+    expect(dockerfileBaseImages(dockerfile)).toEqual(['oven/bun:1.4.2', 'node:22-alpine'])
+  })
+
+  test('reads the real Dockerfiles', () => {
+    for (const path of ['backend/Dockerfile', 'infra/yandex/static.Dockerfile']) {
+      const images = dockerfileBaseImages(readFileSync(resolve(repoRoot, path), 'utf8'))
+      expect(images).toEqual(['oven/bun:1.4.2'])
     }
   })
 })

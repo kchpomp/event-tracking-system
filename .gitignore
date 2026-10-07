@@ -95,3 +95,11 @@ backend/.storage/
 
 docs/YANDEX_DEPLOY.md
 docs/YANDEX_UPDATE.md
+
+# Deploy secrets and transfer archives. They normally live outside the repository
+# (in the .etsys folder of your user profile); this keeps an accidental copy out of a commit.
+.etsys/
+secrets.ps1
+admin.ps1
+terraform.rc
+*transfer*.zip
