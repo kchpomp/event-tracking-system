@@ -68,8 +68,6 @@ bun run dev:website    # http://localhost:4321
 | Локальный PostgreSQL | [LOCAL_DATABASE.md](docs/LOCAL_DATABASE.md) |
 | Файлы, почта | [STORAGE.md](docs/STORAGE.md), [EMAIL.md](docs/EMAIL.md) |
 | Вход через Apple и Google, подписки магазинов (выключены) | [SOCIAL_AUTH.md](docs/SOCIAL_AUTH.md), [IAP.md](docs/IAP.md) |
-| Деплой в Yandex Cloud по шагам (для владельца) | [YANDEX_DEPLOY.md](docs/YANDEX_DEPLOY.md) |
-| Как обновлять приложение в облаке | [YANDEX_UPDATE.md](docs/YANDEX_UPDATE.md) |
 | Деплой, справочники | [DEPLOYMENT.md](docs/DEPLOYMENT.md), [YANDEX_CLOUD.md](docs/YANDEX_CLOUD.md), [infra/README.md](infra/README.md) |
 
 ## Лицензия

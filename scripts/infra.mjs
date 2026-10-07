@@ -2414,6 +2414,44 @@ async function ensureDigitalOceanReleaseBranch(source, assertLeaseHeld) {
   return branch
 }
 
+// Docker Hub often drops the TLS handshake from some networks, and `docker build` asks the registry
+// about every base image even when it is cached. Pulling each pinned image first, with retries,
+// puts it in the local store so the build that follows needs no registry round trip. An image that
+// is already local is not pulled again.
+export function dockerfileBaseImages(dockerfile) {
+  const stages = new Set()
+  const images = new Set()
+  for (const [, image, stage] of dockerfile.matchAll(
+    /^\s*FROM\s+(?:--\S+\s+)?(\S+)(?:\s+AS\s+(\S+))?/gim,
+  )) {
+    if (image !== 'scratch' && !stages.has(image)) images.add(image)
+    if (stage) stages.add(stage)
+  }
+  return [...images]
+}
+
+function pullBaseImages(dockerfilePath, attempts = 5) {
+  const images = dockerfileBaseImages(
+    readFileSync(resolve(repoRoot, dockerfilePath), 'utf8'),
+  )
+  for (const image of images) {
+    // Pinned tag already in the local store: no registry call at all.
+    if (spawnSync('docker', ['image', 'inspect', image], { stdio: 'ignore' }).status === 0) continue
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        runCommand('docker', ['pull', '--platform', 'linux/amd64', image], {
+          env: sanitizedBuildEnvironment(),
+        })
+        break
+      } catch (error) {
+        if (attempt >= attempts) throw error
+        console.log(`[infra] pull of ${image} failed (${attempt}/${attempts}), retrying`)
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5_000)
+      }
+    }
+  }
+}
+
 function repositoryForImage(provider, outputs) {
   if (!outputs.image_repository)
     throw new Error(`Terraform did not return the ${provider} image repository`)
@@ -2434,6 +2472,7 @@ async function buildAndPushImage(
   await assertLeaseHeld()
 
   const tag = `${repository}:${commit}`
+  pullBaseImages('backend/Dockerfile')
   const archive = gitArchive(commit)
   runCommand(
     'docker',
@@ -2469,6 +2508,7 @@ function buildYandexStaticArtifacts(commit, outputs) {
   const artifactRoot = mkdtempSync(resolve(tmpdir(), 'infra-static-'))
   try {
     const archive = gitArchive(commit)
+    pullBaseImages('infra/yandex/static.Dockerfile')
     runCommand(
       'docker',
       [
