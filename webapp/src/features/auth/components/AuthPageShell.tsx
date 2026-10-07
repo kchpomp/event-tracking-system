@@ -23,6 +23,11 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
         <div className="flex flex-1 items-center justify-center py-4">
           <div className="w-full max-w-sm">{children}</div>
         </div>
+        <Typography className="text-center" tone="muted" variant="bodyXs">
+          <Link className="underline underline-offset-4" to="/privacy">
+            Политика конфиденциальности
+          </Link>
+        </Typography>
       </section>
       <section aria-hidden className="relative hidden overflow-hidden bg-muted lg:block">
         <img

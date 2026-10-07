@@ -125,7 +125,16 @@ foreach ($name in 'api', 'app', 'www') {
 }
 
 # --- 4. terraform.tfvars ---
+# A file copied from terraform.tfvars.example still holds placeholders. Set it aside (outside the
+# repo, so the tree stays clean) and make a real one. $keep protects a file that is already in use.
+function Set-AsideExample([string]$path, [string]$pattern, [bool]$keep) {
+  if ($keep -or -not (Test-Path $path) -or -not ((Get-Content $path -Raw) -match $pattern)) { return }
+  $saved = Join-Path $StateDir ("old-" + (Split-Path (Split-Path $path -Parent) -Leaf) + "-terraform.tfvars")
+  Move-Item $path $saved -Force
+  Say "      В $path остались примеры из .example: он убран в $saved, создаю настоящий"
+}
 $bootstrapVars = Join-Path $repo 'infra\yandex\bootstrap\terraform.tfvars'
+Set-AsideExample $bootstrapVars 'example-product' ((Test-Path (Join-Path $repo 'infra\yandex\bootstrap\terraform.tfstate')) -or (Test-Path (Join-Path $repo 'infra\yandex\.env.terraform-state')))
 if (Test-Path $bootstrapVars) { Say "[4/5] $bootstrapVars уже есть (не меняю)" } else {
   @"
 cloud_id          = "$cloudId"
@@ -137,6 +146,7 @@ state_bucket_name = "etsys-tfstate-$(New-HexSecret 4)"
   Say "[4/5] Создан $bootstrapVars"
 }
 $productionVars = Join-Path $repo 'infra\yandex\production\terraform.tfvars'
+Set-AsideExample $productionVars 'example\.com|REPLACE_WITH' $false
 if (Test-Path $productionVars) { Say "      $productionVars уже есть (не меняю)" } else {
   $mail = if ($NoMail) { "email_delivery = `"disabled`"`r`nemail_from     = null" } else { "email_delivery = `"postbox`"`r`nemail_from     = `"no-reply@$ascii`"" }
   @"

@@ -31,6 +31,13 @@ const MSG_REQUIRED = 'Не все обязательные поля заполн
 const MSG_CONSENT = 'Не получено соглашение на обработку персональных данных'
 const MSG_PRIVACY = 'Не подтверждено ознакомление с Политикой конфиденциальности'
 
+// The two required ticks, checked in this order. `key` also names the test ids (`signup-<key>`, `<key>-link`).
+const LEGAL = [
+  { key: 'consent', label: 'Я принимаю условия обработки персональных данных', text: CONSENT_TEXT, message: MSG_CONSENT },
+  { key: 'privacy', label: 'Я ознакомлен(а) с Политикой конфиденциальности', text: PRIVACY_TEXT, message: MSG_PRIVACY },
+] as const
+type LegalKey = (typeof LEGAL)[number]['key']
+
 const TEXT_FIELDS = [
   { key: 'email', label: 'Email', autoComplete: 'email', max: 254, placeholder: 'вы@email.com' },
   { key: 'firstName', label: 'Имя', autoComplete: 'given-name', max: 100 },
@@ -50,10 +57,8 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
   const baseId = useId()
   const idOf = (key: string) => `${baseId}-${key}`
   const [values, setValues] = useState<Values>(EMPTY)
-  const [consent, setConsent] = useState(false)
-  const [consentOpen, setConsentOpen] = useState(false)
-  const [privacy, setPrivacy] = useState(false)
-  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [agreed, setAgreed] = useState({ consent: false, privacy: false })
+  const [legalOpen, setLegalOpen] = useState<LegalKey | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [missing, setMissing] = useState<ReadonlySet<string>>(new Set())
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -82,12 +87,9 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
       setNotice({ message: MSG_REQUIRED, focusId: idOf(empty[0]!) })
       return
     }
-    if (!consent) {
-      setNotice({ message: MSG_CONSENT, focusId: idOf('consent') })
-      return
-    }
-    if (!privacy) {
-      setNotice({ message: MSG_PRIVACY, focusId: idOf('privacy') })
+    const unticked = LEGAL.find(({ key }) => !agreed[key])
+    if (unticked) {
+      setNotice({ message: unticked.message, focusId: idOf(unticked.key) })
       return
     }
 
@@ -185,43 +187,26 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
             <FieldError errors={fieldErrors.password} id={idOf('password-error')} />
           </Field>
 
-          <div className="flex items-center gap-3">
-            <Checkbox
-              aria-label="Я принимаю условия обработки персональных данных"
-              checked={consent}
-              data-testid="signup-consent"
-              id={idOf('consent')}
-              onCheckedChange={(checked) => setConsent(checked === true)}
-            />
-            <Button
-              className="h-auto min-h-11 justify-start px-0 text-left whitespace-normal"
-              data-testid="consent-link"
-              onClick={() => setConsentOpen(true)}
-              type="button"
-              variant="link"
-            >
-              Я принимаю условия обработки персональных данных
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Checkbox
-              aria-label="Я ознакомлен(а) с Политикой конфиденциальности"
-              checked={privacy}
-              data-testid="signup-privacy"
-              id={idOf('privacy')}
-              onCheckedChange={(checked) => setPrivacy(checked === true)}
-            />
-            <Button
-              className="h-auto min-h-11 justify-start px-0 text-left whitespace-normal"
-              data-testid="privacy-link"
-              onClick={() => setPrivacyOpen(true)}
-              type="button"
-              variant="link"
-            >
-              Я ознакомлен(а) с Политикой конфиденциальности
-            </Button>
-          </div>
+          {LEGAL.map(({ key, label }) => (
+            <div className="flex items-center gap-3" key={key}>
+              <Checkbox
+                aria-label={label}
+                checked={agreed[key]}
+                data-testid={`signup-${key}`}
+                id={idOf(key)}
+                onCheckedChange={(checked) => setAgreed((current) => ({ ...current, [key]: checked === true }))}
+              />
+              <Button
+                className="h-auto min-h-11 min-w-0 shrink justify-start px-0 text-left whitespace-normal"
+                data-testid={`${key}-link`}
+                onClick={() => setLegalOpen(key)}
+                type="button"
+                variant="link"
+              >
+                {label}
+              </Button>
+            </div>
+          ))}
 
           <FormAlert message={formError} title="Не удалось зарегистрироваться" />
 
@@ -240,26 +225,19 @@ export function RegisterForm({ returnTo }: { returnTo?: string }) {
         </FieldGroup>
       </form>
 
-      <ConsentDialog
-        onAgree={() => {
-          setConsent(true)
-          setConsentOpen(false)
-        }}
-        onOpenChange={setConsentOpen}
-        open={consentOpen}
-        text={CONSENT_TEXT}
-      />
-
-      <ConsentDialog
-        onAgree={() => {
-          setPrivacy(true)
-          setPrivacyOpen(false)
-        }}
-        onOpenChange={setPrivacyOpen}
-        open={privacyOpen}
-        testId="privacy"
-        text={PRIVACY_TEXT}
-      />
+      {LEGAL.map(({ key, text }) => (
+        <ConsentDialog
+          key={key}
+          onAgree={() => {
+            setAgreed((current) => ({ ...current, [key]: true }))
+            setLegalOpen(null)
+          }}
+          onOpenChange={(open) => setLegalOpen(open ? key : null)}
+          open={legalOpen === key}
+          testId={key}
+          text={text}
+        />
+      ))}
 
       <AlertDialog onOpenChange={(open) => !open && setNotice(null)} open={notice !== null}>
         <AlertDialogContent

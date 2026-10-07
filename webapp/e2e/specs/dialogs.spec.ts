@@ -109,6 +109,39 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await checkFooter(page, page.getByRole('alertdialog'), 'role-change', tag)
         await page.getByRole('button', { name: 'Отмена' }).click()
       })
+
+      test.describe('cookie notice', () => {
+        test.use({ storageState: { cookies: [], origins: [] } })
+
+        test('the notice and its policy popup are centred and fit the screen', async ({ page }) => {
+          const tag = `${viewportName}-${colorScheme}`
+          await page.goto('/signup')
+          const notice = page.getByTestId('cookie-notice')
+          await expect(notice).toBeVisible()
+          await page.waitForTimeout(400)
+          await page.screenshot({ path: `${outputDirectory}cookie-notice--${tag}.png`, animations: 'disabled' })
+
+          // The card is centred, its buttons are centred in it, and nothing scrolls sideways.
+          const card = (await notice.locator('> div').boundingBox())!
+          const screenWidth = page.viewportSize()!.width
+          expect(Math.abs(card.x + card.width / 2 - screenWidth / 2), 'the notice is centred').toBeLessThanOrEqual(2)
+          const boxes = await notice.locator('button').evaluateAll((buttons) =>
+            buttons.map((button) => {
+              const { x, width } = button.getBoundingClientRect()
+              return { x, width }
+            }),
+          )
+          const left = Math.min(...boxes.map((box) => box.x))
+          const right = Math.max(...boxes.map((box) => box.x + box.width))
+          expect(Math.abs((left + right) / 2 - (card.x + card.width / 2)), 'its buttons are centred').toBeLessThanOrEqual(2)
+          expect(card.x, 'the card stays inside the screen').toBeGreaterThanOrEqual(0)
+          expect(card.x + card.width).toBeLessThanOrEqual(screenWidth)
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
+          await page.getByTestId('cookie-notice-policy').click()
+          await checkFooter(page, page.getByRole('dialog'), 'cookie-policy', tag)
+        })
+      })
     })
   }
 }

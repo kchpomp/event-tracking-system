@@ -62,7 +62,7 @@ yc config list
 .\scripts\deploy-setup.ps1
 ```
 
-На вопрос о домене введите `формула-будущего.рф`. Без почты: `.\scripts\deploy-setup.ps1 -NoMail`. Скрипт безопасно запускать повторно, существующие файлы он не меняет.
+На вопрос о домене введите `формула-будущего.рф`. Без почты: `.\scripts\deploy-setup.ps1 -NoMail`. Скрипт безопасно запускать повторно: готовые файлы он не меняет. Файл `terraform.tfvars`, в котором остались примеры из `.example` (`example.com`, `REPLACE_WITH_...`), он убирает в `C:\Users\<вы>\.etsys\` и создаёт настоящий.
 
 **Сохраните копию файла `C:\Users\<вы>\.etsys\secrets.ps1` в менеджере паролей.** Менять эти значения после первого деплоя нельзя.
 
@@ -129,6 +129,7 @@ bun run release -- yandex
 | `Unauthenticated`, `token expired` | Токен живёт 12 часов: снова `. .\scripts\deploy-env.ps1` |
 | В `deploy-setup.ps1` «нет зоны» или «нет сертификата» | Шаг 1 не закончен: зона DNS или сертификаты не созданы, или сертификат ещё не `ISSUED` |
 | Релиз: рабочее дерево не чистое | `git add -A`, коммит, `git push` (в том числе обновлённые `.terraform.lock.hcl`) |
+| `Error acquiring the state lock` ... `AccessDenied` на шаге `infra:bootstrap` (ресурсы созданы, но хранилище состояния не открывается) | Аккаунту хранилища состояния не хватает роли. Выдайте её и запустите команду ещё раз, **без `--new`**: `$folder = yc config get folder-id`, затем `$sa = (yc iam service-account get event-tracking-system-tf-state --format json \| ConvertFrom-Json).id`, затем `yc resource-manager folder add-access-binding $folder --role storage.editor --subject serviceAccount:$sa`, подождите минуту, `bun run infra:bootstrap -- yandex` |
 | `BucketAlreadyExists` | Имя бакета занято: в `infra\yandex\production\terraform.tfvars` (`media_bucket_name`) или `infra\yandex\bootstrap\terraform.tfvars` (`state_bucket_name`) допишите к имени несколько цифр и повторите команду |
 | Письма не приходят | Адрес в Postbox не в статусе Success, либо запустите setup с `-NoMail` |
 | Docker не отвечает | Запустите Docker Desktop |
