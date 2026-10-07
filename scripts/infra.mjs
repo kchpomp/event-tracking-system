@@ -2480,6 +2480,11 @@ async function buildAndPushImage(
       'build',
       '--platform',
       'linux/amd64',
+      // Docker Desktop's containerd store wraps the image in an OCI index with build attestations
+      // by default, and Yandex Container Registry refuses that manifest on push ("Cannot read
+      // manifest data"). Without attestations the image is a single plain manifest it accepts.
+      '--provenance=false',
+      '--sbom=false',
       '--file',
       'backend/Dockerfile',
       '--tag',
