@@ -92,3 +92,6 @@ backend/.storage/
 .vscode/
 *.swp
 *.swo
+
+docs/YANDEX_DEPLOY.md
+docs/YANDEX_UPDATE.md
