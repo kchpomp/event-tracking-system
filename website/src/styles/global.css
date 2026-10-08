@@ -7,11 +7,11 @@
 @theme inline {
     --color-brand: var(--brand);
     --color-brand-foreground: var(--brand-foreground);
-    --font-heading: 'Playfair Display', Georgia, serif;
-    /* Helvetica is the intended face. Arial is metrically compatible on Windows,
-       Inter Variable is the bundled fallback for systems that ship neither. */
+    --color-highlight: var(--highlight);
+    --color-highlight-foreground: var(--highlight-foreground);
+    --font-heading: var(--font-sans);
     /* THEME_FONT_START */
-    --font-sans: 'Helvetica Neue', Helvetica, Arial, 'Inter Variable', sans-serif;
+    --font-sans: 'Roboto Variable', Arial, sans-serif;
     /* THEME_FONT_END */
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
@@ -53,49 +53,50 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Monochrome dark theme: the palette carries no hue, so hierarchy is expressed
-   through lightness, hairline borders and white glow instead of color.
+/* Single dark theme on Dark Teal (SIBUR). Hierarchy comes from flat fills and hairline borders.
    `:root` and `.dark` are identical — the site has a single theme, and the
    `.dark` class on <html> keeps shadcn `dark:` variants resolving correctly. */
 :root,
 .dark {
     /* THEME_TOKENS_START */
-    --brand: oklch(0.655 0.125 57.627);
-    --brand-foreground: oklch(0.06 0 0);
-    --background: oklch(0.06 0 0);
+    --brand: oklch(0.583 0.099 202.791);
+    --brand-foreground: oklch(1 0 0);
+    --highlight: oklch(0.621 0.185 31.008);
+    --highlight-foreground: oklch(1 0 0);
+    --background: oklch(0.289 0.051 217.695);
     --foreground: oklch(1 0 0);
-    --card: oklch(0.11 0 0);
+    --card: oklch(0.328 0.051 217.404);
     --card-foreground: oklch(1 0 0);
-    --popover: oklch(0.11 0 0);
+    --popover: oklch(0.328 0.051 217.404);
     --popover-foreground: oklch(1 0 0);
-    --primary: oklch(0.655 0.125 57.627);
-    --primary-foreground: oklch(0.06 0 0);
-    --secondary: oklch(0.18 0 0);
+    --primary: oklch(0.84 0.109 172.49);
+    --primary-foreground: oklch(0.289 0.051 217.695);
+    --secondary: oklch(0.35 0.051 217.044);
     --secondary-foreground: oklch(1 0 0);
-    --muted: oklch(0.16 0 0);
-    --muted-foreground: oklch(0.74 0 0);
-    --accent: oklch(0.21 0 0);
+    --muted: oklch(0.35 0.051 217.044);
+    --muted-foreground: oklch(0.801 0.016 216.7);
+    --accent: oklch(0.35 0.051 217.044);
     --accent-foreground: oklch(1 0 0);
     /* Error signalling stays chromatic on purpose: it must not read as ordinary
        text in a palette where every other token is neutral. */
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 16%);
-    --ring: oklch(0.655 0.125 57.627);
-    --chart-1: oklch(0.97 0.017 57.627);
-    --chart-2: oklch(0.8 0.125 57.627);
-    --chart-3: oklch(0.63 0.125 57.627);
-    --chart-4: oklch(0.46 0.11 57.627);
-    --chart-5: oklch(0.3 0.072 57.627);
-    --radius: 0.75rem;
-    --sidebar: oklch(0.09 0 0);
+    --destructive: oklch(0.775 0.136 9.336);
+    --border: oklch(0.413 0.048 213.674);
+    --input: oklch(0.628 0.031 212.702);
+    --ring: oklch(0.84 0.109 172.49);
+    --chart-1: oklch(0.84 0.109 172.49);
+    --chart-2: oklch(0.583 0.099 202.791);
+    --chart-3: oklch(1 0 0);
+    --chart-4: oklch(0.621 0.185 31.008);
+    --chart-5: oklch(0.801 0.016 216.7);
+    --radius: 0.25rem;
+    --sidebar: oklch(0.248 0.044 217.514);
     --sidebar-foreground: oklch(1 0 0);
-    --sidebar-primary: oklch(0.655 0.125 57.627);
-    --sidebar-primary-foreground: oklch(0.06 0 0);
-    --sidebar-accent: oklch(0.18 0 0);
+    --sidebar-primary: oklch(0.84 0.109 172.49);
+    --sidebar-primary-foreground: oklch(0.289 0.051 217.695);
+    --sidebar-accent: oklch(0.35 0.051 217.044);
     --sidebar-accent-foreground: oklch(1 0 0);
-    --sidebar-border: oklch(1 0 0 / 12%);
-    --sidebar-ring: oklch(0.655 0.125 57.627);
+    --sidebar-border: oklch(0.413 0.048 213.674);
+    --sidebar-ring: oklch(0.84 0.109 172.49);
     /* THEME_TOKENS_END */
 }
 
@@ -110,31 +111,13 @@
     @apply scroll-smooth font-sans;
     }
   ::selection {
-    @apply bg-white text-black;
+    @apply bg-primary text-primary-foreground;
     }
 }
 
 @layer components {
   .site-container {
     @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10;
-  }
-
-  /* Light is the accent of this theme. These three primitives own every glow on
-     the landing so emphasis stays consistent across sections. */
-  .glow-text {
-    text-shadow:
-      0 0 0.75rem rgb(255 255 255 / 0.14),
-      0 0 2.75rem rgb(255 255 255 / 0.3);
-  }
-
-  .glow-surface {
-    box-shadow:
-      0 0 0 1px rgb(255 255 255 / 0.06),
-      0 1.5rem 5rem -2rem rgb(255 255 255 / 0.28);
-  }
-
-  .glow-halo {
-    background-image: radial-gradient(circle at center, rgb(255 255 255 / 0.17), transparent 68%);
   }
 }
 

@@ -26,9 +26,9 @@ import type { Result } from './use-result-dialog'
 
 export function Brand() {
   return (
-    <Typography as="span" variant="h5" wrap="nowrap">
+    <Typography as="span" variant="h5" weight="normal" wrap="nowrap">
       Формула{' '}
-      <Typography as="span" variant="h5" tone="primary">
+      <Typography as="span" variant="h5">
         Будущего
       </Typography>
     </Typography>

@@ -9,7 +9,7 @@ interface Props {
 const { actions } = Astro.props
 ---
 
-<header class="sticky top-0 z-40 border-b border-white/10 bg-black/70 backdrop-blur-xl">
+<header class="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-xl">
   <div class="site-container flex h-16 items-center justify-between gap-4">
     <a class="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href="/">
       <BrandMark />
@@ -17,10 +17,10 @@ const { actions } = Astro.props
     {
       actions && (
         <nav class="flex items-center gap-2" aria-label="Вход в приложение">
-          <a class={buttonVariants({ className: 'h-11 rounded-full px-4', size: 'sm', variant: 'outline' })} href={actions.login}>
+          <a class={buttonVariants({ className: 'h-11 px-4', size: 'sm', variant: 'outline' })} href={actions.login}>
             Войти
           </a>
-          <a class={buttonVariants({ className: 'hidden h-11 rounded-full px-4 font-bold sm:inline-flex', size: 'sm' })} href={actions.signup}>
+          <a class={buttonVariants({ className: 'hidden h-11 px-4 font-bold sm:inline-flex', size: 'sm' })} href={actions.signup}>
             Зарегистрироваться
           </a>
         </nav>

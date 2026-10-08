@@ -14,12 +14,38 @@ const colors = [
   ['Secondary', 'bg-secondary', 'text-secondary-foreground'],
   ['Muted', 'bg-muted', 'text-muted-foreground'],
   ['Destructive', 'bg-destructive', 'text-white'],
+  ['Brand', 'bg-brand', 'text-brand-foreground'],
+  ['Highlight', 'bg-highlight', 'text-highlight-foreground'],
+] as const
+
+// Neutrals are Dark Teal tints; on the site's Dark Teal ground these step from white down to the border.
+const tints = [
+  ['Foreground', 'bg-foreground'],
+  ['Muted foreground', 'bg-muted-foreground'],
+  ['Input', 'bg-input'],
+  ['Chart 5', 'bg-chart-5'],
+  ['Border', 'bg-border'],
+  ['Muted', 'bg-muted'],
 ] as const
 
 export const Colors: Story = {
   render: () => (
     <div className="site-container grid gap-4 py-10 sm:grid-cols-2 lg:grid-cols-3">
       {colors.map(([label, background]) => <div className="rounded-xl border bg-card p-2 text-card-foreground" key={label}><div aria-hidden="true" className={`${background} h-24 rounded-lg border`} /><div className="grid gap-1 p-3"><p className="font-heading text-sm font-bold">{label}</p><p className="text-xs text-muted-foreground">{background}</p></div></div>)}
+    </div>
+  ),
+}
+
+export const DarkTealTints: Story = {
+  render: () => (
+    <div className="site-container grid gap-4 py-10 sm:grid-cols-3 lg:grid-cols-6">
+      {tints.map(([label, background]) => (
+        <div className="grid gap-2" key={label}>
+          <div aria-hidden="true" className={`${background} h-16 rounded-md border`} />
+          <p className="text-xs">{label}</p>
+          <p className="text-xs text-muted-foreground">{background}</p>
+        </div>
+      ))}
     </div>
   ),
 }

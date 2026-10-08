@@ -203,7 +203,6 @@ const APP_CONFIGS = {
   webapp: {
     cssPath: 'webapp/src/index.css',
     packageJsonPath: 'webapp/package.json',
-    hasBrandAlias: false,
     // Unchanged across brand colors: shadcn's default 5-step chart ramp.
     chartLightnessSteps: [0.87, 0.556, 0.439, 0.371, 0.269],
     modes: {
@@ -211,6 +210,7 @@ const APP_CONFIGS = {
         direction: 'darken',
         includesRadius: true,
         neutrals: {
+          'highlight-foreground': 'oklch(0.985 0 0)',
           background: 'oklch(1 0 0)',
           foreground: 'oklch(0.145 0 0)',
           card: 'oklch(1 0 0)',
@@ -246,6 +246,7 @@ const APP_CONFIGS = {
           'chart-5': 'oklch(0.269 0 0)',
         },
         tokenOrder: [
+          'brand', 'brand-foreground', 'highlight', 'highlight-foreground',
           'background', 'foreground', 'card', 'card-foreground', 'popover', 'popover-foreground',
           'primary', 'primary-foreground', 'secondary', 'secondary-foreground', 'muted', 'muted-foreground',
           'accent', 'accent-foreground', 'destructive', 'border', 'input', 'ring',
@@ -258,6 +259,7 @@ const APP_CONFIGS = {
         direction: 'lighten',
         includesRadius: false,
         neutrals: {
+          'highlight-foreground': 'oklch(0.145 0 0)',
           background: 'oklch(0.145 0 0)',
           foreground: 'oklch(0.985 0 0)',
           card: 'oklch(0.205 0 0)',
@@ -297,6 +299,7 @@ const APP_CONFIGS = {
           'chart-5': 'oklch(0.269 0 0)',
         },
         tokenOrder: [
+          'brand', 'brand-foreground', 'highlight', 'highlight-foreground',
           'background', 'foreground', 'card', 'card-foreground', 'popover', 'popover-foreground',
           'primary', 'primary-foreground', 'secondary', 'secondary-foreground', 'muted', 'muted-foreground',
           'accent', 'accent-foreground', 'destructive', 'border', 'input', 'ring',
@@ -311,7 +314,6 @@ const APP_CONFIGS = {
     cssPath: 'website/src/styles/global.css',
     packageJsonPath: 'website/package.json',
     fontImportPath: 'website/src/layouts/BaseLayout.astro',
-    hasBrandAlias: true,
     chartLightnessSteps: [0.97, 0.8, 0.63, 0.46, 0.3],
     modes: {
       dark: {
@@ -325,6 +327,7 @@ const APP_CONFIGS = {
             `       text in a palette where every other token is neutral. */`,
         },
         neutrals: {
+          'highlight-foreground': 'oklch(0.06 0 0)',
           background: 'oklch(0.06 0 0)',
           foreground: 'oklch(1 0 0)',
           card: 'oklch(0.11 0 0)',
@@ -358,11 +361,9 @@ const APP_CONFIGS = {
           'chart-3': 'oklch(0.63 0 0)',
           'chart-4': 'oklch(0.46 0 0)',
           'chart-5': 'oklch(0.3 0 0)',
-          brand: 'oklch(1 0 0)',
-          'brand-foreground': 'oklch(0.06 0 0)',
         },
         tokenOrder: [
-          'brand', 'brand-foreground',
+          'brand', 'brand-foreground', 'highlight', 'highlight-foreground',
           'background', 'foreground', 'card', 'card-foreground', 'popover', 'popover-foreground',
           'primary', 'primary-foreground', 'secondary', 'secondary-foreground', 'muted', 'muted-foreground',
           'accent', 'accent-foreground', 'destructive', 'border', 'input', 'ring',
@@ -376,8 +377,8 @@ const APP_CONFIGS = {
 }
 
 // Brand-driven tokens for one app/mode: `primary` and `sidebar-primary` (with their foregrounds),
-// `ring` and `sidebar-ring`, the chart ramp, and (website) `brand`. Everything else in the file
-// comes from `neutrals`, untouched by the brand color.
+// `ring` and `sidebar-ring`, and the chart ramp. Everything else in the file comes from
+// `neutrals`, untouched by the brand color.
 export function computeBrandTokens(appKey, mode, brandHex) {
   const appConfig = APP_CONFIGS[appKey]
   const modeConfig = appConfig.modes[mode]
@@ -417,22 +418,26 @@ export function computeBrandTokens(appKey, mode, brandHex) {
   for (const [index, l] of appConfig.chartLightnessSteps.entries()) {
     tokens[`chart-${index + 1}`] = formatOklch({ l, c: brand.c, h: brand.h })
   }
-  if (appConfig.hasBrandAlias) {
-    tokens.brand = tokens.primary
-    tokens['brand-foreground'] = tokens['primary-foreground']
-  }
   return tokens
 }
 
-export function computeAppTokens(appKey, mode, brandHex) {
+// `overrides` are the exact hex values from theme.json `tokens.<mode>`. They replace whatever was
+// computed, and are applied last, so `brand` and `highlight` default to the computed `primary` and
+// `destructive` and an override of one does not move the other.
+export function computeAppTokens(appKey, mode, brandHex, overrides = {}) {
   const modeConfig = APP_CONFIGS[appKey].modes[mode]
-  return { ...modeConfig.neutrals, ...computeBrandTokens(appKey, mode, brandHex) }
+  const tokens = { ...modeConfig.neutrals, ...computeBrandTokens(appKey, mode, brandHex) }
+  tokens.brand = tokens.primary
+  tokens['brand-foreground'] = tokens['primary-foreground']
+  tokens.highlight = tokens.destructive
+  for (const [name, hex] of Object.entries(overrides)) tokens[name] = formatOklch(hexToOklch(hex))
+  return tokens
 }
 
 function renderTokensBlock(appKey, mode, themeConfig) {
   const modeConfig = APP_CONFIGS[appKey].modes[mode]
   const app = themeConfig[appKey]
-  const tokens = computeAppTokens(appKey, mode, app.brand)
+  const tokens = computeAppTokens(appKey, mode, app.brand, app.tokens?.[mode])
   if (modeConfig.includesRadius) tokens.radius = `${round(app.radius, 4)}rem`
   const lines = []
   for (const name of modeConfig.tokenOrder) {
@@ -522,10 +527,38 @@ const RENDER_TARGETS = [
 /* -------------------------------------------------------------------------------------------- */
 
 const APP_KEYS = ['webapp', 'website']
-const APP_SCHEMA_KEYS = ['brand', 'radius', 'font']
+const APP_SCHEMA_KEYS = ['brand', 'radius', 'font', 'tokens']
 const FONT_SCHEMA_KEYS = ['family', 'package']
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 const FONTSOURCE_PACKAGE_PATTERN = /^@fontsource(-variable)?\/[a-z0-9][a-z0-9-]*$/
+
+// `tokens`: { "<mode>": { "<token>": "#rrggbb" } }, modes and names limited to what the app emits.
+function validateTokenOverrides(appKey, tokens) {
+  const where = `theme.json "${appKey}.tokens"`
+  if (typeof tokens !== 'object' || tokens === null || Array.isArray(tokens)) {
+    return [`${where} must be an object keyed by mode (${Object.keys(APP_CONFIGS[appKey].modes).join(', ')}).`]
+  }
+  const errors = []
+  for (const [mode, overrides] of Object.entries(tokens)) {
+    const modeConfig = APP_CONFIGS[appKey].modes[mode]
+    if (!modeConfig) {
+      errors.push(`${where} has an unknown mode "${mode}"; only ${Object.keys(APP_CONFIGS[appKey].modes).join(', ')} are allowed.`)
+      continue
+    }
+    if (typeof overrides !== 'object' || overrides === null || Array.isArray(overrides)) {
+      errors.push(`${where}.${mode} must be an object of token name to hex color.`)
+      continue
+    }
+    for (const [name, value] of Object.entries(overrides)) {
+      if (name === 'radius' || !modeConfig.tokenOrder.includes(name)) {
+        errors.push(`${where}.${mode} has an unknown token "${name}"; "radius" is set with "${appKey}.radius".`)
+      } else if (typeof value !== 'string' || !HEX_COLOR_PATTERN.test(value)) {
+        errors.push(`${where}.${mode}.${name} must be a 6-digit hex color like "#00313c"; got ${JSON.stringify(value)}.`)
+      }
+    }
+  }
+  return errors
+}
 
 // Strict: every key must be recognized, and every value must have the right shape. Returns a list
 // of human-readable errors; an empty list means the config is valid.
@@ -571,6 +604,8 @@ export function validateThemeConfig(config) {
         `theme.json "${appKey}.radius" must be a number of rem units greater than 0 and at most 4; got ${JSON.stringify(radius)}.`,
       )
     }
+
+    if (app.tokens !== undefined) errors.push(...validateTokenOverrides(appKey, app.tokens))
 
     if (typeof font !== 'object' || font === null || Array.isArray(font)) {
       errors.push(`theme.json "${appKey}.font" must be an object with "family" and "package".`)
