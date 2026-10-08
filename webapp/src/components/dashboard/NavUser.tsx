@@ -85,10 +85,10 @@ export function NavUser({
                     {user.displayName ?? user.email}
                   </Typography>
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <Typography data-testid="current-user-email" variant="caption" tone="muted" truncate>
+                    <Typography data-testid="current-user-email" variant="caption" tone="sidebar" truncate>
                       {user.email}
                     </Typography>
-                    <Badge variant="outline" className="shrink-0 capitalize">
+                    <Badge variant="secondary" className="shrink-0 capitalize">
                       {user.role}
                     </Badge>
                   </div>

@@ -9,9 +9,9 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
       <section className="flex flex-col gap-4 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] md:p-10">
         <div className="flex flex-col items-center gap-1 md:items-start">
           <Link search={{ returnTo: undefined }} to="/login">
-            <Typography as="span" variant="h4" wrap="nowrap">
+            <Typography as="span" variant="h4" weight="normal" wrap="nowrap">
               Формула{' '}
-              <Typography as="span" tone="primary" variant="h4">
+              <Typography as="span" tone="highlight" variant="h4">
                 Будущего
               </Typography>
             </Typography>
@@ -32,7 +32,7 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
       <section aria-hidden className="relative hidden overflow-hidden bg-muted lg:block">
         <img
           alt=""
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          className="absolute inset-0 h-full w-full object-cover"
           src="/auth-cover.svg"
         />
       </section>

@@ -16,6 +16,18 @@ const colors = [
   ['Secondary', 'bg-secondary', 'text-secondary-foreground'],
   ['Muted', 'bg-muted', 'text-muted-foreground'],
   ['Destructive', 'bg-destructive', 'text-white'],
+  ['Brand', 'bg-brand', 'text-brand-foreground'],
+  ['Highlight', 'bg-highlight', 'text-highlight-foreground'],
+] as const
+
+// Neutrals are Dark Teal tints; in the light theme these are 100 / 70 / 50 / 30 / 15 / 6 %.
+const tints = [
+  ['Foreground', 'bg-foreground'],
+  ['Muted foreground', 'bg-muted-foreground'],
+  ['Input', 'bg-input'],
+  ['Chart 5', 'bg-chart-5'],
+  ['Border', 'bg-border'],
+  ['Muted', 'bg-muted'],
 ] as const
 
 export const Colors: Story = {
@@ -28,6 +40,20 @@ export const Colors: Story = {
             <Typography variant="bodySmMedium">{label}</Typography>
             <Typography tone="muted" variant="caption">{background}</Typography>
           </div>
+        </div>
+      ))}
+    </div>
+  ),
+}
+
+export const DarkTealTints: Story = {
+  render: () => (
+    <div className="mx-auto grid max-w-5xl gap-4 p-6 sm:grid-cols-3 lg:grid-cols-6">
+      {tints.map(([label, background]) => (
+        <div className="grid gap-2" key={label}>
+          <div aria-hidden="true" className={`${background} h-16 rounded-md border`} />
+          <Typography variant="caption">{label}</Typography>
+          <Typography tone="muted" variant="caption">{background}</Typography>
         </div>
       ))}
     </div>

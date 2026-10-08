@@ -1,4 +1,4 @@
-import '@fontsource-variable/inter'
+import '@fontsource-variable/roboto'
 import type { Decorator, Preview } from '@storybook/react-vite'
 import { ThemeProvider } from 'next-themes'
 

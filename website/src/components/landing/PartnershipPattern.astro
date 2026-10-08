@@ -1,0 +1,30 @@
+---
+// One square cell of the SIBUR "partnership pattern": a flat fill with a single simple figure in
+// another brand color. Colors come from theme tokens, so the cell follows `bun run theme`.
+interface Props {
+  base: 'brand' | 'primary'
+  figure: 'background' | 'brand' | 'highlight' | 'primary'
+  shape: 'circle' | 'quarter'
+}
+
+const { base, figure, shape } = Astro.props
+
+const baseFill = { brand: 'fill-brand', primary: 'fill-primary' }[base]
+const figureFill = {
+  background: 'fill-background',
+  brand: 'fill-brand',
+  highlight: 'fill-highlight',
+  primary: 'fill-primary',
+}[figure]
+---
+
+<svg class="block aspect-square w-full" viewBox="0 0 100 100" aria-hidden="true">
+  <rect class={baseFill} width="100" height="100"></rect>
+  {
+    shape === 'circle' ? (
+      <circle class={figureFill} cx="50" cy="50" r="34"></circle>
+    ) : (
+      <path class={figureFill} d="M0 100V28A72 72 0 0 1 72 100Z"></path>
+    )
+  }
+</svg>

@@ -368,12 +368,13 @@ export function PolymerPage() {
         side={done ? <Badge>Пройдено</Badge> : null}
         value={done ? `${done.points}` : `до ${best}`}
       />
-      {/* The brand gradient with the molecule drawing, as on the entry page of the first version. */}
-      <section className="relative overflow-hidden rounded-xl bg-linear-to-br from-chart-2 to-chart-4 px-6 py-7">
-        <div aria-hidden className="absolute inset-0 text-white/15">
+      {/* A flat Dark Teal panel (the heading is 18 px bold, below the large-text size that brand and
+          highlight fills need) with the molecule drawing of the game. */}
+      <section className="relative overflow-hidden rounded-xl bg-primary px-6 py-7">
+        <div aria-hidden className="absolute inset-0 text-primary-foreground/15">
           <HeroNet />
         </div>
-        <Typography as="h2" className="relative text-white" variant="h5">
+        <Typography as="h2" className="relative text-primary-foreground" variant="h5">
           {POLYMER.lead}
         </Typography>
       </section>

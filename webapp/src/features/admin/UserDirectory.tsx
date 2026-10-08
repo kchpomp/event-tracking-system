@@ -277,7 +277,7 @@ function UserList({
         <Item asChild key={user.id} variant="outline">
           <li data-testid="user-row">
             <dl className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3">
-              <div className="grid min-w-0">
+              <div className="col-span-2 grid min-w-0 border-b pb-3">
                 <Typography as="dt" variant="srOnly">
                   Пользователь
                 </Typography>
@@ -290,7 +290,7 @@ function UserList({
                   </Typography>
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <Typography as="dt" variant="srOnly">
                   Роль
                 </Typography>
@@ -303,7 +303,7 @@ function UserList({
                   />
                 </dd>
               </div>
-              <div className="col-span-2 flex items-center justify-between border-t pt-3">
+              <div className="grid justify-items-end">
                 <Typography as="dt" variant="caption" tone="muted">
                   Создан
                 </Typography>
@@ -343,7 +343,7 @@ function RoleSelect({
     >
       <SelectTrigger
         aria-label={`Роль: ${user.email}`}
-        className="w-28 capitalize"
+        className="w-full max-w-44 capitalize"
         data-testid="role-select"
       >
         <SelectValue />

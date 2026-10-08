@@ -44,10 +44,13 @@ export function AppSidebar({
                   <Typography variant="control">Ф</Typography>
                 </span>
                 <span className="grid min-w-0 gap-0.5 group-data-[collapsible=icon]:hidden">
-                  <Typography variant="control" truncate>
-                    Формула Будущего
+                  <Typography variant="control" weight="normal" truncate>
+                    Формула{' '}
+                    <Typography as="span" variant="control" weight="bold">
+                      Будущего
+                    </Typography>
                   </Typography>
-                  <Typography variant="caption" tone="muted" truncate>
+                  <Typography variant="caption" tone="sidebar" truncate>
                     {workspaceLabel}
                   </Typography>
                 </span>

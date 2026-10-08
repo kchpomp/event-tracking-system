@@ -275,6 +275,175 @@ describe('neutral theme (brand: null)', () => {
 })
 
 /* -------------------------------------------------------------------------------------------- */
+/* Per-token overrides (theme.json "tokens") and the added highlight/brand tokens.              */
+/* -------------------------------------------------------------------------------------------- */
+
+// Generator output from before `tokens` existed, for the two configs that must not change.
+const OUTPUT_BEFORE_OVERRIDES = {
+  'null|webapp|light': {
+    primary: 'oklch(0.205 0 0)',
+    'primary-foreground': 'oklch(0.985 0 0)',
+    ring: 'oklch(0.708 0 0)',
+    'sidebar-primary': 'oklch(0.205 0 0)',
+    'chart-1': 'oklch(0.87 0 0)',
+    'chart-2': 'oklch(0.556 0 0)',
+    'chart-3': 'oklch(0.439 0 0)',
+    'chart-4': 'oklch(0.371 0 0)',
+    'chart-5': 'oklch(0.269 0 0)',
+    destructive: 'oklch(0.505 0.213 27.518)',
+  },
+  'null|webapp|dark': {
+    primary: 'oklch(0.922 0 0)',
+    'primary-foreground': 'oklch(0.205 0 0)',
+    ring: 'oklch(0.556 0 0)',
+    'sidebar-primary': 'oklch(0.922 0 0)',
+    'chart-1': 'oklch(0.87 0 0)',
+    'chart-2': 'oklch(0.556 0 0)',
+    'chart-3': 'oklch(0.439 0 0)',
+    'chart-4': 'oklch(0.371 0 0)',
+    'chart-5': 'oklch(0.269 0 0)',
+    destructive: 'oklch(0.704 0.191 22.216)',
+  },
+  'null|website|dark': {
+    primary: 'oklch(1 0 0)',
+    'primary-foreground': 'oklch(0.06 0 0)',
+    ring: 'oklch(0.85 0 0)',
+    'sidebar-primary': 'oklch(1 0 0)',
+    'chart-1': 'oklch(0.97 0 0)',
+    'chart-2': 'oklch(0.8 0 0)',
+    'chart-3': 'oklch(0.63 0 0)',
+    'chart-4': 'oklch(0.46 0 0)',
+    'chart-5': 'oklch(0.3 0 0)',
+    destructive: 'oklch(0.704 0.191 22.216)',
+    brand: 'oklch(1 0 0)',
+  },
+  '#c97b3a|webapp|light': {
+    primary: 'oklch(0.563 0.125 57.627)',
+    'primary-foreground': 'oklch(0.985 0 0)',
+    ring: 'oklch(0.655 0.125 57.627)',
+    'sidebar-primary': 'oklch(0.563 0.125 57.627)',
+    'chart-1': 'oklch(0.87 0.083 57.627)',
+    'chart-2': 'oklch(0.556 0.125 57.627)',
+    'chart-3': 'oklch(0.439 0.105 57.627)',
+    'chart-4': 'oklch(0.371 0.089 57.627)',
+    'chart-5': 'oklch(0.269 0.065 57.627)',
+    destructive: 'oklch(0.505 0.213 27.518)',
+  },
+  '#c97b3a|webapp|dark': {
+    primary: 'oklch(0.655 0.125 57.627)',
+    'primary-foreground': 'oklch(0.205 0 0)',
+    ring: 'oklch(0.655 0.125 57.627)',
+    'sidebar-primary': 'oklch(0.655 0.125 57.627)',
+    'chart-1': 'oklch(0.87 0.083 57.627)',
+    'chart-2': 'oklch(0.556 0.125 57.627)',
+    'chart-3': 'oklch(0.439 0.105 57.627)',
+    'chart-4': 'oklch(0.371 0.089 57.627)',
+    'chart-5': 'oklch(0.269 0.065 57.627)',
+    destructive: 'oklch(0.704 0.191 22.216)',
+  },
+  '#c97b3a|website|dark': {
+    primary: 'oklch(0.655 0.125 57.627)',
+    'primary-foreground': 'oklch(0.06 0 0)',
+    ring: 'oklch(0.655 0.125 57.627)',
+    'sidebar-primary': 'oklch(0.655 0.125 57.627)',
+    'chart-1': 'oklch(0.97 0.017 57.627)',
+    'chart-2': 'oklch(0.8 0.125 57.627)',
+    'chart-3': 'oklch(0.63 0.125 57.627)',
+    'chart-4': 'oklch(0.46 0.11 57.627)',
+    'chart-5': 'oklch(0.3 0.072 57.627)',
+    destructive: 'oklch(0.704 0.191 22.216)',
+    brand: 'oklch(0.655 0.125 57.627)',
+  },
+}
+
+describe('without tokens the output is what it was before', () => {
+  for (const [key, expected] of Object.entries(OUTPUT_BEFORE_OVERRIDES)) {
+    test(key, () => {
+      const [brand, app, mode] = key.split('|')
+      const tokens = computeAppTokens(app, mode, brand === 'null' ? null : brand)
+      for (const [name, value] of Object.entries(expected)) expect(tokens[name]).toBe(value)
+    })
+  }
+
+  test('highlight is the mode destructive and brand is primary when nothing overrides them', () => {
+    for (const [app, mode] of [['webapp', 'light'], ['webapp', 'dark'], ['website', 'dark']]) {
+      const tokens = computeAppTokens(app, mode, '#c97b3a')
+      expect(tokens.highlight).toBe(tokens.destructive)
+      expect(tokens.brand).toBe(tokens.primary)
+      expect(tokens['brand-foreground']).toBe(tokens['primary-foreground'])
+      expect(tokens['highlight-foreground']).toMatch(OKLCH_STRING)
+    }
+  })
+})
+
+describe('token overrides', () => {
+  test('an override replaces the computed token and is written as OKLCH', () => {
+    const tokens = computeAppTokens('webapp', 'light', '#c97b3a', { primary: '#00313C', highlight: '#E04E39' })
+    expect(tokens.primary).toBe(formatOklch(hexToOklch('#00313C')))
+    expect(tokens.highlight).toBe(formatOklch(hexToOklch('#E04E39')))
+    expect(tokens.ring).toBe(computeAppTokens('webapp', 'light', '#c97b3a').ring)
+  })
+
+  test('accepts the new and existing names, for the modes each app has', () => {
+    const config = validConfig()
+    config.webapp.tokens = {
+      light: { highlight: '#E04E39', 'highlight-foreground': '#FFFFFF', brand: '#008C95', 'brand-foreground': '#FFFFFF', 'sidebar-ring': '#77E2C3' },
+      dark: { background: '#00313C' },
+    }
+    config.website.tokens = { dark: { brand: '#008C95', highlight: '#E04E39' } }
+    expect(validateThemeConfig(config)).toEqual([])
+  })
+
+  const rejected = [
+    ['webapp', { light: { nope: '#ffffff' } }, 'nope'],
+    ['webapp', { light: { radius: '#ffffff' } }, 'radius'],
+    ['webapp', { sepia: { primary: '#ffffff' } }, 'sepia'],
+    ['website', { light: { primary: '#ffffff' } }, 'light'],
+    ['webapp', { light: { primary: 'blue' } }, 'primary'],
+    ['webapp', { light: { primary: '#fff' } }, 'primary'],
+    ['webapp', 'light', 'tokens'],
+  ]
+  for (const [app, tokens, needle] of rejected) {
+    test(`rejects ${app} tokens ${JSON.stringify(tokens)}`, () => {
+      const config = validConfig()
+      config[app].tokens = tokens
+      const errors = validateThemeConfig(config)
+      expect(errors.some((error) => error.includes(`${app}.tokens`) && error.includes(needle))).toBe(true)
+    })
+  }
+})
+
+describe('contrast of the real theme.json', () => {
+  const realConfig = JSON.parse(readFileSync(path.join(repositoryRoot, 'theme.json'), 'utf8'))
+  const modes = [['webapp', 'light'], ['webapp', 'dark'], ['website', 'dark']]
+  const pairs = [
+    ['foreground', 'background', 4.5],
+    ['primary-foreground', 'primary', 4.5],
+    ['muted-foreground', 'muted', 4.5],
+    ['destructive', 'background', 4.5],
+    ['sidebar-primary-foreground', 'sidebar-primary', 4.5],
+    ['ring', 'background', 3],
+  ]
+
+  for (const [app, mode] of modes) {
+    test(`${app} ${mode}`, () => {
+      const { brand, tokens: overrides } = realConfig[app]
+      const tokens = computeAppTokens(app, mode, brand, overrides?.[mode])
+      for (const [front, back, minimum] of pairs) {
+        const ratio = contrastRatio(parseOklch(tokens[front]), parseOklch(tokens[back]))
+        expect(ratio, `${front} on ${back}`).toBeGreaterThanOrEqual(minimum)
+      }
+    })
+  }
+
+  test('every webapp and website token override in theme.json is valid', () => {
+    expect(validateThemeConfig(realConfig)).toEqual([])
+    expect(realConfig.webapp.tokens?.light).toBeDefined()
+    expect(realConfig.website.tokens?.dark).toEqual(realConfig.webapp.tokens?.dark)
+  })
+})
+
+/* -------------------------------------------------------------------------------------------- */
 /* Drift: the committed CSS and theme.json must already agree.                                   */
 /* -------------------------------------------------------------------------------------------- */
 
@@ -321,6 +490,7 @@ describe('runTheme', () => {
       // A brand color changes the webapp CSS, the first target; the last target has lost its marker.
       const config = JSON.parse(readFileSync(path.join(root, 'theme.json'), 'utf8'))
       config.webapp.brand = '#16a34a'
+      delete config.webapp.tokens
       writeFileSync(path.join(root, 'theme.json'), JSON.stringify(config))
       const layoutPath = path.join(root, 'website/src/layouts/BaseLayout.astro')
       writeFileSync(layoutPath, readFileSync(layoutPath, 'utf8').replace('// THEME_FONT_IMPORT_END', ''))

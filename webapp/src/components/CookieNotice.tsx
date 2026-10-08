@@ -42,7 +42,7 @@ export function CookieNotice() {
           role="region"
         >
           <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-4 rounded-xl bg-popover p-5 text-center text-popover-foreground shadow-lg ring-1 ring-foreground/10">
-            <HugeiconsIcon className="size-8 text-primary" icon={CookieIcon} strokeWidth={1.5} />
+            <HugeiconsIcon className="size-8 text-primary" icon={CookieIcon} strokeWidth={2} />
             <Typography balance variant="bodySm">
               {COOKIE_NOTICE_TEXT}
             </Typography>
