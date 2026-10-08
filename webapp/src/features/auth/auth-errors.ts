@@ -13,6 +13,9 @@ export function authErrorMessage(error: unknown, action: AuthAction) {
   if (error instanceof ApiRequestError) {
     if (error.status === 429) return RATE_LIMITED
     if (action === 'login' && error.status === 401) return 'Неверный email или пароль.'
+    if (action === 'register' && error.code === 'REGISTRATION_CLOSED') {
+      return 'Регистрация закрыта: новые участники сейчас не принимаются.'
+    }
     if (action === 'register' && error.status === 409) {
       return 'Пользователь с таким email уже зарегистрирован.'
     }

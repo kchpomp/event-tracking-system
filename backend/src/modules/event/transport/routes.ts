@@ -15,6 +15,7 @@ import {
   hostessResolveRequestSchema,
   hostessSearchQuerySchema,
   leaderboardResponseSchema,
+  registrationStatusResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
   stationsResponseSchema,
@@ -23,7 +24,7 @@ import {
 } from '@event-tracking-system/contracts'
 import type { MiddlewareHandler } from 'hono'
 
-import { validationErrorHook } from '../../../http/errors'
+import { AppError, validationErrorHook } from '../../../http/errors'
 import { ingressErrorResponses } from '../../../http/openapi'
 import type { AuthHttpEnv } from '../../auth'
 import type { EventService } from '../application/event-service'
@@ -189,6 +190,15 @@ const hostessAwardRoute = createRoute({
   },
 })
 
+const registrationStatusRoute = createRoute({
+  method: 'get',
+  path: '/',
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(registrationStatusResponseSchema), description: 'Whether sign-up is open' },
+  },
+})
+
 type CreateEventRoutesOptions = {
   requireAdmin: MiddlewareHandler<AuthHttpEnv>
   requireAuth: MiddlewareHandler<AuthHttpEnv>
@@ -207,6 +217,7 @@ export function createEventRoutes({
   const participantRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
   const hostessRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
   const adminRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
+  const registrationRoutes = new OpenAPIHono({ defaultHook: validationErrorHook })
 
   participantRoutes.use('*', requireAuth)
   participantRoutes.use('*', requireParticipant)
@@ -252,5 +263,22 @@ export function createEventRoutes({
     c.json(await executeEvent(() => service.updateEvent(c.req.valid('json'))), 200),
   )
 
-  return { adminRoutes, hostessRoutes, participantRoutes }
+  // Public: no account exists yet when somebody opens the sign-up page.
+  registrationRoutes.openapi(registrationStatusRoute, async (c) =>
+    c.json({ open: await service.registrationOpen() }, 200),
+  )
+
+  // Stops new accounts while an administrator keeps sign-up closed. It guards creation only:
+  // existing accounts still sign in. Mounted in front of the two register routes. When the
+  // switch cannot be read the request goes on: registering needs the same database and fails
+  // loudly there, and cheap rejections (origin, body shape) keep their place ahead of any query.
+  const registrationGate: MiddlewareHandler = async (c, next) => {
+    if (c.req.method === 'POST') {
+      const open = await service.registrationOpen().catch(() => true)
+      if (!open) throw new AppError(403, 'REGISTRATION_CLOSED', 'Registration is closed')
+    }
+    await next()
+  }
+
+  return { adminRoutes, hostessRoutes, participantRoutes, registrationGate, registrationRoutes }
 }

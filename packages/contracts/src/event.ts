@@ -96,6 +96,11 @@ export const leaderboardResponseSchema = z
   .object({ entries: z.array(leaderboardEntrySchema) })
   .strict()
 
+/** What an administrator can switch: scanning (`isActive`) and sign-ups (`registrationOpen`). */
+export const eventStateSchema = z
+  .object({ id: z.string(), isActive: z.boolean(), registrationOpen: z.boolean() })
+  .strict()
+
 export const adminStationSchema = stationSummarySchema
   .omit({ visited: true })
   .extend({ isActive: z.boolean(), qrToken: z.string() })
@@ -103,7 +108,7 @@ export const adminStationSchema = stationSummarySchema
 
 export const adminStationsResponseSchema = z
   .object({
-    event: z.object({ id: z.string(), isActive: z.boolean() }).strict().nullable(),
+    event: eventStateSchema.nullable(),
     stations: z.array(adminStationSchema),
   })
   .strict()
@@ -121,7 +126,6 @@ export const hostessParticipantSchema = z
     fullName: z.string(),
     company: z.string().nullable(),
     city: z.string().nullable(),
-    email: z.string(),
     totalPoints: z.number().int().nonnegative(),
   })
   .strict()
@@ -156,10 +160,17 @@ export const hostessAwardResponseSchema = z
   })
   .strict()
 
-export const updateEventRequestSchema = z.object({ isActive: z.boolean() }).strict()
-export const updateEventResponseSchema = z
-  .object({ event: z.object({ id: z.string(), isActive: z.boolean() }).strict() })
+export const updateEventRequestSchema = z
+  .object({ isActive: z.boolean().optional(), registrationOpen: z.boolean().optional() })
   .strict()
+  .refine((value) => value.isActive !== undefined || value.registrationOpen !== undefined, {
+    message: 'Nothing to change',
+  })
+export const updateEventResponseSchema = z.object({ event: eventStateSchema }).strict()
+
+/** Public: the sign-up page asks this before it shows the form. */
+export const registrationStatusResponseSchema = z.object({ open: z.boolean() }).strict()
+export type RegistrationStatusResponse = z.infer<typeof registrationStatusResponseSchema>
 
 export type EventProfile = z.infer<typeof eventProfileSchema>
 export type EventProgress = z.infer<typeof eventProgressSchema>

@@ -506,8 +506,10 @@ function deleteRefreshCookie(c: Context, env: AppEnv) {
   })
 }
 
-function refreshCookieSameSite(env: AppEnv) {
-  return env.COOKIE_SECURE ? 'None' : 'Lax'
+// The webapp and the API are subdomains of one site, so Lax is enough and keeps the cookie off
+// cross-site requests.
+function refreshCookieSameSite(_env: AppEnv) {
+  return 'Lax' as const
 }
 
 function withoutRefreshToken<T extends { refreshToken: string }>(response: T): Omit<T, 'refreshToken'> {

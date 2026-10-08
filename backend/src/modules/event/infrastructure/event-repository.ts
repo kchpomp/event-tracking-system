@@ -9,6 +9,7 @@ import type {
   IdeaWriter,
   LeaderboardReader,
   ParticipantReader,
+  RegistrationReader,
   StationReader,
   StationScanner,
 } from '../application/ports'
@@ -29,7 +30,8 @@ type EventRepository = ParticipantReader &
   IdeaWriter &
   LeaderboardReader &
   HostessDesk &
-  EventAdmin
+  EventAdmin &
+  RegistrationReader
 
 const LEADERBOARD_SIZE = 10
 
@@ -51,7 +53,6 @@ const hostessParticipantSelect = {
   displayName: true,
   company: true,
   city: true,
-  email: true,
 } as const
 
 export function createPrismaEventRepository(db: DbClient): EventRepository {
@@ -181,7 +182,6 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
               { lastName: { contains: word, mode: 'insensitive' as const } },
               { company: { contains: word, mode: 'insensitive' as const } },
               { city: { contains: word, mode: 'insensitive' as const } },
-              { email: { contains: word, mode: 'insensitive' as const } },
             ],
           })),
         },
@@ -200,7 +200,6 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
         fullName: participantFullName(user),
         company: user.company,
         city: user.city,
-        email: user.email,
         totalPoints: totals.get(user.id) ?? 0,
       }))
     },
@@ -229,7 +228,6 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
           fullName: participantFullName(user),
           company: user.company,
           city: user.city,
-          email: user.email,
           totalPoints,
         },
         stations,
@@ -344,10 +342,13 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
     },
 
     async leaderboard(userId) {
-      // Participants only (administrators never play), each with the ledger sum. People with
-      // equal points share a rank; the row number breaks ties for the top-10 cut only.
+      // Participants only (administrators never play), each with the ledger sum. Places are
+      // distinct: more points first, then whoever scored their latest points EARLIER. The ledger
+      // has no timestamp column, but its ids are UUIDv7 (time-ordered), so the greatest id among
+      // the rows that gave points marks the moment the person reached their current total.
+      // People with no points yet are ordered by sign-up time.
       const rows = await db.$queryRaw<
-        { rank: bigint; full_name: string; points: bigint; is_me: boolean }[]
+        { place: bigint; full_name: string; points: bigint; is_me: boolean }[]
       >(Prisma.sql`
         WITH scored AS (
           SELECT u.id,
@@ -356,24 +357,27 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
                    NULLIF(BTRIM(u.display_name), ''),
                    'Участник'
                  ) AS full_name,
-                 COALESCE(SUM(l.points_awarded), 0)::bigint AS points
+                 COALESCE(SUM(l.points_awarded), 0)::bigint AS points,
+                 MAX(l.id::text) FILTER (WHERE l.points_awarded > 0) AS last_scored,
+                 u.created_at AS joined_at
           FROM users u
           LEFT JOIN activity_log l ON l.participant_id = u.id
           WHERE u.role = 'user'
           GROUP BY u.id
         ), ranked AS (
           SELECT s.*,
-                 RANK() OVER (ORDER BY s.points DESC) AS rank,
-                 ROW_NUMBER() OVER (ORDER BY s.points DESC, s.full_name, s.id) AS position
+                 ROW_NUMBER() OVER (
+                   ORDER BY s.points DESC, s.last_scored ASC NULLS LAST, s.joined_at, s.id
+                 ) AS place
           FROM scored s
         )
-        SELECT r.rank, r.full_name, r.points, (r.id = ${userId}::uuid) AS is_me
+        SELECT r.place, r.full_name, r.points, (r.id = ${userId}::uuid) AS is_me
         FROM ranked r
-        WHERE r.position <= ${LEADERBOARD_SIZE} OR r.id = ${userId}::uuid
-        ORDER BY r.position
+        WHERE r.place <= ${LEADERBOARD_SIZE} OR r.id = ${userId}::uuid
+        ORDER BY r.place
       `)
       return rows.map((row) => ({
-        rank: Number(row.rank),
+        rank: Number(row.place),
         fullName: row.full_name,
         totalPoints: Number(row.points),
         isMe: row.is_me,
@@ -383,7 +387,7 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
     async stationsWithTokens() {
       const event = await db.event.findFirst({
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: { id: true, isActive: true },
+        select: { id: true, isActive: true, registrationOpen: true },
       })
       const stations = await db.station.findMany({
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -399,7 +403,7 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
       return { event, stations }
     },
 
-    async setEventActive(isActive) {
+    async setEventState({ isActive, registrationOpen }) {
       const event = await db.event.findFirst({
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: { id: true },
@@ -407,9 +411,17 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
       if (!event) throw new EventFailure('not_found', 'There is no event yet')
       return db.event.update({
         where: { id: event.id },
-        data: { isActive },
-        select: { id: true, isActive: true },
+        data: { isActive, registrationOpen },
+        select: { id: true, isActive: true, registrationOpen: true },
       })
+    },
+
+    async registrationOpen() {
+      const event = await db.event.findFirst({
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { registrationOpen: true },
+      })
+      return event?.registrationOpen ?? true
     },
   }
 }

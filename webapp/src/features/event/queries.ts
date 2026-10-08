@@ -6,6 +6,7 @@ import {
   type HostessAwardRequest,
   type HostessResolveRequest,
   type ScanRequest,
+  type UpdateEventRequest,
 } from '@event-tracking-system/contracts'
 
 import { sessionQueryKeys, useAuth } from '@/features/auth'
@@ -18,6 +19,7 @@ import {
   getEventMe,
   getHostessParticipant,
   getLeaderboard,
+  getRegistrationStatus,
   getStations,
   resolveParticipant,
   scanStation,
@@ -32,6 +34,9 @@ export const eventQueryKeys = {
   stations: () => [...eventQueryKeys.all, 'stations'] as const,
   leaderboard: () => [...eventQueryKeys.all, 'leaderboard'] as const,
   adminStations: () => [...eventQueryKeys.all, 'admin-stations'] as const,
+  // Outside ['session', ...] on purpose: it is read before anyone has a session, and a session
+  // change would wipe it from under the sign-up page.
+  registration: () => ['registration'] as const,
   hostess: () => [...eventQueryKeys.all, 'hostess'] as const,
   hostessSearch: (q: string) => [...eventQueryKeys.hostess(), 'search', q] as const,
   hostessParticipant: (participantId: string) =>
@@ -152,11 +157,26 @@ export function useAdminStationsQuery() {
   )
 }
 
-export function useSetEventActiveMutation() {
+/** Switches scanning and/or sign-ups; the admin page and the sign-up status both refresh. */
+export function useUpdateEventMutation() {
   const { transport } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (isActive: boolean) => updateEvent(transport, { isActive }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.adminStations() }),
+    mutationFn: (input: UpdateEventRequest) => updateEvent(transport, input),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: eventQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: eventQueryKeys.registration() }),
+      ]),
   })
+}
+
+/** Whether new accounts may be created. Anything but a clear "closed" keeps the form visible. */
+export function useRegistrationStatusQuery() {
+  return useQuery(
+    queryOptions({
+      queryKey: eventQueryKeys.registration(),
+      queryFn: ({ signal }) => getRegistrationStatus({ signal }),
+    }),
+  )
 }

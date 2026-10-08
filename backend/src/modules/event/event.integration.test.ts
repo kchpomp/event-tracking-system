@@ -293,11 +293,12 @@ describe('event participation API', () => {
     expect(blank.status).toBe(400)
   })
 
-  test('the leaderboard lists the top 10 plus the caller, ties share a rank, and administrators never appear', async () => {
+  test('the leaderboard lists the top 10 plus the caller with distinct places, and administrators never appear', async () => {
     const admin = await makeAdmin()
     const people: Person[] = []
     for (let n = 0; n < 12; n += 1) people.push(await register())
-    // Two ties (5, 5 and 4, 4 ...) and three people on 1: ranks must skip, not count rows.
+    // Equal points (5, 5 and 4, 4 ...) are ordered by who scored first: each person's rows are
+    // written in turn, so a lower index means an earlier finish.
     const pointsByIndex = [5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 1, 0]
     for (const [index, points] of pointsByIndex.entries()) {
       for (let k = 0; k < points; k += 1) {
@@ -316,11 +317,13 @@ describe('event participation API', () => {
       entries: { rank: number; fullName: string; totalPoints: number; isMe: boolean }[]
     }
     expect(asTop.entries).toHaveLength(10)
-    expect(asTop.entries.slice(0, 2).map((entry) => [entry.rank, entry.totalPoints])).toEqual([
+    expect(asTop.entries.slice(0, 3).map((entry) => [entry.rank, entry.totalPoints])).toEqual([
       [1, 5],
-      [1, 5],
+      [2, 5],
+      [3, 4],
     ])
-    expect(asTop.entries[2]!.rank).toBe(3)
+    expect(asTop.entries.map((entry) => entry.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    expect(asTop.entries[0]!.isMe).toBe(true)
     expect(asTop.entries.filter((entry) => entry.isMe)).toHaveLength(1)
 
     // The last person is outside the top 10: their own row comes last, with their real rank.
@@ -338,6 +341,80 @@ describe('event participation API', () => {
       entries: { fullName: string }[]
     }
     expect(everyone.entries.map((entry) => entry.fullName)).not.toContain(adminName)
+  })
+
+  test('a tie goes to whoever reached the points first, not whoever signed up first', async () => {
+    const early = await register({ firstName: 'Ранний', lastName: 'Регистрации' })
+    const late = await register({ firstName: 'Поздний', lastName: 'Регистрации' })
+    const point = (person: Person) =>
+      prisma.activityLog.create({
+        data: { participantId: person.id, actionType: 'station_scan', pointsAwarded: 1, refId: crypto.randomUUID() },
+      })
+    await point(late) // the later sign-up scores first ...
+    await point(early) // ... and the earlier sign-up reaches the same total afterwards
+
+    const board = (await (await api('GET', '/api/event/leaderboard', early.accessToken)).json()) as {
+      entries: { rank: number; fullName: string; totalPoints: number }[]
+    }
+    expect(board.entries.map((entry) => [entry.rank, entry.fullName, entry.totalPoints])).toEqual([
+      [1, 'Поздний Регистрации', 1],
+      [2, 'Ранний Регистрации', 1],
+    ])
+  })
+
+  test('an administrator can close sign-ups: new accounts are refused, sign-in and the status keep working', async () => {
+    const admin = await makeAdmin()
+    const member = await register()
+    const memberEmail = (await prisma.user.findUniqueOrThrow({ where: { id: member.id } })).email
+    const status = async () => (await (await app.request('/api/registration')).json()) as { open: boolean }
+    const newAccount = (path: string) =>
+      app.request(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+        body: JSON.stringify({
+          email: `closed-${crypto.randomUUID()}@example.com`,
+          password: 'password-1234',
+          firstName: 'А',
+          lastName: 'Б',
+          company: 'В',
+          city: 'Г',
+          consent: true,
+          privacyPolicy: true,
+        }),
+      })
+
+    expect(await status()).toEqual({ open: true })
+    const close = await api('PATCH', '/api/admin/event', admin.accessToken, { registrationOpen: false })
+    expect(close.status).toBe(200)
+    expect(((await close.json()) as { event: unknown }).event).toMatchObject({
+      isActive: true,
+      registrationOpen: false,
+    })
+    expect(await status()).toEqual({ open: false })
+
+    const usersBefore = await prisma.user.count()
+    for (const path of ['/api/auth/register', '/api/auth/token/register']) {
+      const refused = await newAccount(path)
+      expect(refused.status).toBe(403)
+      expect(await errorCode(refused)).toBe('REGISTRATION_CLOSED')
+    }
+    expect(await prisma.user.count()).toBe(usersBefore)
+
+    // Existing accounts still sign in, and the scanning switch is a separate one.
+    const login = await app.request('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+      body: JSON.stringify({ email: memberEmail, password: 'password-1234' }),
+    })
+    expect(login.status).toBe(200)
+
+    // Only administrators, and only with something to change.
+    expect((await api('PATCH', '/api/admin/event', member.accessToken, { registrationOpen: true })).status).toBe(403)
+    expect((await api('PATCH', '/api/admin/event', admin.accessToken, {})).status).toBe(400)
+
+    expect((await api('PATCH', '/api/admin/event', admin.accessToken, { registrationOpen: true })).status).toBe(200)
+    expect(await status()).toEqual({ open: true })
+    expect((await newAccount('/api/auth/register')).status).toBe(201)
   })
 
   test('station tokens reach only administrators', async () => {

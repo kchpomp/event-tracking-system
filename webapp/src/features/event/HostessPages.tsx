@@ -91,7 +91,7 @@ export function HostessHomePage() {
           Найти участника
         </Typography>
         <Field>
-          <FieldLabel htmlFor="hostess-search">Имя, фамилия, город, предприятие или email</FieldLabel>
+          <FieldLabel htmlFor="hostess-search">Имя, фамилия, город или предприятие</FieldLabel>
           <Input
             autoComplete="off"
             data-testid="hostess-search"
@@ -133,7 +133,7 @@ function SearchResults({
   if (search.data.participants.length === 0) {
     return (
       <Typography tone="muted" variant="bodySm">
-        Никого не нашли. Попробуйте другое написание или email.
+        Никого не нашли. Попробуйте другое написание.
       </Typography>
     )
   }
@@ -149,7 +149,6 @@ function SearchResults({
             <ItemContent>
               <ItemTitle>{person.fullName}</ItemTitle>
               {workplaceOf(person) && <ItemDescription>{workplaceOf(person)}</ItemDescription>}
-              <ItemDescription>{person.email}</ItemDescription>
             </ItemContent>
             <ItemActions>
               <Typography className="tabular-nums" variant="bodySmMedium">
@@ -363,9 +362,6 @@ export function HostessParticipantPage({ participantId }: { participantId: strin
           </Typography>
           <Typography tone="muted" variant="bodySm">
             {workplaceOf(participant) || 'Место работы не указано'}
-          </Typography>
-          <Typography tone="muted" variant="bodySm" wrap="break">
-            {participant.email}
           </Typography>
         </CardContent>
       </Card>

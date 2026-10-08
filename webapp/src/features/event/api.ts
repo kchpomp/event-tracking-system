@@ -12,6 +12,7 @@ import {
   hostessResolveRequestSchema,
   hostessSearchQuerySchema,
   leaderboardResponseSchema,
+  registrationStatusResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
   stationsResponseSchema,
@@ -25,9 +26,17 @@ import {
   type UpdateEventRequest,
 } from '@event-tracking-system/contracts'
 
-import type { AuthenticatedTransport } from '@/platform/api'
+import { HttpClient, type AuthenticatedTransport } from '@/platform/api'
 
 type ReadOptions = { signal?: AbortSignal }
+
+// Public, so it does not go through the session-aware transport: that one discards an answer that
+// arrives while the session is still being worked out, which is exactly when the sign-up page asks.
+const publicHttp = new HttpClient()
+
+export function getRegistrationStatus(options: ReadOptions = {}) {
+  return publicHttp.request('/api/registration', registrationStatusResponseSchema, options)
+}
 
 export function getEventMe(transport: AuthenticatedTransport, options: ReadOptions = {}) {
   return transport.request('/api/event/me', eventMeResponseSchema, options)

@@ -50,10 +50,15 @@ variable "dns_zone_domain" {
 
   validation {
     condition = alltrue([
-      for domain in [var.api_domain, var.webapp_domain, var.website_domain] :
+      for domain in [var.api_domain, var.website_domain] :
       domain != var.dns_zone_domain && endswith(domain, ".${var.dns_zone_domain}")
-    ])
-    error_message = "Managed and documented external DNS require CNAME-safe subdomains; zone-apex domains need a different ANAME-capable non-CDN topology."
+    ]) && (var.webapp_domain == var.dns_zone_domain || endswith(var.webapp_domain, ".${var.dns_zone_domain}"))
+    error_message = "api_domain and website_domain must be CNAME-safe subdomains of dns_zone_domain. Only webapp_domain may also be the zone apex itself (an ANAME record to its bucket's website domain)."
+  }
+
+  validation {
+    condition     = var.webapp_domain != var.dns_zone_domain || !var.route_static_through_cdn
+    error_message = "A webapp on the zone apex is served straight from its bucket: route_static_through_cdn must be false."
   }
 }
 variable "enable_cdn" { type = bool }

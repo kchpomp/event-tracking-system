@@ -62,7 +62,6 @@ bun run dev:website    # http://localhost:4321
 | Архитектура, авторизация, Prisma | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Интерфейс и скриншоты | [UI.md](docs/UI.md) |
 | Тесты | [TESTING.md](docs/TESTING.md) |
-| Ручная проверка и что осталось сделать | [MANUAL_TESTING.md](docs/MANUAL_TESTING.md) |
 | Приложения, данные, корзины, оплата | [WEB_SURFACES.md](docs/WEB_SURFACES.md) |
 | Задачи и outbox | [BACKGROUND_JOBS.md](docs/BACKGROUND_JOBS.md) |
 | Локальный PostgreSQL | [LOCAL_DATABASE.md](docs/LOCAL_DATABASE.md) |

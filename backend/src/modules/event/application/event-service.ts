@@ -16,6 +16,7 @@ import type {
   IdeaWriter,
   LeaderboardReader,
   ParticipantReader,
+  RegistrationReader,
   StationReader,
   StationScanner,
 } from './ports'
@@ -27,6 +28,7 @@ type EventServiceDependencies = {
   ideas: IdeaWriter
   leaderboard: LeaderboardReader
   participants: ParticipantReader
+  registration: RegistrationReader
   scanner: StationScanner
   stations: StationReader
 }
@@ -90,6 +92,10 @@ export class EventService {
   }
 
   async updateEvent(input: UpdateEventRequest) {
-    return { event: await this.dependencies.admin.setEventActive(input.isActive) }
+    return { event: await this.dependencies.admin.setEventState(input) }
+  }
+
+  registrationOpen() {
+    return this.dependencies.registration.registrationOpen()
   }
 }

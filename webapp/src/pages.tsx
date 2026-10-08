@@ -31,8 +31,10 @@ import {
   IdeasPage,
   PolymerPage,
   ProfilePage,
+  RegistrationClosed,
   StationPage,
   StationScanPage,
+  useRegistrationStatusQuery,
 } from '@/features/event'
 import { homePathForRole, safeReturnPath } from '@/features/navigation'
 
@@ -70,10 +72,15 @@ export function LoginPage() {
 
 export function SignupPage() {
   const { returnTo } = useSearch({ from: '/signup' })
+  const registration = useRegistrationStatusQuery()
   return (
     <GuestAuthPage returnTo={returnTo}>
       <AuthPageShell>
-        <RegisterForm returnTo={returnTo} />
+        {registration.data?.open === false ? (
+          <RegistrationClosed />
+        ) : (
+          <RegisterForm returnTo={returnTo} />
+        )}
       </AuthPageShell>
     </GuestAuthPage>
   )

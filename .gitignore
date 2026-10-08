@@ -103,3 +103,12 @@ secrets.ps1
 admin.ps1
 terraform.rc
 *transfer*.zip
+
+# Owner-only deploy helper and laptop notes (not part of the product repository)
+scripts/deploy.ps1
+scripts/deploy-env.ps1
+scripts/deploy-setup.ps1
+scripts/setup-check.ps1
+scripts/apex-migrate.ps1
+docs/LAPTOP_SETUP.md
+docs/MANUAL_TESTING.md

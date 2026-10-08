@@ -237,6 +237,10 @@ export function createApp({
       : c.json({ status: 'unavailable' }, 503)
   })
 
+  // Both ways to create an account: the cookie flow and the token flow.
+  app.use('/api/auth/register', event.registrationGate)
+  app.use('/api/auth/token/register', event.registrationGate)
+  app.route('/api/registration', event.registrationRoutes)
   app.route('/api/auth', auth.routes)
   app.route('/api/users', users.userRoutes)
   app.route('/api/admin', users.adminRoutes)
