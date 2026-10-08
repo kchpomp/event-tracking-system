@@ -23,6 +23,7 @@ export function createEventModule(options: CreateEventModuleOptions) {
     ideas: repository,
     leaderboard: repository,
     participants: repository,
+    registration: repository,
     scanner: repository,
     stations: repository,
   })

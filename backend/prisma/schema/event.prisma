@@ -13,6 +13,8 @@
 model Event {
   id        String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   isActive  Boolean   @default(false) @map("is_active")
+  /// New sign-ups are accepted while true; an administrator switches it. Existing accounts still sign in.
+  registrationOpen Boolean @default(true) @map("registration_open")
   createdAt DateTime  @default(now()) @map("created_at")
   stations  Station[]
 

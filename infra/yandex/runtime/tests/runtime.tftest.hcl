@@ -159,6 +159,38 @@ run "zone_apex_is_rejected" {
   expect_failures = [var.dns_zone_domain]
 }
 
+run "webapp_on_the_zone_apex_gets_an_aname_record" {
+  command = plan
+
+  variables {
+    webapp_domain         = "example.com"
+    webapp_website_domain = "example.com.website.yandexcloud.net"
+    dns_zone_id           = "zone-test"
+  }
+
+  assert {
+    condition = (
+      yandex_dns_recordset.webapp[0].type == "ANAME" &&
+      yandex_dns_recordset.webapp[0].name == "example.com." &&
+      one(yandex_dns_recordset.webapp[0].data) == "example.com.website.yandexcloud.net." &&
+      output.required_dns_records.webapp.type == "ANAME" &&
+      yandex_dns_recordset.website[0].type == "CNAME"
+    )
+    error_message = "A webapp on the zone apex must be an ANAME to its bucket website domain; subdomains stay CNAMEs."
+  }
+}
+
+run "webapp_on_a_subdomain_keeps_its_cname" {
+  command = plan
+
+  variables { dns_zone_id = "zone-test" }
+
+  assert {
+    condition     = yandex_dns_recordset.webapp[0].type == "CNAME" && output.required_dns_records.webapp.type == "CNAME"
+    error_message = "A subdomain webapp is a CNAME."
+  }
+}
+
 run "containers_receive_exactly_their_environment" {
   command = plan
 

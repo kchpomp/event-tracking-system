@@ -12,7 +12,7 @@ output "required_dns_records" {
     }
     webapp = {
       name  = var.webapp_domain
-      type  = "CNAME"
+      type  = local.webapp_is_apex ? "ANAME" : "CNAME"
       value = local.webapp_dns_target
     }
     website = {
@@ -25,7 +25,7 @@ output "required_dns_records" {
 
 output "direct_static_dns_records" {
   value = {
-    webapp  = { name = var.webapp_domain, type = "CNAME", value = var.webapp_website_domain }
+    webapp  = { name = var.webapp_domain, type = local.webapp_is_apex ? "ANAME" : "CNAME", value = var.webapp_website_domain }
     website = { name = var.website_domain, type = "CNAME", value = var.website_website_domain }
   }
 }

@@ -189,7 +189,7 @@ Remote шаблона отключён, `origin` указывает на реп�
 | Durable task outbox | included | `task_outbox` в PostgreSQL, обработчики в `backend/src/outbox/handlers.ts`, запуск через `outbox:drain`. Новый тип задачи требует кода, не миграции. |
 | Background job alerting | included | Yandex — два уведомления Monitoring вручную. См. [YANDEX_CLOUD.md](docs/YANDEX_CLOUD.md). |
 | Event participation: stations and QR scan | included | Станции, сканирование QR камерой, баллы один раз за станцию. Модуль `backend/src/modules/event`, экраны в `webapp/src/features/event`. |
-| Points ledger and leaderboard | included | Таблица `activity_log`; рейтинг: первые 10 и строка участника, ничьи делят место, администраторы не в рейтинге. |
+| Points ledger and leaderboard | included | Таблица `activity_log`; рейтинг: первые 10 и строка участника; места не повторяются: больше баллов выше, при равенстве выше тот, кто набрал их раньше (по времени последней записи с баллами, в `activity_log` это UUIDv7), без баллов по времени регистрации; администраторы и хостес не в рейтинге. |
 | Diffusion (QR connections) | included | Три связи по QR участников; правило «другой город или другое предприятие»; баллы за первые три связи. |
 | Idea flask | included | Форма из пяти полей; баллы за первые пять идей. Выгрузка «Банка идей» для организаторов не сделана. |
 | Polymer game | included | Десять QR-мест (10…1 балл), одна награда на человека; тексты игры на странице `/app/polymer`. |

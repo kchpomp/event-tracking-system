@@ -768,7 +768,7 @@ describe('auth API integration', () => {
     expect(setCookie).toContain('event_tracking_system_refresh=')
     expect(setCookie).toContain('HttpOnly')
     expect(setCookie).toContain('Secure')
-    expect(setCookie).toContain('SameSite=None')
+    expect(setCookie).toContain('SameSite=Lax')
   })
 
   test('production cookie auth rejects untrusted refresh and logout origins', async () => {

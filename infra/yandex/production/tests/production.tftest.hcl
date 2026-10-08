@@ -330,6 +330,28 @@ run "zone_apex_is_rejected" {
   expect_failures = [var.dns_zone_domain]
 }
 
+run "webapp_may_use_the_zone_apex" {
+  command = plan
+
+  variables {
+    webapp_domain      = "example.com"
+    webapp_bucket_name = "example.com"
+  }
+}
+
+run "apex_webapp_cannot_route_through_cdn" {
+  command = plan
+
+  variables {
+    webapp_domain            = "example.com"
+    webapp_bucket_name       = "example.com"
+    enable_cdn               = true
+    route_static_through_cdn = true
+  }
+
+  expect_failures = [var.dns_zone_domain]
+}
+
 run "cdn_route_without_resources_is_rejected" {
   command = plan
 

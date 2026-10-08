@@ -127,7 +127,6 @@ describe('hostess desk API', () => {
           fullName: 'Анна Петрова',
           company: 'Завод',
           city: 'Тюмень',
-          email: expect.stringContaining('@example.com'),
           totalPoints: 1,
         },
       ],

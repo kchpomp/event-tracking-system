@@ -61,6 +61,14 @@ export type HostessDesk = {
 export type EventAdmin = {
   /** The latest event and every station WITH its qr token: administrators only. */
   stationsWithTokens(): Promise<AdminStationsResponse>
-  /** Opens or closes scanning. Throws an EventFailure('not_found') when no event exists. */
-  setEventActive(isActive: boolean): Promise<{ id: string; isActive: boolean }>
+  /** Opens or closes scanning and/or sign-ups. Throws an EventFailure('not_found') when no event exists. */
+  setEventState(input: {
+    isActive?: boolean
+    registrationOpen?: boolean
+  }): Promise<{ id: string; isActive: boolean; registrationOpen: boolean }>
+}
+
+export type RegistrationReader = {
+  /** Whether new accounts may be created. True when there is no event yet. */
+  registrationOpen(): Promise<boolean>
 }

@@ -130,12 +130,18 @@ resource "yandex_dns_recordset" "api" {
   data    = ["${yandex_api_gateway.api.domain}."]
 }
 
+locals {
+  # A CNAME cannot sit on the zone apex, so a webapp served from the bare domain gets an ANAME
+  # (Yandex Cloud DNS's apex alias) to its bucket's website domain instead.
+  webapp_is_apex = var.webapp_domain == var.dns_zone_domain
+}
+
 resource "yandex_dns_recordset" "webapp" {
   count = var.dns_zone_id == null ? 0 : 1
 
   zone_id = var.dns_zone_id
   name    = "${var.webapp_domain}."
-  type    = "CNAME"
+  type    = local.webapp_is_apex ? "ANAME" : "CNAME"
   ttl     = 300
   data = [var.route_static_through_cdn
     ? "${local.webapp_dns_target}."

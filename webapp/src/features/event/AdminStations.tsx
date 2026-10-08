@@ -13,11 +13,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { eventErrorMessage } from './errors'
 import { stationLabel } from './model'
-import { useAdminStationsQuery, useSetEventActiveMutation } from './queries'
+import { useAdminStationsQuery, useUpdateEventMutation } from './queries'
 
 export function AdminStations() {
   const stations = useAdminStationsQuery()
-  const setActive = useSetEventActiveMutation()
+  const update = useUpdateEventMutation()
 
   return (
     <PageContainer>
@@ -62,17 +62,37 @@ export function AdminStations() {
                     ? 'Участники получают баллы за сканирование.'
                     : 'Мероприятие закрыто: сканирование отклоняется.'}
                 </Typography>
-                {setActive.isError && (
+                {update.isError && (
                   <Typography role="alert" tone="destructive" variant="bodyXs">
-                    {eventErrorMessage(setActive.error)}
+                    {eventErrorMessage(update.error)}
                   </Typography>
                 )}
               </div>
               <Switch
                 aria-label="Сканирование идёт"
                 checked={stations.data.event.isActive}
-                disabled={setActive.isPending}
-                onCheckedChange={(checked) => setActive.mutate(checked)}
+                disabled={update.isPending}
+                onCheckedChange={(checked) => update.mutate({ isActive: checked })}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="print:hidden">
+            <CardContent className="flex items-center justify-between gap-4">
+              <div className="grid gap-1">
+                <Typography variant="bodySmMedium">Регистрация новых участников</Typography>
+                <Typography tone="muted" variant="bodySm">
+                  {stations.data.event.registrationOpen
+                    ? 'Открыта: новые участники могут зарегистрироваться.'
+                    : 'Закрыта: новые аккаунты не создаются, зарегистрированные входят как обычно.'}
+                </Typography>
+              </div>
+              <Switch
+                aria-label="Регистрация новых участников"
+                checked={stations.data.event.registrationOpen}
+                data-testid="registration-switch"
+                disabled={update.isPending}
+                onCheckedChange={(checked) => update.mutate({ registrationOpen: checked })}
               />
             </CardContent>
           </Card>
