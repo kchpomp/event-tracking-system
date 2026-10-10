@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import type { Locator, Page } from '@playwright/test'
 
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
-import { expect, logIn, logOut, signUp, test, uniqueEmail } from '../helpers/test'
+import { expect, expectCentredContent, logIn, logOut, signUp, test, uniqueEmail } from '../helpers/test'
 
 // Every popup keeps its buttons centred in the footer: a full-width column (main action on top)
 // below the `sm` breakpoint (640px), one centred row above it. Screenshots go to
@@ -20,6 +20,8 @@ async function checkFooter(page: Page, dialog: Locator, name: string, tag: strin
   // Let the zoom-in animation finish: a box measured mid-animation is scaled.
   await page.waitForTimeout(400)
   await page.screenshot({ path: `${outputDirectory}${name}--${tag}.png`, animations: 'disabled' })
+
+  await expectCentredContent(dialog, name)
 
   const dialogBox = (await dialog.boundingBox())!
   const footer = dialog.locator('[data-slot$="footer"]')

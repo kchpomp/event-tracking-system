@@ -37,7 +37,7 @@ export function RoleChangeDialog({
       }}
     >
       <AlertDialogContent>
-        <AlertDialogHeader className="place-items-start text-left">
+        <AlertDialogHeader>
           <AlertDialogTitle>Изменить роль пользователя?</AlertDialogTitle>
           <AlertDialogDescription>
             {pendingChange

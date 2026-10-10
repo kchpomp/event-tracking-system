@@ -334,7 +334,7 @@ export function RegisterForm({ cities, companies, returnTo }: RegisterFormProps)
           }}
           size="sm"
         >
-          <AlertDialogHeader className="place-items-start text-left">
+          <AlertDialogHeader>
             <AlertDialogTitle>Проверьте форму</AlertDialogTitle>
             <AlertDialogDescription data-testid="signup-notice">{notice?.message}</AlertDialogDescription>
           </AlertDialogHeader>

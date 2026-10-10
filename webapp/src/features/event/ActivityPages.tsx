@@ -209,7 +209,7 @@ export function DiffusionPage() {
         <DialogContent>
           {questionsFor !== null && (
             <>
-              <DialogHeader className="items-start text-left">
+              <DialogHeader>
                 <DialogTitle>{DIFFUSION_TASKS[questionsFor]}</DialogTitle>
                 <DialogDescription>Вопросы для обсуждения</DialogDescription>
               </DialogHeader>

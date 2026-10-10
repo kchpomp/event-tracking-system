@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
-import { expect, logIn, signUp, test, uniqueEmail } from '../helpers/test'
+import { expect, expectCentredContent, logIn, signUp, test, uniqueEmail } from '../helpers/test'
 
 test('an administrator loads participants and hostesses apart and sees who has signed up in each', async ({
   browser,
@@ -120,6 +120,7 @@ test('a listed hostess registers without a workplace and is given the role with 
   await expect(queue).toContainText('Ольга Хостесова')
   await queue.getByTestId('make-hostess').click()
   await expect(page.getByRole('alertdialog')).toContainText('баллы')
+  await expectCentredContent(page.getByRole('alertdialog'), 'make hostess')
   await page.getByTestId('make-hostess-confirm').click()
   await expect(page.getByTestId('hostess-ready')).toHaveCount(0)
 

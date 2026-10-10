@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect as playwrightExpect, type Locator, type Page } from '@playwright/test'
 
 export { expect, test } from '@playwright/test'
 
@@ -74,4 +74,26 @@ export async function accessTokenOf(page: Page) {
   })
   if (!response.ok()) throw new Error(`Refresh failed with HTTP ${response.status()}`)
   return ((await response.json()) as { accessToken: string }).accessToken
+}
+
+/**
+ * Every title, description and icon of a popup sits on its centre line: the text is centre-aligned
+ * and its box is centred in the dialog. Buttons are checked by the footer test next to this one.
+ */
+export async function expectCentredContent(dialog: Locator, name: string) {
+  const box = (await dialog.boundingBox())!
+  const dialogCentre = box.x + box.width / 2
+  const parts = dialog.locator('[data-slot$="title"], [data-slot$="description"], [data-slot$="media"]')
+  const count = await parts.count()
+  playwrightExpect(count, `${name}: the popup has a title`).toBeGreaterThan(0)
+  for (let index = 0; index < count; index += 1) {
+    const part = parts.nth(index)
+    const slot = await part.getAttribute('data-slot')
+    const { align, centre } = await part.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return { align: getComputedStyle(element).textAlign, centre: rect.x + rect.width / 2 }
+    })
+    if (!slot?.endsWith('media')) playwrightExpect(align, `${name}: ${slot} text is centred`).toBe('center')
+    playwrightExpect(Math.abs(centre - dialogCentre), `${name}: ${slot} is on the centre line`).toBeLessThanOrEqual(2)
+  }
 }

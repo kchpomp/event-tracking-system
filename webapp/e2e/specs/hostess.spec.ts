@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
-import { expect, logIn, signUp, test, uniqueEmail } from '../helpers/test'
+import { expect, expectCentredContent, logIn, signUp, test, uniqueEmail } from '../helpers/test'
 
 // Hostesses work from a phone, so the whole journey runs at phone width; the screenshots are for
 // a visual review in e2e/.artifacts/hostess.
@@ -64,9 +64,23 @@ test('an administrator makes a hostess, who finds a participant, awards a statio
   await expect(page.getByTestId('hostess-award-confirm')).toBeVisible()
   await page.waitForTimeout(400)
   await page.screenshot({ path: `${shots}confirm.png`, animations: 'disabled' })
+  // The confirmation is centred: title, text and both buttons.
+  const confirmation = page.getByRole('alertdialog')
+  await expectCentredContent(confirmation, 'award confirmation')
+  const buttons = await confirmation.getByRole('button').evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const { x, width } = node.getBoundingClientRect()
+      return { x, width }
+    }),
+  )
+  const card = (await confirmation.boundingBox())!
+  const left = Math.min(...buttons.map((button) => button.x))
+  const right = Math.max(...buttons.map((button) => button.x + button.width))
+  expect(Math.abs((left + right) / 2 - (card.x + card.width / 2)), 'award buttons are centred').toBeLessThanOrEqual(2)
   await page.getByTestId('hostess-award-confirm').click()
   await expect(page.getByText('Баллы начислены')).toBeVisible()
   await page.waitForTimeout(400)
+  await expectCentredContent(page.getByRole('dialog'), 'award result')
   await page.screenshot({ path: `${shots}awarded.png`, animations: 'disabled' })
   await page.getByRole('button', { name: 'ОК' }).click()
   await expect(workshop).toBeDisabled()

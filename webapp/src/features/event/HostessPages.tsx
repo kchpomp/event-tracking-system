@@ -416,7 +416,7 @@ export function HostessParticipantPage({ participantId }: { participantId: strin
 
       <AlertDialog onOpenChange={(open) => !open && setChoice(null)} open={choice !== null}>
         <AlertDialogContent>
-          <AlertDialogHeader className="place-items-start text-left">
+          <AlertDialogHeader>
             <AlertDialogTitle>Начислить баллы?</AlertDialogTitle>
             <AlertDialogDescription>
               {choice

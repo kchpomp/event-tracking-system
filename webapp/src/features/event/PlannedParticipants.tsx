@@ -222,7 +222,7 @@ function HostessRoleQueue({ items }: { items: readonly PlannedParticipant[] }) {
 
       <AlertDialog onOpenChange={(open) => !open && !mutation.isPending && setChosen(null)} open={chosen !== null}>
         <AlertDialogContent>
-          <AlertDialogHeader className="place-items-start text-left">
+          <AlertDialogHeader>
             <AlertDialogTitle>Назначить роль хостес?</AlertDialogTitle>
             <AlertDialogDescription>
               {chosen

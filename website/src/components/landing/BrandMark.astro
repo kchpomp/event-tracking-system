@@ -1,3 +1,13 @@
-<span class="font-heading text-xl font-normal whitespace-nowrap">
-  Формула <span class="font-bold">Будущего</span>
+---
+// `compact` is for the header: below 340 px the first word drops out so the brand and the two
+// buttons always share one row, with the buttons on the right.
+interface Props {
+  compact?: boolean
+}
+
+const { compact = false } = Astro.props
+---
+
+<span class="font-heading text-sm font-normal whitespace-nowrap min-[370px]:text-base sm:text-xl">
+  <span class:list={[compact && 'hidden min-[340px]:inline']}>Формула </span><span class="font-bold">Будущего</span>
 </span>

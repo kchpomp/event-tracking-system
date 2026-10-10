@@ -167,7 +167,7 @@ export function ResultDialog({
   return (
     <Dialog onOpenChange={(open) => !open && finish()} open>
       <DialogContent showCloseButton={false}>
-        <DialogHeader className="items-start text-left">
+        <DialogHeader>
           <span className={cn('flex size-14 items-center justify-center rounded-md', tone.tone)}>
             <HugeiconsIcon aria-hidden icon={tone.icon} strokeWidth={2} />
           </span>

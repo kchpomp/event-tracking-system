@@ -48,7 +48,7 @@ export function ConsentDialog({
       open={open}
     >
       <DialogContent>
-        <DialogHeader className="items-start text-left">
+        <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {atEnd ? 'Текст прочитан до конца.' : 'Прокрутите текст до конца, чтобы согласиться.'}
