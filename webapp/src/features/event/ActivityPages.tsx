@@ -30,7 +30,7 @@ import {
   STATION_DEFAULT,
 } from './content'
 import { eventErrorMessage, GENERIC_ERROR } from './errors'
-import { ActivityIcon, HeroNet, PolymerChain, StationIcon } from './icons'
+import { ActivityIcon, PolymerChain, StationIcon } from './icons'
 import { hasOwnScanButton } from './model'
 import {
   ActivityHead,
@@ -179,7 +179,7 @@ export function DiffusionPage() {
       </section>
 
       {complete ? (
-        <Typography align="center" tone="primary" variant="bodySmMedium">
+        <Typography tone="primary" variant="bodySmMedium">
           Диффузия завершена. Вы создали 3 новых профессиональных связи.
         </Typography>
       ) : (
@@ -209,7 +209,7 @@ export function DiffusionPage() {
         <DialogContent>
           {questionsFor !== null && (
             <>
-              <DialogHeader>
+              <DialogHeader className="items-start text-left">
                 <DialogTitle>{DIFFUSION_TASKS[questionsFor]}</DialogTitle>
                 <DialogDescription>Вопросы для обсуждения</DialogDescription>
               </DialogHeader>
@@ -219,7 +219,7 @@ export function DiffusionPage() {
                     <Typography
                       aria-hidden
                       as="span"
-                      className="absolute top-0 left-0 grid size-5 place-items-center rounded-full border-[1.5px] border-primary text-primary"
+                      className="absolute top-0 left-0 grid size-5 place-items-center rounded-sm border-[1.5px] border-primary text-primary"
                       variant="captionMedium"
                     >
                       {index + 1}
@@ -368,12 +368,16 @@ export function PolymerPage() {
         side={done ? <Badge>Пройдено</Badge> : null}
         value={done ? `${done.points}` : `до ${best}`}
       />
-      {/* A flat Dark Teal panel (the heading is 18 px bold, below the large-text size that brand and
-          highlight fills need) with the molecule drawing of the game. */}
-      <section className="relative overflow-hidden rounded-xl bg-primary px-6 py-7">
-        <div aria-hidden className="absolute inset-0 text-primary-foreground/15">
-          <HeroNet />
-        </div>
+      {/* A flat panel with one pattern figure (a quarter circle, as in the partnership cells). */}
+      <section className="relative overflow-hidden rounded-lg bg-primary px-6 py-7">
+        <svg
+          aria-hidden
+          className="absolute top-0 right-0 h-full text-primary-foreground/15"
+          preserveAspectRatio="xMaxYMid slice"
+          viewBox="0 0 100 100"
+        >
+          <path d="M100 100V12A88 88 0 0 0 12 100Z" fill="currentColor" />
+        </svg>
         <Typography as="h2" className="relative text-primary-foreground" variant="h5">
           {POLYMER.lead}
         </Typography>
@@ -384,14 +388,14 @@ export function PolymerPage() {
 
       <section className="grid gap-4">
         <SectionTitle>{POLYMER.stepsTitle}</SectionTitle>
-        {/* A chain: numbered nodes joined by a thin line, the duration as a pill beside each title. */}
+        {/* A chain: numbered nodes joined by a thin line, the duration as a square tag beside each title. */}
         <ol className="grid">
           {POLYMER.steps.map(([title, time, text], index) => (
             <li className="relative pb-5 pl-9 last:pb-0" key={title}>
               <Typography
                 aria-hidden
                 as="span"
-                className="absolute top-0 left-0 z-10 grid size-6 place-items-center rounded-full border-[1.5px] border-primary bg-card text-primary"
+                className="absolute top-0 left-0 z-10 grid size-6 place-items-center rounded-sm border-[1.5px] border-primary bg-card text-primary"
                 variant="captionMedium"
               >
                 {index + 1}
@@ -403,7 +407,7 @@ export function PolymerPage() {
                 <Typography variant="bodySmMedium">{title}</Typography>
                 <Typography
                   as="span"
-                  className="rounded-full bg-primary/10 px-2 py-0.5 text-primary"
+                  className="rounded-sm border border-border px-2 py-0.5 text-primary"
                   variant="captionMedium"
                   wrap="nowrap"
                 >
@@ -429,12 +433,12 @@ export function PolymerPage() {
           <Typography tone="muted" variant="bodySm">
             {POLYMER.metricsLead}
           </Typography>
-          {/* One pill per line with a node dot: never a bulleted list. */}
+          {/* One square tag per line with a node: never a bulleted list. */}
           <ul className="grid justify-items-start gap-2">
             {POLYMER.metrics.map((metric) => (
               <Typography
                 as="li"
-                className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1.5 text-secondary-foreground before:size-1.5 before:shrink-0 before:rounded-full before:bg-primary"
+                className="flex items-center gap-2 rounded-sm border border-border px-3 py-1.5 before:size-1.5 before:shrink-0 before:bg-primary"
                 key={metric}
                 variant="bodyXs"
               >
@@ -446,7 +450,7 @@ export function PolymerPage() {
         </CardContent>
       </Card>
 
-      <section className="grid gap-1.5 rounded-r-xl border-l-[3px] border-primary bg-primary/5 px-5 py-4">
+      <section className="grid gap-1.5 rounded-r-lg border-l-[3px] border-primary bg-primary/5 px-5 py-4">
         <Typography tone="muted" variant="captionMedium">
           {POLYMER.flowLead}
         </Typography>

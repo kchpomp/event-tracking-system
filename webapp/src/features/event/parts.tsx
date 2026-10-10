@@ -167,8 +167,8 @@ export function ResultDialog({
   return (
     <Dialog onOpenChange={(open) => !open && finish()} open>
       <DialogContent showCloseButton={false}>
-        <DialogHeader>
-          <span className={cn('flex size-14 items-center justify-center rounded-full', tone.tone)}>
+        <DialogHeader className="items-start text-left">
+          <span className={cn('flex size-14 items-center justify-center rounded-md', tone.tone)}>
             <HugeiconsIcon aria-hidden icon={tone.icon} strokeWidth={2} />
           </span>
           <DialogTitle>{result.title}</DialogTitle>

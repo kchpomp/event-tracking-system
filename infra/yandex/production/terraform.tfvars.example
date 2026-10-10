@@ -1,5 +1,5 @@
-cloud_id    = "b1g6rgevat7hdag0k9el"
-folder_id   = "b1g673v2mou0tr08qbs5"
+cloud_id    = "REPLACE_WITH_CLOUD_ID"
+folder_id   = "REPLACE_WITH_FOLDER_ID"
 project_slug = "event-tracking-system"
 git_branch   = "main"
 

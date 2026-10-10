@@ -47,12 +47,6 @@ const resetPasswordRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'ResetPasswordPage'),
 })
 
-const privacyRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/privacy',
-  component: lazyRouteComponent(() => import('./components/PrivacyPolicyPage'), 'PrivacyPolicyPage'),
-})
-
 const userWorkspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'userWorkspace',
@@ -125,6 +119,12 @@ const adminUsersRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'AdminUsersPage'),
 })
 
+const adminParticipantsRoute = createRoute({
+  getParentRoute: () => adminWorkspaceRoute,
+  path: '/admin/participants',
+  component: lazyRouteComponent(() => import('./pages'), 'AdminParticipantsPage'),
+})
+
 const adminStationsRoute = createRoute({
   getParentRoute: () => adminWorkspaceRoute,
   path: '/admin/stations',
@@ -167,7 +167,6 @@ const routeTree = rootRoute.addChildren([
   signupRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
-  privacyRoute,
   userWorkspaceRoute.addChildren([
     userHomeRoute,
     userScanRoute,
@@ -180,6 +179,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   adminWorkspaceRoute.addChildren([
     adminDashboardRoute,
+    adminParticipantsRoute,
     adminUsersRoute,
     adminStationsRoute,
     adminSettingsRoute,

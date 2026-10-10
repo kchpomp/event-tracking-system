@@ -57,7 +57,7 @@ function ScanScreen({
     <div className="grid gap-6">
       <ActivityHead back={back} title={title} />
       {checking ? (
-        <div className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-xl bg-muted" role="status">
+        <div className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-lg bg-muted" role="status">
           <Spinner />
           <Typography variant="bodySm" tone="muted">
             Проверяем код…
@@ -66,11 +66,11 @@ function ScanScreen({
       ) : (
         <QrScanner key={round} onDecoded={(text) => void handleDecoded(text)} />
       )}
-      <div className="grid gap-1 text-center">
-        <Typography align="center" variant="emphasis">
+      <div className="grid gap-1">
+        <Typography variant="emphasis">
           Наведите камеру на QR‑код
         </Typography>
-        <Typography align="center" tone="muted" variant="bodySm">
+        <Typography tone="muted" variant="bodySm">
           Держите устройство неподвижно
         </Typography>
       </div>

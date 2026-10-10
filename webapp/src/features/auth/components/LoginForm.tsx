@@ -54,7 +54,7 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
       }}
     >
       <FieldGroup className="gap-5">
-        <div className="flex flex-col items-center gap-1 text-center">
+        <div className="flex flex-col gap-1">
           <Typography as="h1" variant="h3" balance>
             Вход
           </Typography>
@@ -152,7 +152,7 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
           />
         </Field>
 
-        <FieldDescription className="text-center">
+        <FieldDescription>
           Нет аккаунта?{' '}
           <Link data-testid="signup-link" search={{ returnTo }} to="/signup">
             Зарегистрироваться

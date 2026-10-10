@@ -270,7 +270,7 @@ export function HostessScanPage() {
       <ActivityHead back="/hostess" title="QR участника" />
       {checking ? (
         <div
-          className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-xl bg-muted"
+          className="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-lg bg-muted"
           role="status"
         >
           <Spinner />
@@ -281,11 +281,11 @@ export function HostessScanPage() {
       ) : (
         <QrScanner key={round} onDecoded={(text) => void handleDecoded(text)} />
       )}
-      <div className="grid gap-1 text-center">
-        <Typography align="center" variant="emphasis">
+      <div className="grid gap-1">
+        <Typography variant="emphasis">
           Наведите камеру на QR участника
         </Typography>
-        <Typography align="center" tone="muted" variant="bodySm">
+        <Typography tone="muted" variant="bodySm">
           Он открывается в «Диффузия» → «Показать мой QR»
         </Typography>
       </div>
@@ -416,7 +416,7 @@ export function HostessParticipantPage({ participantId }: { participantId: strin
 
       <AlertDialog onOpenChange={(open) => !open && setChoice(null)} open={choice !== null}>
         <AlertDialogContent>
-          <AlertDialogHeader>
+          <AlertDialogHeader className="place-items-start text-left">
             <AlertDialogTitle>Начислить баллы?</AlertDialogTitle>
             <AlertDialogDescription>
               {choice

@@ -6,7 +6,11 @@ import type {
   HostessAwardResponse,
   HostessParticipant,
   HostessParticipantResponse,
+  ImportPlannedRequest,
+  ImportPlannedResponse,
   LeaderboardEntry,
+  PlannedParticipantsResponse,
+  RegistrationReferenceResponse,
   ScanResponse,
   StationSummary,
 } from '@event-tracking-system/contracts'
@@ -71,4 +75,21 @@ export type EventAdmin = {
 export type RegistrationReader = {
   /** Whether new accounts may be created. True when there is no event yet. */
   registrationOpen(): Promise<boolean>
+  /** The sign-up form's two dropdowns, in display order. */
+  referenceLists(): Promise<RegistrationReferenceResponse>
+}
+
+export type PlannedParticipantsAdmin = {
+  /** The whole expected guest list, people who have not signed up first, with the counts. */
+  plannedParticipants(): Promise<PlannedParticipantsResponse>
+  /**
+   * Adds people to one of the two lists by email, or sets the name of one already listed. Emails
+   * are unique across both lists: a person who is already in the other one moves to this one.
+   */
+  importPlanned(
+    kind: ImportPlannedRequest['kind'],
+    entries: ImportPlannedRequest['entries'],
+  ): Promise<ImportPlannedResponse>
+  /** False when no such entry exists. Never touches an account. */
+  removePlanned(id: string): Promise<boolean>
 }

@@ -39,7 +39,7 @@ export function ParticipantShell({
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-40 border-b bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4 py-3">
           <Link to={home}>
             <Brand />

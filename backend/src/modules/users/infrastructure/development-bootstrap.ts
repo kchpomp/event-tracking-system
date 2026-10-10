@@ -43,14 +43,21 @@ async function bootstrapDevelopmentUser(
       return updateExistingDevelopmentUser(db, existing, credentials)
     }
 
+    // The first reference rows (migration 20261010100000); absent only on a database that has
+    // had them removed, which leaves the demo user without a workplace.
+    const [company, city] = await Promise.all([
+      db.company.findFirst({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }], select: { id: true } }),
+      db.city.findFirst({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }], select: { id: true } }),
+    ])
+
     try {
       return await db.user.create({
         data: {
           displayName: 'Демо Участник',
           firstName: 'Демо',
           lastName: 'Участник',
-          company: 'Демо-предприятие',
-          city: 'Тюмень',
+          companyId: company?.id,
+          cityId: city?.id,
           consentedAt: new Date(),
           email: credentials.email,
           passwordHash: await Bun.password.hash(credentials.password, { algorithm: 'argon2id' }),

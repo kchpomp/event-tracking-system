@@ -6,6 +6,7 @@ import { loadEnv } from '../env'
 import { runBackgroundJob } from '../jobs'
 import type { BackendRuntime } from '../runtime'
 import { createDatabaseRateLimitStore } from './database-store'
+import { CITY_ID, COMPANY_ID } from '../test-reference-ids'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 if (!databaseUrl) throw new Error('TEST_DATABASE_URL is required; run bun run test:backend:integration')
@@ -114,7 +115,7 @@ describe('auth rate limits across backend processes', () => {
       app.request('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': clientIp },
-        body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true,  email: 'invalid', password: 'short' }),
+        body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', companyId: COMPANY_ID, cityId: CITY_ID, consent: true,  email: 'invalid', password: 'short' }),
       })
 
     expect((await register(apps[0], '203.0.113.10')).status).toBe(400)

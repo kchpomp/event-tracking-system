@@ -9,38 +9,41 @@ interface Props {
 const { actions } = Astro.props
 ---
 
-<section class="site-container" id="top" aria-labelledby="entry-title">
-  <!-- Banner grid 4x2: the text block takes 3x2 cells, the pattern cells are the other column.
-       On a phone the text comes first and the cells follow as one row. -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 lg:grid-rows-2">
-    <div class="col-span-2 flex flex-col gap-8 py-12 lg:col-span-3 lg:row-span-2 lg:justify-between lg:py-16 lg:pr-12">
-      <div class="flex flex-col gap-6">
-        <h1 class="max-w-3xl text-5xl leading-none font-normal sm:text-6xl lg:text-7xl" id="entry-title">
-          Формула <span class="font-bold text-highlight">Будущего</span>
-        </h1>
-        <p class="max-w-xl text-lg leading-normal text-muted-foreground text-pretty">
-          Знакомьтесь с коллегами, предлагайте идеи и проходите интерактивы: ваш вклад складывается в «Индекс влияния».
-        </p>
-      </div>
-      <div class="flex flex-col gap-6">
-        {
-          actions ? (
-            <div class="flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row">
-              <a class={buttonVariants({ className: 'h-12 px-8', size: 'lg', variant: 'outline' })} href={actions.login}>
-                Войти
-              </a>
-              <a class={buttonVariants({ className: 'h-12 px-8 font-bold', size: 'lg' })} href={actions.signup}>
-                Зарегистрироваться
-              </a>
-            </div>
-          ) : (
-            <p class="text-sm text-muted-foreground">Вход откроется, когда будет указан адрес приложения.</p>
-          )
-        }
-        <p class="text-xl text-primary">Сила — в соединении.</p>
-      </div>
+<!-- Design B «Глубина»: Dark Teal page, text on the left edge, Mint main button, and a band of
+     pattern cells across the bottom (four across, never more than two with a figure). -->
+<section aria-labelledby="entry-title" id="top">
+  <div class="site-container flex flex-col gap-8 py-12 lg:py-20">
+    <div class="flex flex-col gap-6">
+      <h1 class="text-5xl leading-none font-normal sm:text-6xl lg:text-7xl" id="entry-title">
+        Формула <span class="block font-bold text-primary">Будущего</span>
+      </h1>
+      <p class="max-w-xl text-lg leading-normal text-muted-foreground text-pretty">
+        Знакомьтесь с коллегами, предлагайте идеи и проходите интерактивы: ваш вклад складывается в «Индекс влияния».
+      </p>
     </div>
+    {
+      actions ? (
+        <div class="flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row">
+          <a class={buttonVariants({ className: 'h-12 px-8 font-bold', size: 'lg' })} href={actions.signup}>
+            Зарегистрироваться
+          </a>
+          <a class={buttonVariants({ className: 'h-12 px-8', size: 'lg', variant: 'outline' })} href={actions.login}>
+            Войти
+          </a>
+        </div>
+      ) : (
+        <p class="text-sm text-muted-foreground">Вход откроется, когда будет указан адрес приложения.</p>
+      )
+    }
+    <p class="flex items-center gap-3 text-base font-bold">
+      <span aria-hidden="true" class="size-3 bg-brand"></span>
+      Сила — в соединении.
+    </p>
+  </div>
+  <div class="grid grid-cols-4">
     <PartnershipPattern base="brand" figure="primary" shape="quarter" />
+    <PartnershipPattern base="secondary" />
     <PartnershipPattern base="primary" figure="background" shape="circle" />
+    <PartnershipPattern base="brand" />
   </div>
 </section>

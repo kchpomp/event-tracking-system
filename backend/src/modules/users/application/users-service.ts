@@ -37,8 +37,7 @@ export class UsersService {
   }
 
   dashboard() {
-    const createdAfter = new Date(this.dependencies.clock.now().getTime() - 7 * 24 * 60 * 60 * 1000)
-    return this.dependencies.adminDashboardReader.dashboard(createdAfter)
+    return this.dependencies.adminDashboardReader.dashboard()
   }
 
   listUsers(query: AdminUsersQuery) {

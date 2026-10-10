@@ -28,7 +28,7 @@ export function NavMain({
   return (
     <nav aria-label="Primary navigation" data-testid="primary-navigation">
       <SidebarGroup>
-        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+        <SidebarGroupLabel>Администратор</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             {items.map((item) => (

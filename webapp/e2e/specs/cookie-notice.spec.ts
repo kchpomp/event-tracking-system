@@ -3,28 +3,12 @@ import { expect, test } from '../helpers/test'
 // The config pre-acknowledges the notice for every other spec; this one starts from a clean browser.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-test('the cookie notice opens the policy in a popup: «Закрыть» keeps the notice, «Согласен» clears it for good', async ({
-  page,
-}) => {
+test('«Понятно» clears the notice for good', async ({ page }) => {
   await page.goto('/signup')
   const notice = page.getByTestId('cookie-notice')
   await expect(notice).toBeVisible()
 
-  // «Закрыть» only closes the popup.
-  await page.getByTestId('cookie-notice-policy').click()
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await page.getByTestId('cookie-policy-close').click()
-  await expect(page.getByRole('dialog')).toBeHidden()
-  await expect(notice).toBeVisible()
-
-  // «Согласен» works only after the text is read to the end, then clears the notice.
-  await page.getByTestId('cookie-notice-policy').click()
-  await expect(page.getByTestId('cookie-policy-agree')).toBeDisabled()
-  await page.getByRole('dialog').locator('div.overflow-y-auto').evaluate((element) => {
-    element.scrollTo(0, element.scrollHeight)
-  })
-  await page.getByTestId('cookie-policy-agree').click()
-  await expect(page.getByRole('dialog')).toBeHidden()
+  await page.getByTestId('cookie-notice-ok').click()
   await expect(notice).toBeHidden()
 
   await page.reload()
@@ -32,12 +16,20 @@ test('the cookie notice opens the policy in a popup: «Закрыть» keeps th
   await expect(page.getByTestId('cookie-notice')).toHaveCount(0)
 })
 
-test('«Понятно» clears the notice, and the policy stays reachable on its own page', async ({ page }) => {
+test("the policy is a link to the operator's own document, in the notice and under the form", async ({
+  page,
+}) => {
   await page.goto('/login')
-  await page.getByTestId('cookie-notice-ok').click()
-  await expect(page.getByTestId('cookie-notice')).toBeHidden()
 
-  await page.getByRole('link', { name: 'Политика конфиденциальности' }).click()
-  await expect(page).toHaveURL(/\/privacy$/)
-  await expect(page.getByRole('heading', { name: 'ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ' })).toBeVisible()
+  // Not a popup and not an app page: a link that opens the published PDF in a new tab.
+  const noticeLink = page.getByTestId('cookie-notice-policy')
+  await expect(noticeLink).toHaveAttribute('href', /sibur\.ru\/upload\/documents\/politiki-docs\//)
+  await expect(noticeLink).toHaveAttribute('target', '_blank')
+
+  const footerLink = page.getByRole('link', { name: /Политика СИБУР в отношении обработки/ })
+  await expect(footerLink).toHaveAttribute('href', /\.pdf$/)
+
+  // The app has no policy page of its own any more.
+  await page.goto('/privacy')
+  await expect(page.getByText('Страница не найдена')).toBeVisible()
 })

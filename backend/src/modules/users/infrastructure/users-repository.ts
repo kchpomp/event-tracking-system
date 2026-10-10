@@ -6,6 +6,7 @@ import type {
 import { ADMIN_USERS_MAX_PAGE } from '@event-tracking-system/contracts'
 
 import {
+  acquireParticipantScoringLock,
   acquirePushTokenUserLock,
   acquireUserAuthenticationAuthorityLock,
   acquireUserRoleMutationLock,
@@ -44,13 +45,12 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
       })
     },
 
-    async dashboard(createdAfter) {
-      const [totalUsers, totalAdmins, newUsersLast7Days] = await db.$transaction([
+    async dashboard() {
+      const [totalUsers, totalAdmins] = await db.$transaction([
         db.user.count(),
         db.user.count({ where: { role: 'admin' } }),
-        db.user.count({ where: { createdAt: { gte: createdAfter } } }),
       ])
-      return { totalUsers, totalAdmins, newUsersLast7Days }
+      return { totalUsers, totalAdmins }
     },
 
     async listUsers({ page, pageSize, q }: AdminUsersQuery) {
@@ -121,6 +121,16 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
           data: { role: input.role },
           select: userSummarySelect,
         })
+        if (input.role === 'hostess') {
+          // Staff do not play. They are already left out of the ranking by role; their points and
+          // visit marks are removed too, so no total of theirs can be mistaken for a participant's
+          // when winners are picked. Taken under the participant's scoring lock, so a scan in flight
+          // either lands before this or finds a staff account. Ideas and connections stay: other
+          // people's progress and the ideas bank are built on them.
+          await acquireParticipantScoringLock(tx, target.id)
+          await tx.activityLog.deleteMany({ where: { participantId: target.id } })
+          await tx.stationVisit.deleteMany({ where: { participantId: target.id } })
+        }
         await tx.authSession.updateMany({
           where: { userId: target.id, revokedAt: null },
           data: { revokedAt: input.now },

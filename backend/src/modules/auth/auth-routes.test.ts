@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import { createApp } from '../../app'
 import type { DbClient } from '../../db'
 import { loadEnv } from '../../env'
+import { CITY_ID, COMPANY_ID } from '../../test-reference-ids'
 
 const env = loadEnv({
   DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
@@ -125,9 +126,9 @@ describe('auth routes', () => {
         password: 'password123',
         firstName: 'Анна',
         lastName: 'Петрова',
-        company: 'Завод',
-        city: 'Тюмень',
-        consent: true, privacyPolicy: true,
+        companyId: COMPANY_ID,
+        cityId: CITY_ID,
+        consent: true,
       }),
     })
     const untrustedRegisterBody = await untrustedRegister.json()

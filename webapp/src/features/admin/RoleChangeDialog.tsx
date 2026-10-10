@@ -37,11 +37,15 @@ export function RoleChangeDialog({
       }}
     >
       <AlertDialogContent>
-        <AlertDialogHeader>
+        <AlertDialogHeader className="place-items-start text-left">
           <AlertDialogTitle>Изменить роль пользователя?</AlertDialogTitle>
           <AlertDialogDescription>
             {pendingChange
-              ? `${pendingChange.user.email}: новая роль — ${roleLabel(pendingChange.role)}. Все активные сессии пользователя будут завершены.`
+              ? `${pendingChange.user.email}: новая роль — ${roleLabel(pendingChange.role)}. Все активные сессии пользователя будут завершены.${
+                  pendingChange.role === 'hostess'
+                    ? ' Баллы и отметки о посещении станций этого пользователя будут удалены безвозвратно.'
+                    : ''
+                }`
               : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>

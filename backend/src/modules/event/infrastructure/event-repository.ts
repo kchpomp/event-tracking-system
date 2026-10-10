@@ -9,6 +9,7 @@ import type {
   IdeaWriter,
   LeaderboardReader,
   ParticipantReader,
+  PlannedParticipantsAdmin,
   RegistrationReader,
   StationReader,
   StationScanner,
@@ -17,6 +18,7 @@ import { EventFailure } from '../domain/errors'
 import {
   connectionPoints,
   ideaPoints,
+  listedNameMatches,
   orderedPair,
   participantFullName,
   sameCityAndCompany,
@@ -31,7 +33,8 @@ type EventRepository = ParticipantReader &
   LeaderboardReader &
   HostessDesk &
   EventAdmin &
-  RegistrationReader
+  RegistrationReader &
+  PlannedParticipantsAdmin
 
 const LEADERBOARD_SIZE = 10
 
@@ -51,8 +54,8 @@ const hostessParticipantSelect = {
   firstName: true,
   lastName: true,
   displayName: true,
-  company: true,
-  city: true,
+  company: { select: { name: true } },
+  city: { select: { name: true } },
 } as const
 
 export function createPrismaEventRepository(db: DbClient): EventRepository {
@@ -131,8 +134,8 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
           select: {
             firstName: true,
             lastName: true,
-            company: true,
-            city: true,
+            company: { select: { name: true } },
+            city: { select: { name: true } },
             personalQrToken: true,
           },
         }),
@@ -147,7 +150,13 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
       ])
       if (!user) return null
       return {
-        profile: user,
+        profile: {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          company: user.company?.name ?? null,
+          city: user.city?.name ?? null,
+          personalQrToken: user.personalQrToken,
+        },
         progress: {
           totalPoints: totalPoints._sum.pointsAwarded ?? 0,
           ideasCount,
@@ -180,8 +189,8 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
             OR: [
               { firstName: { contains: word, mode: 'insensitive' as const } },
               { lastName: { contains: word, mode: 'insensitive' as const } },
-              { company: { contains: word, mode: 'insensitive' as const } },
-              { city: { contains: word, mode: 'insensitive' as const } },
+              { company: { is: { name: { contains: word, mode: 'insensitive' as const } } } },
+              { city: { is: { name: { contains: word, mode: 'insensitive' as const } } } },
             ],
           })),
         },
@@ -198,8 +207,8 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
       return users.map((user) => ({
         id: user.id,
         fullName: participantFullName(user),
-        company: user.company,
-        city: user.city,
+        company: user.company?.name ?? null,
+        city: user.city?.name ?? null,
         totalPoints: totals.get(user.id) ?? 0,
       }))
     },
@@ -226,8 +235,8 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
         participant: {
           id: user.id,
           fullName: participantFullName(user),
-          company: user.company,
-          city: user.city,
+          company: user.company?.name ?? null,
+          city: user.city?.name ?? null,
           totalPoints,
         },
         stations,
@@ -264,11 +273,11 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
         const [me, other] = await Promise.all([
           tx.user.findUnique({
             where: { id: participantId },
-            select: { city: true, company: true },
+            select: { cityId: true, companyId: true },
           }),
           tx.user.findUnique({
             where: { personalQrToken: token },
-            select: { id: true, city: true, company: true },
+            select: { id: true, cityId: true, companyId: true },
           }),
         ])
         if (!me) throw new EventFailure('not_found', 'Participant not found')
@@ -422,6 +431,100 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
         select: { registrationOpen: true },
       })
       return event?.registrationOpen ?? true
+    },
+
+    async referenceLists() {
+      const orderBy = [{ sortOrder: 'asc' as const }, { name: 'asc' as const }]
+      const select = { id: true, name: true }
+      const [companies, cities] = await db.$transaction([
+        db.company.findMany({ orderBy, select }),
+        db.city.findMany({ orderBy, select }),
+      ])
+      return { companies, cities }
+    },
+
+    async plannedParticipants() {
+      // Matched by email, not by a key: the list is loaded before anyone has an account. Emails
+      // are stored lower-case on both sides. People who have not signed up come first.
+      const [rows, participantAccounts, hostessAccounts] = await Promise.all([
+        db.$queryRaw<
+          {
+            id: string
+            email: string
+            full_name: string | null
+            kind: 'participant' | 'hostess'
+            registered_at: Date | null
+            role: 'user' | 'admin' | 'hostess' | null
+            user_id: string | null
+            first_name: string | null
+            last_name: string | null
+          }[]
+        >(Prisma.sql`
+          SELECT p.id, p.email, p.full_name, p.kind::text AS kind,
+                 u.created_at AS registered_at, u.role::text AS role,
+                 u.id AS user_id, u.first_name, u.last_name
+          FROM planned_participants p
+          LEFT JOIN users u ON u.email = p.email
+          ORDER BY (u.id IS NOT NULL), p.full_name NULLS LAST, p.email
+        `),
+        db.user.count({ where: { role: 'user' } }),
+        db.user.count({ where: { role: 'hostess' } }),
+      ])
+      const items = rows.map((row) => ({
+        id: row.id,
+        email: row.email,
+        fullName: row.full_name,
+        kind: row.kind,
+        registered: row.registered_at !== null,
+        registeredAt: row.registered_at?.toISOString() ?? null,
+        role: row.role,
+        userId: row.user_id,
+        accountName:
+          row.user_id === null
+            ? null
+            : [row.first_name, row.last_name].filter(Boolean).join(' ') || null,
+        nameMatches:
+          row.user_id === null
+            ? null
+            : listedNameMatches(row.full_name, { firstName: row.first_name, lastName: row.last_name }),
+      }))
+      const summary = (kind: 'participant' | 'hostess', actual: number) => {
+        const own = items.filter((item) => item.kind === kind)
+        return {
+          planned: own.length,
+          registered: own.filter((item) => item.registered).length,
+          actual,
+        }
+      }
+      return {
+        items,
+        participants: summary('participant', participantAccounts),
+        hostesses: summary('hostess', hostessAccounts),
+      }
+    },
+
+    async importPlanned(kind, entries) {
+      // One statement; the caller passes each email once. A repeat import only fills in names, and
+      // a person already listed under the other kind moves to this one.
+      const rows = await db.$queryRaw<{ inserted: boolean }[]>(Prisma.sql`
+        INSERT INTO planned_participants (email, full_name, kind)
+        SELECT e.email, e.full_name, ${kind}::planned_kind
+        FROM unnest(
+          ${entries.map((entry) => entry.email)}::text[],
+          ${entries.map((entry) => entry.fullName ?? null)}::text[]
+        ) AS e(email, full_name)
+        ON CONFLICT (email) DO UPDATE
+          SET full_name = COALESCE(EXCLUDED.full_name, planned_participants.full_name),
+              kind = EXCLUDED.kind
+        RETURNING (xmax = 0) AS inserted
+      `)
+      const added = rows.filter((row) => row.inserted).length
+      return { added, updated: rows.length - added }
+    },
+
+    async removePlanned(id) {
+      const { count } = await db.plannedParticipant.deleteMany({ where: { id } })
+      return count > 0
     },
   }
 }
