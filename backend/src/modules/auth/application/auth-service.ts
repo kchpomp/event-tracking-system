@@ -65,6 +65,15 @@ export class AuthService {
       throw new AuthFailure('email_already_exists', 'User with this email already exists')
     }
 
+    // A participant chooses a company and a city; only an address the organisers listed as a
+    // hostess may go without. The role itself is still given by an administrator afterwards.
+    if (
+      (!input.companyId || !input.cityId) &&
+      !(await this.dependencies.repository.isPlannedHostess(input.email))
+    ) {
+      throw new AuthFailure('invalid_reference', 'Company and city are required')
+    }
+
     const passwordHash = await this.dependencies.passwords.hash(input.password)
     const now = this.dependencies.clock.now()
     const refreshToken = this.dependencies.refreshTokens.create()

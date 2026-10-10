@@ -100,7 +100,7 @@ function RouteStateCard({
 }) {
   return (
     <main className="flex min-h-svh items-center justify-center bg-muted/30 p-5">
-      <Card className="w-full max-w-lg shadow-sm">
+      <Card className="w-full max-w-lg">
         <CardContent>
           <Empty
             aria-live={alert ? 'assertive' : undefined}
@@ -114,7 +114,7 @@ function RouteStateCard({
               <Typography as="h1" variant="h4" balance>
                 {title}
               </Typography>
-              <Typography variant="bodySm" tone="muted" align="center" pretty>
+              <Typography variant="bodySm" tone="muted" pretty>
                 {description}
               </Typography>
             </EmptyHeader>

@@ -16,8 +16,11 @@ model User {
   // participant form, such as the seeded admin.
   firstName     String?       @map("first_name") @db.VarChar(100)
   lastName      String?       @map("last_name") @db.VarChar(100)
-  company       String?       @db.VarChar(100)
-  city          String?       @db.VarChar(100)
+  /// Chosen from the reference lists (companies, cities); the names are shown through the relation.
+  companyId     String?       @map("company_id") @db.Uuid
+  cityId        String?       @map("city_id") @db.Uuid
+  company       Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict, map: "users_company_id_fkey")
+  city          City?         @relation(fields: [cityId], references: [id], onDelete: Restrict, map: "users_city_id_fkey")
   /// What the participant's own "Диффузия" QR encodes. Random, shown only to its owner.
   personalQrToken String      @unique(map: "users_personal_qr_token_key") @default(dbgenerated("gen_random_uuid()::text")) @map("personal_qr_token")
   /// Stamped by the server at sign-up: the personal-data consent record.
@@ -51,6 +54,8 @@ model User {
   ideas          Idea[]
 
   @@index([role], map: "users_role_idx")
+  @@index([companyId], map: "users_company_id_idx")
+  @@index([cityId], map: "users_city_id_idx")
   @@map("users")
 }
 

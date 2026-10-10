@@ -691,7 +691,7 @@ test('Expo web auth uses cookie endpoints and never receives a refresh token', a
   );
 
   await expect(
-    auth.register({ email: 'web@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true as const, privacyPolicy: true as const }),
+    auth.register({ email: 'web@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', companyId: '01990000-0000-7000-8000-000000000101', cityId: '01990000-0000-7000-8000-000000000203', consent: true as const }),
   ).resolves.not.toHaveProperty('refreshToken');
   await expect(auth.canRefresh()).resolves.toBe(true);
   await expect(auth.refresh()).resolves.toEqual({
@@ -702,7 +702,7 @@ test('Expo web auth uses cookie endpoints and never receives a refresh token', a
   expect(storedRefreshTokenWrites).toBe(0);
   expect(calls).toEqual([
     {
-      body: { email: 'web@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true },
+      body: { email: 'web@example.com', password: 'password123', firstName: 'Анна', lastName: 'Петрова', companyId: '01990000-0000-7000-8000-000000000101', cityId: '01990000-0000-7000-8000-000000000203', consent: true },
       credentials: 'include',
       path: '/api/auth/register',
     },

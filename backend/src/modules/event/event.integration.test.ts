@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
 import { createApp } from '../../app'
 import { acquireParticipantScoringLock, createPrisma } from '../../db'
 import { loadEnv } from '../../env'
+import { CITY_IDS, COMPANY_IDS } from '../../test-reference-ids'
 import { seedEvent } from './infrastructure/event-seed'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
@@ -33,9 +34,10 @@ async function register(overrides: Record<string, unknown> = {}): Promise<Person
       password: 'password-1234',
       firstName: `Имя${counter}`,
       lastName: `Фамилия${counter}`,
-      company: `Предприятие ${counter}`,
-      city: `Город ${counter}`,
-      consent: true, privacyPolicy: true,
+      // Two people only share a workplace when ten registrations apart, or when a test says so.
+      companyId: COMPANY_IDS[counter % 10],
+      cityId: CITY_IDS[counter % 10],
+      consent: true,
       ...overrides,
     }),
   })
@@ -96,18 +98,40 @@ describe('event participation API', () => {
     await prisma.$disconnect()
   })
 
-  test('registration stores the profile and the consent, and rejects a sign-up without consent or privacy policy', async () => {
-    const person = await register({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень' })
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: person.id } })
-    expect(user).toMatchObject({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень' })
+  test('registration stores the profile ids and the consent, and rejects a sign-up without consent or with an unknown list entry', async () => {
+    const person = await register({
+      firstName: 'Анна',
+      lastName: 'Петрова',
+      companyId: COMPANY_IDS[2],
+      cityId: CITY_IDS[2],
+    })
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: person.id },
+      include: { company: true, city: true },
+    })
+    expect(user).toMatchObject({
+      firstName: 'Анна',
+      lastName: 'Петрова',
+      company: { name: 'СИБУР Тольятти' },
+      city: { name: 'Нижневартовск' },
+    })
+    // The participant sees the names, not the ids.
+    const me = await api('GET', '/api/event/me', person.accessToken)
+    expect(((await me.json()) as { profile: unknown }).profile).toMatchObject({
+      company: 'СИБУР Тольятти',
+      city: 'Нижневартовск',
+    })
     expect(user.consentedAt).toBeInstanceOf(Date)
     expect(person.qr.length).toBeGreaterThan(20)
 
     for (const missing of [
       { consent: false },
       { consent: undefined },
-      { privacyPolicy: false },
-      { privacyPolicy: undefined },
+      { companyId: undefined },
+      { cityId: 'Тюмень' },
+      // Well-formed, but in neither list.
+      { companyId: '01990000-0000-7000-8000-00000000ffff' },
+      { cityId: '01990000-0000-7000-8000-00000000ffff' },
     ]) {
       const response = await app.request('/api/auth/register', {
         method: 'POST',
@@ -117,10 +141,9 @@ describe('event participation API', () => {
           password: 'password-1234',
           firstName: 'А',
           lastName: 'Б',
-          company: 'В',
-          city: 'Г',
+          companyId: COMPANY_IDS[0],
+          cityId: CITY_IDS[0],
           consent: true,
-          privacyPolicy: true,
           ...missing,
         }),
       })
@@ -181,8 +204,8 @@ describe('event participation API', () => {
     // One client runs its transactions almost back to back, so a real race cannot be provoked
     // from here. This proves the lock itself instead: while another transaction holds the
     // participant's lock, a scan, an idea and a connection must all still be waiting.
-    const person = await register({ city: 'Тюмень', company: 'Завод' })
-    const other = await register({ city: 'Омск', company: 'Завод' })
+    const person = await register({ cityId: CITY_IDS[2], companyId: COMPANY_IDS[0] })
+    const other = await register({ cityId: CITY_IDS[4], companyId: COMPANY_IDS[0] })
     const pending: Promise<unknown>[] = []
     let finished = 0
     const track = (request: Response | Promise<Response>) => {
@@ -223,8 +246,8 @@ describe('event participation API', () => {
   })
 
   test('a connection is one row for both people, scores once each, and the first three score', async () => {
-    const a = await register({ city: 'Тюмень', company: 'Завод' })
-    const b = await register({ city: 'Омск', company: 'Завод' })
+    const a = await register({ cityId: CITY_IDS[2], companyId: COMPANY_IDS[0] })
+    const b = await register({ cityId: CITY_IDS[4], companyId: COMPANY_IDS[0] })
 
     const made = await connect(a, b.qr)
     expect(made.status).toBe(200)
@@ -239,24 +262,24 @@ describe('event participation API', () => {
     expect((await progress(a)).totalPoints).toBe(1)
 
     // Both scanning each other at once is still one row.
-    const c = await register({ city: 'Казань' })
-    const d = await register({ city: 'Самара' })
+    const c = await register({ cityId: CITY_IDS[5] })
+    const d = await register({ cityId: CITY_IDS[6] })
     await Promise.all([connect(c, d.qr), connect(d, c.qr)])
     expect(await prisma.connection.count()).toBe(2)
     expect((await progress(c)).totalPoints).toBe(1)
 
     // Only the first three connections score; the count keeps growing.
-    for (const city of ['Уфа', 'Пермь', 'Томск']) {
-      const other = await register({ city })
+    for (const cityId of [CITY_IDS[7], CITY_IDS[8], CITY_IDS[9]]) {
+      const other = await register({ cityId })
       await connect(a, other.qr)
     }
     expect(await progress(a)).toMatchObject({ connectionsCount: 4, totalPoints: 3 })
   })
 
   test('self, same city and company, and unknown participant codes are refused with their own codes', async () => {
-    const a = await register({ city: 'Тюмень', company: 'Завод' })
-    const sameWorkplace = await register({ city: ' тюмень ', company: 'ЗАВОД' })
-    const sameCityOnly = await register({ city: 'Тюмень', company: 'Офис' })
+    const a = await register({ cityId: CITY_IDS[2], companyId: COMPANY_IDS[0] })
+    const sameWorkplace = await register({ cityId: CITY_IDS[2], companyId: COMPANY_IDS[0] })
+    const sameCityOnly = await register({ cityId: CITY_IDS[2], companyId: COMPANY_IDS[1] })
 
     const self = await connect(a, a.qr)
     expect(self.status).toBe(409)
@@ -376,10 +399,9 @@ describe('event participation API', () => {
           password: 'password-1234',
           firstName: 'А',
           lastName: 'Б',
-          company: 'В',
-          city: 'Г',
+          companyId: COMPANY_IDS[0],
+          cityId: CITY_IDS[0],
           consent: true,
-          privacyPolicy: true,
         }),
       })
 

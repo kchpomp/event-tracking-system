@@ -14,7 +14,7 @@ import {
 import { splitTextBlocks } from '../consent-text'
 
 /**
- * A legal text (consent or privacy policy), scroll-gated: «Согласен» stays disabled until the text
+ * A legal text (the consent), scroll-gated: «Согласен» stays disabled until the text
  * has been read to the end, then ticks its checkbox; «Закрыть» leaves it unticked. The text is static and rendered as plain text,
  * never as HTML. `testId` prefixes the «Согласен» button's test id (`<testId>-agree`).
  */
@@ -48,7 +48,7 @@ export function ConsentDialog({
       open={open}
     >
       <DialogContent>
-        <DialogHeader>
+        <DialogHeader className="items-start text-left">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {atEnd ? 'Текст прочитан до конца.' : 'Прокрутите текст до конца, чтобы согласиться.'}
@@ -80,6 +80,7 @@ export function ConsentDialog({
           </DialogClose>
           <Button
             data-testid={`${testId}-agree`}
+            className="disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
             disabled={!atEnd}
             onClick={() => {
               setAtEnd(false)

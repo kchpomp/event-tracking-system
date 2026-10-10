@@ -10,6 +10,7 @@ import { createApp } from '../../app'
 import { createPrisma, type DbClient } from '../../db'
 import { loadEnv } from '../../env'
 import { socialAuthProviderDeps } from './infrastructure/social-providers'
+import { CITY_ID, COMPANY_ID } from '../../test-reference-ids'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 if (!databaseUrl) throw new Error('TEST_DATABASE_URL is required; run bun run test:backend:integration')
@@ -395,7 +396,7 @@ describe('social sign-in API integration', () => {
     const response = await app.request('/api/auth/token/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true,  email, password: 'password123' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', companyId: COMPANY_ID, cityId: CITY_ID, consent: true,  email, password: 'password123' }),
     })
     const body = await response.json()
     const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } })

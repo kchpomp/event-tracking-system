@@ -1,6 +1,6 @@
 # Mobile
 
-**Status: deferred.** The Event Tracking System serves participants in the phone browser through `webapp`, so this app is not configured or built: no Expo account, EAS project, or Maestro run ([CHECKLIST](../CHECKLIST.md), section 3). Before you activate it, adapt `src/features/auth`: registration now needs `firstName`, `lastName`, `company`, `city`, `consent`, and `privacyPolicy` (the old `displayName` body is rejected), and the event screens live only in `webapp/src/features/event`.
+**Status: deferred.** The Event Tracking System serves participants in the phone browser through `webapp`, so this app is not configured or built: no Expo account, EAS project, or Maestro run ([CHECKLIST](../CHECKLIST.md), section 3). Before you activate it, adapt `src/features/auth`: registration now needs `firstName`, `lastName`, `companyId`, `cityId` (ids from `GET /api/registration/reference`) and `consent` (the old `displayName` body is rejected), and the event screens live only in `webapp/src/features/event`.
 
 The Expo app lives on the `mobile` branch, not on `master`. It serves ordinary users on iOS, Android, and Expo Web. It uses the same API contracts as `webapp` (`@event-tracking-system/contracts`). Administration and the demo admin account belong to `webapp`.
 

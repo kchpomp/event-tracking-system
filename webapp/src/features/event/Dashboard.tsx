@@ -10,7 +10,6 @@ import type { ReactNode } from 'react'
 
 import { Typography } from '@/components/typography'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
@@ -59,23 +58,31 @@ export function EventDashboard() {
       <Card>
         <CardContent className="grid gap-3">
           <div className="grid gap-1">
-            <Typography tone="muted" variant="captionMedium">
-              Ваш текущий прогресс,
-            </Typography>
             <Typography as="h1" variant="h4">
-              {fullName(profile)}:
+              {fullName(profile)}
             </Typography>
             <Typography tone="muted" variant="captionMedium">
-              Индекс влияния
+              Ваш индекс влияния
             </Typography>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <Typography as="p" className="lining-nums tabular-nums" data-testid="total-points" variant="h2">
+          <div className="flex items-baseline justify-between gap-3">
+            <Typography
+              as="p"
+              className="text-primary lining-nums tabular-nums"
+              data-testid="total-points"
+              variant="h2"
+            >
               {totals.totalPoints}
             </Typography>
-            <Badge data-testid="progress-percent" variant="secondary">
+            <Typography
+              as="span"
+              className="tabular-nums"
+              data-testid="progress-percent"
+              tone="muted"
+              variant="bodySmMedium"
+            >
               {progress.percent}%
-            </Badge>
+            </Typography>
           </div>
           <Progress aria-label="Пройдено активностей" value={progress.percent} />
           <Typography tone="muted" variant="bodyXs">
@@ -190,7 +197,9 @@ function ActivityBody({
 }) {
   return (
     <>
-      <ItemMedia variant="icon">{icon}</ItemMedia>
+      <ItemMedia className="text-primary" variant="icon">
+        {icon}
+      </ItemMedia>
       <ItemContent>
         <ItemTitle>{name}</ItemTitle>
         {done && (

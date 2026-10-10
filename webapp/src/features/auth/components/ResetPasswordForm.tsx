@@ -76,7 +76,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       }}
     >
       <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
+        <div className="flex flex-col gap-1">
           <Typography as="h1" variant="h3" balance>
             Новый пароль
           </Typography>
@@ -165,7 +165,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           </>
         )}
 
-        <Typography align="center" variant="bodySm">
+        <Typography variant="bodySm">
           <Link className="underline underline-offset-4" search={{ returnTo: undefined }} to="/login">
             Назад ко входу
           </Link>

@@ -2,6 +2,7 @@ import type {
   ConnectRequest,
   CreateIdeaRequest,
   HostessAwardRequest,
+  ImportPlannedRequest,
   HostessResolveRequest,
   ScanRequest,
   UpdateEventRequest,
@@ -16,6 +17,7 @@ import type {
   IdeaWriter,
   LeaderboardReader,
   ParticipantReader,
+  PlannedParticipantsAdmin,
   RegistrationReader,
   StationReader,
   StationScanner,
@@ -28,6 +30,7 @@ type EventServiceDependencies = {
   ideas: IdeaWriter
   leaderboard: LeaderboardReader
   participants: ParticipantReader
+  planned: PlannedParticipantsAdmin
   registration: RegistrationReader
   scanner: StationScanner
   stations: StationReader
@@ -97,5 +100,29 @@ export class EventService {
 
   registrationOpen() {
     return this.dependencies.registration.registrationOpen()
+  }
+
+  registrationReference() {
+    return this.dependencies.registration.referenceLists()
+  }
+
+  plannedParticipants() {
+    return this.dependencies.planned.plannedParticipants()
+  }
+
+  importPlanned(input: ImportPlannedRequest) {
+    // One row per email in a statement (a repeat would make the upsert fail); the last name wins.
+    const byEmail = new Map<string, { email: string; fullName?: string }>()
+    for (const { email, fullName } of input.entries) {
+      const key = email.trim().toLowerCase()
+      byEmail.set(key, { email: key, fullName: fullName ?? byEmail.get(key)?.fullName })
+    }
+    return this.dependencies.planned.importPlanned(input.kind, [...byEmail.values()])
+  }
+
+  async removePlanned(plannedId: string) {
+    if (!(await this.dependencies.planned.removePlanned(plannedId))) {
+      throw new EventFailure('not_found', 'Planned participant not found')
+    }
   }
 }

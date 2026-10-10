@@ -17,10 +17,13 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv = process.e
     cwd: repositoryRoot,
     env,
     stdio: 'inherit',
+    // An npm-installed `bun` is a `.cmd` shim on Windows, which only a shell can start.
+    shell: process.platform === 'win32' && command === 'bun',
   })
 
   if (result.status !== 0) {
-    throw new Error(`Command failed: ${command} ${args.join(' ')}`)
+    const reason = result.error ? `: ${result.error.message}` : ` (exit code ${result.status})`
+    throw new Error(`Command failed: ${command} ${args.join(' ')}${reason}`)
   }
 }
 

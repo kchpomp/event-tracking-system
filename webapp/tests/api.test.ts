@@ -211,9 +211,9 @@ test('AuthApi preserves backend error status, code, and message', async () => {
       password: 'password123',
       firstName: 'Анна',
       lastName: 'Петрова',
-      company: 'Завод',
-      city: 'Тюмень',
-      consent: true, privacyPolicy: true,
+      companyId: '01990000-0000-7000-8000-000000000101',
+      cityId: '01990000-0000-7000-8000-000000000203',
+      consent: true,
     }),
   ).rejects.toMatchObject({
     status: 409,

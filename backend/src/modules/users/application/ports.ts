@@ -19,7 +19,7 @@ export type ProfileWriter = {
 }
 
 export type AdminDashboardReader = {
-  dashboard(createdAfter: Date): Promise<AdminDashboardResponse>
+  dashboard(): Promise<AdminDashboardResponse>
 }
 
 export type AdminUsersReader = {

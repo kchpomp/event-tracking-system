@@ -33,22 +33,42 @@ export function searchWords(query: string) {
   return query.trim().split(/\s+/).filter(Boolean).slice(0, 5)
 }
 
-type Workplace = { city: string | null; company: string | null }
-
-const normalized = (value: string | null) => value?.trim().toLowerCase() ?? null
+type Workplace = { cityId: string | null; companyId: string | null }
 
 /**
  * RULE (delete this function's use to drop it): two people who share BOTH the city and the company
- * cannot connect. Free text, compared case- and whitespace-insensitively; an unknown (null) value
- * never blocks, as in the earlier project.
+ * cannot connect. Both come from the reference lists, so ids are compared; an unknown (null)
+ * value never blocks, as in the earlier project.
  */
 export function sameCityAndCompany(me: Workplace, other: Workplace) {
-  const city = normalized(me.city)
-  const company = normalized(me.company)
   return (
-    city !== null &&
-    company !== null &&
-    city === normalized(other.city) &&
-    company === normalized(other.company)
+    me.cityId !== null &&
+    me.companyId !== null &&
+    me.cityId === other.cityId &&
+    me.companyId === other.companyId
   )
+}
+
+const nameWords = (value: string) =>
+  value
+    .toLowerCase()
+    .replaceAll('ё', 'е')
+    .split(/\s+/)
+    .map((word) => word.replace(/^[.,]+|[.,]+$/g, ''))
+    .filter(Boolean)
+
+/**
+ * Whether a name from an expected-guest list is the account's person: the first AND the last name
+ * both appear in it, in any order and case, with «ё» as «е». A patronymic or an initial around
+ * them does not matter. Nothing listed, nothing matched.
+ */
+export function listedNameMatches(
+  listed: string | null,
+  account: { firstName: string | null; lastName: string | null },
+) {
+  if (!listed || !account.firstName || !account.lastName) return false
+  const words = new Set(nameWords(listed))
+  const [first, last] = [nameWords(account.firstName).join(' '), nameWords(account.lastName).join(' ')]
+  const covers = (name: string) => name !== '' && nameWords(name).every((word) => words.has(word))
+  return covers(first) && covers(last)
 }

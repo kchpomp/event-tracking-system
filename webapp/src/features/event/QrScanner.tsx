@@ -95,7 +95,7 @@ export function QrScanner({ onDecoded }: { onDecoded: (text: string) => void }) 
 
   return (
     <div
-      className="aspect-square w-full overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10"
+      className="aspect-square w-full overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/10"
       id={READER_ID}
     />
   )

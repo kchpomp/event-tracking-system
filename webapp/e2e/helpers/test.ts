@@ -12,14 +12,16 @@ export function uniqueEmail(prefix = 'web-e2e') {
 }
 
 type SignupProfile = {
+  /** The name of an entry of the city list (default «Нижневартовск»). */
   city?: string
+  /** The name of an entry of the company list (default «СИБУР (головной офис)»). */
   company?: string
   /** Tick the consent box (default). Pass false to leave it for the consent popup to catch. */
   consent?: boolean
-  /** Tick the privacy-policy box (default). Pass false to leave it for its popup to catch. */
-  privacy?: boolean
   firstName?: string
   lastName?: string
+  /** Register as a hostess: no company and no city (the address must be in the hostess list). */
+  hostess?: boolean
 }
 
 /** Fills the signup form the page already shows. */
@@ -27,11 +29,14 @@ export async function fillSignupForm(page: Page, email: string, profile: SignupP
   await page.getByTestId('signup-email').fill(email)
   await page.getByTestId('signup-firstName').fill(profile.firstName ?? 'Анна')
   await page.getByTestId('signup-lastName').fill(profile.lastName ?? 'Петрова')
-  await page.getByTestId('signup-company').fill(profile.company ?? 'Завод')
-  await page.getByTestId('signup-city').fill(profile.city ?? 'Тюмень')
+  if (profile.hostess) {
+    await page.getByTestId('signup-as-hostess').click()
+  } else {
+    await page.getByTestId('signup-company').selectOption({ label: profile.company ?? 'СИБУР (головной офис)' })
+    await page.getByTestId('signup-city').selectOption({ label: profile.city ?? 'Нижневартовск' })
+  }
   await page.getByTestId('signup-password').fill(e2ePassword)
   if (profile.consent !== false) await page.getByTestId('signup-consent').check()
-  if (profile.privacy !== false) await page.getByTestId('signup-privacy').check()
 }
 
 export async function signUp(page: Page, email: string, profile: SignupProfile = {}) {

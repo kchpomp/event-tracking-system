@@ -5,6 +5,7 @@ import {
   type CreateIdeaRequest,
   type HostessAwardRequest,
   type HostessResolveRequest,
+  type ImportPlannedRequest,
   type ScanRequest,
   type UpdateEventRequest,
 } from '@event-tracking-system/contracts'
@@ -19,7 +20,12 @@ import {
   getEventMe,
   getHostessParticipant,
   getLeaderboard,
+  getPlannedParticipants,
+  getRegistrationReference,
   getRegistrationStatus,
+  importPlannedParticipants,
+  makeHostess,
+  removePlannedParticipant,
   getStations,
   resolveParticipant,
   scanStation,
@@ -37,6 +43,8 @@ export const eventQueryKeys = {
   // Outside ['session', ...] on purpose: it is read before anyone has a session, and a session
   // change would wipe it from under the sign-up page.
   registration: () => ['registration'] as const,
+  registrationReference: () => ['registration', 'reference'] as const,
+  planned: () => [...eventQueryKeys.all, 'planned'] as const,
   hostess: () => [...eventQueryKeys.all, 'hostess'] as const,
   hostessSearch: (q: string) => [...eventQueryKeys.hostess(), 'search', q] as const,
   hostessParticipant: (participantId: string) =>
@@ -179,4 +187,55 @@ export function useRegistrationStatusQuery() {
       queryFn: ({ signal }) => getRegistrationStatus({ signal }),
     }),
   )
+}
+
+/** The sign-up form's company and city lists. The lists are static, so they are kept for the session. */
+export function useRegistrationReferenceQuery() {
+  return useQuery(
+    queryOptions({
+      queryKey: eventQueryKeys.registrationReference(),
+      queryFn: ({ signal }) => getRegistrationReference({ signal }),
+      staleTime: Infinity,
+    }),
+  )
+}
+
+/** The expected guest list with who has signed up (administrators). */
+export function usePlannedParticipantsQuery() {
+  const { transport } = useAuth()
+  return useQuery(
+    queryOptions({
+      queryKey: eventQueryKeys.planned(),
+      queryFn: ({ signal }) => getPlannedParticipants(transport, { signal }),
+    }),
+  )
+}
+
+export function useImportPlannedMutation() {
+  const { transport } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ImportPlannedRequest) => importPlannedParticipants(transport, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.planned() }),
+  })
+}
+
+export function useRemovePlannedMutation() {
+  const { transport } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (plannedId: string) => removePlannedParticipant(transport, plannedId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.planned() }),
+  })
+}
+
+/** Gives a registered person the hostess role. Sessions of that person end, so lists refresh. */
+export function useMakeHostessMutation() {
+  const { transport } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: string) => makeHostess(transport, userId),
+    // The users page and its counts live under the session key too.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionQueryKeys.all }),
+  })
 }

@@ -15,7 +15,7 @@ export const workspaceRoutesByRole = {
     '/app/polymer',
     '/app/profile',
   ],
-  admin: ['/admin', '/admin/users', '/admin/stations', '/admin/settings'],
+  admin: ['/admin', '/admin/participants', '/admin/users', '/admin/stations', '/admin/settings'],
   hostess: ['/hostess', '/hostess/scan', '/hostess/participant/$participantId'],
 } as const satisfies Record<UserRole, ReadonlyArray<`/${string}`>>
 
@@ -37,6 +37,7 @@ const navigationByRole = {
   ],
   admin: [
     { label: 'Обзор', to: '/admin' },
+    { label: 'Участники', to: '/admin/participants' },
     { label: 'Пользователи', to: '/admin/users' },
     { label: 'Станции', to: '/admin/stations' },
     { label: 'Настройки', to: '/admin/settings' },

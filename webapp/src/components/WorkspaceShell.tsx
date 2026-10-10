@@ -4,6 +4,7 @@ import {
   QrCodeIcon,
   Settings01Icon,
   UserGroupIcon,
+  UserListIcon,
   UserIcon,
 } from '@hugeicons/core-free-icons'
 import { useLocation } from '@tanstack/react-router'
@@ -22,6 +23,7 @@ const iconsByPath = {
   '/app': Home01Icon,
   '/app/profile': UserIcon,
   '/admin': DashboardSquare01Icon,
+  '/admin/participants': UserListIcon,
   '/admin/users': UserGroupIcon,
   '/admin/stations': QrCodeIcon,
   '/admin/settings': Settings01Icon,

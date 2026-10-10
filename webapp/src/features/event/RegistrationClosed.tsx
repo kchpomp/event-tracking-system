@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 /** Shown instead of the sign-up form while an administrator keeps registration closed. */
 export function RegistrationClosed() {
   return (
-    <div className="flex flex-col items-center gap-4 text-center" data-testid="registration-closed">
+    <div className="flex flex-col items-start gap-4" data-testid="registration-closed">
       <Typography as="h1" balance variant="h3">
         Регистрация закрыта
       </Typography>

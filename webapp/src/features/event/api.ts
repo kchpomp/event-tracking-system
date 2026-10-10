@@ -11,8 +11,15 @@ import {
   hostessParticipantsResponseSchema,
   hostessResolveRequestSchema,
   hostessSearchQuerySchema,
+  importPlannedRequestSchema,
+  importPlannedResponseSchema,
   leaderboardResponseSchema,
+  plannedParticipantsResponseSchema,
+  registrationReferenceResponseSchema,
   registrationStatusResponseSchema,
+  removePlannedResponseSchema,
+  updateUserRoleRequestSchema,
+  updateUserRoleResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
   stationsResponseSchema,
@@ -22,6 +29,7 @@ import {
   type CreateIdeaRequest,
   type HostessAwardRequest,
   type HostessResolveRequest,
+  type ImportPlannedRequest,
   type ScanRequest,
   type UpdateEventRequest,
 } from '@event-tracking-system/contracts'
@@ -36,6 +44,10 @@ const publicHttp = new HttpClient()
 
 export function getRegistrationStatus(options: ReadOptions = {}) {
   return publicHttp.request('/api/registration', registrationStatusResponseSchema, options)
+}
+
+export function getRegistrationReference(options: ReadOptions = {}) {
+  return publicHttp.request('/api/registration/reference', registrationReferenceResponseSchema, options)
 }
 
 export function getEventMe(transport: AuthenticatedTransport, options: ReadOptions = {}) {
@@ -122,4 +134,35 @@ export function updateEvent(transport: AuthenticatedTransport, input: UpdateEven
     method: 'PATCH',
     body: updateEventRequestSchema.parse(input),
   })
+}
+
+export function getPlannedParticipants(transport: AuthenticatedTransport, options: ReadOptions = {}) {
+  return transport.request('/api/admin/planned-participants', plannedParticipantsResponseSchema, options)
+}
+
+export function importPlannedParticipants(
+  transport: AuthenticatedTransport,
+  input: ImportPlannedRequest,
+) {
+  return transport.request('/api/admin/planned-participants', importPlannedResponseSchema, {
+    method: 'POST',
+    body: importPlannedRequestSchema.parse(input),
+  })
+}
+
+export function removePlannedParticipant(transport: AuthenticatedTransport, plannedId: string) {
+  return transport.request(
+    `/api/admin/planned-participants/${encodeURIComponent(plannedId)}`,
+    removePlannedResponseSchema,
+    { method: 'DELETE' },
+  )
+}
+
+/** The same endpoint the users page uses; here for the one-button hostess role. */
+export function makeHostess(transport: AuthenticatedTransport, userId: string) {
+  return transport.request(
+    `/api/admin/users/${encodeURIComponent(userId)}/role`,
+    updateUserRoleResponseSchema,
+    { method: 'PATCH', body: updateUserRoleRequestSchema.parse({ role: 'hostess' }) },
+  )
 }
