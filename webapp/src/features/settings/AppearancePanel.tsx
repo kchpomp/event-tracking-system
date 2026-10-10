@@ -32,8 +32,8 @@ const themeOptions = {
 } as const
 
 export function AppearancePanel() {
-  const { theme = 'system', setTheme } = useTheme()
-  const selectedTheme = isTheme(theme) ? theme : 'system'
+  const { theme = 'dark', setTheme } = useTheme()
+  const selectedTheme = isTheme(theme) ? theme : 'dark'
 
   return (
     <Card>

@@ -113,7 +113,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       test.describe('cookie notice', () => {
         test.use({ storageState: { cookies: [], origins: [] } })
 
-        test('the notice and its policy popup are centred and fit the screen', async ({ page }) => {
+        test('the notice is a flat bar that fits the screen and links to the policy', async ({ page }) => {
           const tag = `${viewportName}-${colorScheme}`
           await page.goto('/signup')
           const notice = page.getByTestId('cookie-notice')
@@ -121,25 +121,18 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
           await page.waitForTimeout(400)
           await page.screenshot({ path: `${outputDirectory}cookie-notice--${tag}.png`, animations: 'disabled' })
 
-          // The card is centred, its buttons are centred in it, and nothing scrolls sideways.
-          const card = (await notice.locator('> div').boundingBox())!
-          const screenWidth = page.viewportSize()!.width
-          expect(Math.abs(card.x + card.width / 2 - screenWidth / 2), 'the notice is centred').toBeLessThanOrEqual(2)
-          const boxes = await notice.locator('button').evaluateAll((buttons) =>
-            buttons.map((button) => {
-              const { x, width } = button.getBoundingClientRect()
-              return { x, width }
-            }),
-          )
-          const left = Math.min(...boxes.map((box) => box.x))
-          const right = Math.max(...boxes.map((box) => box.x + box.width))
-          expect(Math.abs((left + right) / 2 - (card.x + card.width / 2)), 'its buttons are centred').toBeLessThanOrEqual(2)
-          expect(card.x, 'the card stays inside the screen').toBeGreaterThanOrEqual(0)
-          expect(card.x + card.width).toBeLessThanOrEqual(screenWidth)
+          // Edge to edge along the bottom, nothing scrolls sideways, every control is on the screen.
+          const bar = (await notice.boundingBox())!
+          const { width: screenWidth, height: screenHeight } = page.viewportSize()!
+          expect(bar.x).toBeLessThanOrEqual(1)
+          expect(bar.x + bar.width).toBeGreaterThanOrEqual(screenWidth - 1)
+          expect(bar.y + bar.height).toBeLessThanOrEqual(screenHeight + 1)
           expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-
-          await page.getByTestId('cookie-notice-policy').click()
-          await checkFooter(page, page.getByRole('dialog'), 'cookie-policy', tag)
+          for (const testId of ['cookie-notice-policy', 'cookie-notice-ok']) {
+            const box = (await page.getByTestId(testId).boundingBox())!
+            expect(box.x, `${testId} starts on the screen`).toBeGreaterThanOrEqual(0)
+            expect(box.x + box.width, `${testId} ends on the screen`).toBeLessThanOrEqual(screenWidth)
+          }
         })
       })
     })

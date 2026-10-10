@@ -14,6 +14,10 @@ How to build elegant, consistent UI fast in `webapp` and `website`. [AGENTS.md](
 - Motion is subtle and short (under 200 ms). Never hide information behind motion. Respect reduced motion.
 - Copy is short and specific. Sentence case. Buttons are verbs ("Save profile"). An error says what happened and what to do next.
 
+## Design B «Глубина»
+
+All pages follow one direction (chosen from the seven proposals; reasons in the SIBUR brand-book review): the whole product sits on Dark Teal (`dark` is the default theme, the settings page still lets a person pick another), the main button is Mint (`primary`), cards are flat with a hairline border, lists are divided rows, big numbers are Mint, text is left-aligned, radius is 4 px, and there are no shadows, gradients or `rounded-full` pills. Orange (`highlight`) is not used on working pages. Public pages end with a band of three or four pattern cells; at most two cells carry a figure. Station and activity marks are the pictograms in `webapp/src/features/event/station-icons.tsx` (a proposal, not an approved SIBUR set). The generated `components/ui/*` files are not edited: alignment is set at the call site with `className`.
+
 ## Theme tokens
 
 `theme.json` at the repository root holds the structured visual-style answer, per app: `brand` (a `#rrggbb` hex color, or `null` for the template's neutral theme), `radius` (rem), and `font` (`family`, the CSS value to use before the generic fallback, and `package`, the `@fontsource` package that provides it — already installed, or approved by the user naming it in CHECKLIST.md; `scripts/theme.mjs` never installs it itself). Write the CHECKLIST answer into `theme.json`, then run `bun run theme`. `bun run theme -- --check` verifies the committed CSS matches `theme.json` without writing anything.

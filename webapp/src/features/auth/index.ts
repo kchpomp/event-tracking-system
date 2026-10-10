@@ -12,7 +12,7 @@ export {
   readPasswordResetToken,
 } from './password-reset-location'
 export { ConsentDialog } from './components/ConsentDialog'
-export { COOKIE_NOTICE_TEXT, PRIVACY_TEXT } from './privacy-text'
+export { COOKIE_NOTICE_TEXT, PRIVACY_POLICY_URL } from './legal-links'
 export { AuthProvider } from './provider'
 export { authQueryKeys, sessionQueryKeys } from './queries'
 export { useAuth } from './use-auth'

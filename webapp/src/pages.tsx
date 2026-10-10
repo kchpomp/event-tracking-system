@@ -8,6 +8,8 @@ import {
   SessionLoadingSection,
 } from '@/components/WebRouteSections'
 import { ParticipantShell } from '@/components/ParticipantShell'
+import { Typography } from '@/components/typography'
+import { Button } from '@/components/ui/button'
 import { WorkspaceShell } from '@/components/WorkspaceShell'
 import { AdminDashboard, AdminSettings, AdminUsers } from '@/features/admin'
 import {
@@ -29,11 +31,14 @@ import {
   HostessParticipantPage,
   HostessScanPage,
   IdeasPage,
+  PlannedOverview,
+  PlannedParticipantsPage,
   PolymerPage,
   ProfilePage,
   RegistrationClosed,
   StationPage,
   StationScanPage,
+  useRegistrationReferenceQuery,
   useRegistrationStatusQuery,
 } from '@/features/event'
 import { homePathForRole, safeReturnPath } from '@/features/navigation'
@@ -73,13 +78,31 @@ export function LoginPage() {
 export function SignupPage() {
   const { returnTo } = useSearch({ from: '/signup' })
   const registration = useRegistrationStatusQuery()
+  const reference = useRegistrationReferenceQuery()
   return (
     <GuestAuthPage returnTo={returnTo}>
       <AuthPageShell>
         {registration.data?.open === false ? (
           <RegistrationClosed />
+        ) : reference.data ? (
+          <RegisterForm
+            cities={reference.data.cities}
+            companies={reference.data.companies}
+            returnTo={returnTo}
+          />
+        ) : reference.isError ? (
+          <div className="flex flex-col items-start gap-3" data-testid="signup-reference-error">
+            <Typography tone="muted" variant="bodySm">
+              Не удалось загрузить списки предприятий и городов.
+            </Typography>
+            <Button onClick={() => void reference.refetch()} type="button">
+              Повторить
+            </Button>
+          </div>
         ) : (
-          <RegisterForm returnTo={returnTo} />
+          <Typography tone="muted" variant="bodySm">
+            Загрузка…
+          </Typography>
         )}
       </AuthPageShell>
     </GuestAuthPage>
@@ -162,7 +185,11 @@ export function AdminStationsPage() {
 }
 
 export function AdminDashboardPage() {
-  return <AdminDashboard />
+  return <AdminDashboard participants={<PlannedOverview />} />
+}
+
+export function AdminParticipantsPage() {
+  return <PlannedParticipantsPage />
 }
 
 export function AdminUsersPage() {

@@ -14,7 +14,13 @@ import {
   hostessParticipantsResponseSchema,
   hostessResolveRequestSchema,
   hostessSearchQuerySchema,
+  importPlannedRequestSchema,
+  importPlannedResponseSchema,
   leaderboardResponseSchema,
+  plannedParticipantParamsSchema,
+  plannedParticipantsResponseSchema,
+  registrationReferenceResponseSchema,
+  removePlannedResponseSchema,
   registrationStatusResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
@@ -136,6 +142,43 @@ const updateEventRoute = createRoute({
   },
 })
 
+const plannedListRoute = createRoute({
+  method: 'get',
+  path: '/planned-participants',
+  security: bearerSecurity,
+  responses: {
+    200: { content: json(plannedParticipantsResponseSchema), description: 'Expected guest list' },
+    ...authErrors,
+  },
+})
+
+const plannedImportRoute = createRoute({
+  method: 'post',
+  path: '/planned-participants',
+  security: bearerSecurity,
+  request: { body: { content: json(importPlannedRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(importPlannedResponseSchema), description: 'How many were added' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    ...authErrors,
+  },
+})
+
+const plannedDeleteRoute = createRoute({
+  method: 'delete',
+  path: '/planned-participants/{plannedId}',
+  security: bearerSecurity,
+  request: { params: plannedParticipantParamsSchema },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(removePlannedResponseSchema), description: 'Removed from the list' },
+    400: { content: errorContent, description: 'Invalid id' },
+    404: { content: errorContent, description: 'No such entry' },
+    ...authErrors,
+  },
+})
+
 const hostessSearchRoute = createRoute({
   method: 'get',
   path: '/participants',
@@ -196,6 +239,15 @@ const registrationStatusRoute = createRoute({
   responses: {
     ...ingressErrorResponses,
     200: { content: json(registrationStatusResponseSchema), description: 'Whether sign-up is open' },
+  },
+})
+
+const registrationReferenceRoute = createRoute({
+  method: 'get',
+  path: '/reference',
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(registrationReferenceResponseSchema), description: 'Companies and cities' },
   },
 })
 
@@ -263,9 +315,23 @@ export function createEventRoutes({
     c.json(await executeEvent(() => service.updateEvent(c.req.valid('json'))), 200),
   )
 
+  adminRoutes.openapi(plannedListRoute, async (c) =>
+    c.json(await service.plannedParticipants(), 200),
+  )
+  adminRoutes.openapi(plannedImportRoute, async (c) =>
+    c.json(await service.importPlanned(c.req.valid('json')), 200),
+  )
+  adminRoutes.openapi(plannedDeleteRoute, async (c) => {
+    await executeEvent(() => service.removePlanned(c.req.valid('param').plannedId))
+    return c.json({ removed: true as const }, 200)
+  })
+
   // Public: no account exists yet when somebody opens the sign-up page.
   registrationRoutes.openapi(registrationStatusRoute, async (c) =>
     c.json({ open: await service.registrationOpen() }, 200),
+  )
+  registrationRoutes.openapi(registrationReferenceRoute, async (c) =>
+    c.json(await service.registrationReference(), 200),
   )
 
   // Stops new accounts while an administrator keeps sign-up closed. It guards creation only:

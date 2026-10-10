@@ -1,5 +1,4 @@
 import {
-  UserAdd01Icon,
   UserGroupIcon,
   UserShield01Icon,
 } from '@hugeicons/core-free-icons'
@@ -22,12 +21,11 @@ export function AdminMetrics() {
     return (
       <div
         aria-label="Загрузка обзора"
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+        className="grid grid-cols-1 gap-4 md:grid-cols-2"
         role="status"
       >
-        <Skeleton className="h-40 rounded-4xl" />
-        <Skeleton className="h-40 rounded-4xl" />
-        <Skeleton className="h-40 rounded-4xl" />
+        <Skeleton className="h-40" />
+        <Skeleton className="h-40" />
       </div>
     )
   }
@@ -60,12 +58,6 @@ export function AdminMetrics() {
           icon: UserShield01Icon,
           label: 'Администраторы',
           value: query.data.totalAdmins.toLocaleString(),
-        },
-        {
-          description: 'Аккаунты, созданные за последние семь дней.',
-          icon: UserAdd01Icon,
-          label: 'Новых за 7 дней',
-          value: query.data.newUsersLast7Days.toLocaleString(),
         },
       ]}
     />

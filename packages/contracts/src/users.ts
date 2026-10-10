@@ -60,7 +60,6 @@ export const adminDashboardResponseSchema = z
   .object({
     totalUsers: z.number().int().nonnegative(),
     totalAdmins: z.number().int().nonnegative(),
-    newUsersLast7Days: z.number().int().nonnegative(),
   })
   .strict()
 

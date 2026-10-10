@@ -1,4 +1,5 @@
 import type { UserDto } from '@event-tracking-system/contracts'
+import type { ReactNode } from 'react'
 
 import { PageContainer, PageHeader } from '@/components/PageLayout'
 import { AppearancePanel } from '@/features/settings'
@@ -6,13 +7,14 @@ import { ProfilePanel } from '@/features/users'
 import { AdminMetrics } from './AdminMetrics'
 import { UserDirectory } from './UserDirectory'
 
-export function AdminDashboard() {
+export function AdminDashboard({ participants }: { participants?: ReactNode }) {
   return (
     <PageContainer>
       <PageHeader
-        description="Сводка по аккаунтам и администраторам."
+        description="Сколько участников и хостесс ожидается и сколько зарегистрировалось, а также сводка по аккаунтам."
         title="Обзор"
       />
+      {participants}
       <AdminMetrics />
     </PageContainer>
   )

@@ -15,6 +15,8 @@ export type AccessTokenPayload = {
 
 export type AuthRepository = {
   findUserByEmail(email: string): Promise<AuthUserRecord | null>
+  /** Whether the organisers listed this address as a hostess (hostesses give no company or city). */
+  isPlannedHostess(email: string): Promise<boolean>
   createPasswordUserWithSession(input: {
     user: RegisterPayload & { consentedAt: Date; passwordHash: string }
     session: {

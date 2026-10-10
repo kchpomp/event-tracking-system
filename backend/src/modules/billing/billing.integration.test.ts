@@ -24,6 +24,7 @@ import type {
   GooglePlaySubscriptionPurchase,
   GooglePlaySubscriptionVerifier,
 } from './infrastructure/google-play-verifier'
+import { CITY_ID, COMPANY_ID } from '../../test-reference-ids'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 /**
@@ -1036,7 +1037,7 @@ maybeDescribe('iap API integration', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true, 
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', companyId: COMPANY_ID, cityId: CITY_ID, consent: true, 
         email,
         password: 'password123',
       }),

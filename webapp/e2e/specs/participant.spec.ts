@@ -38,16 +38,21 @@ async function stationToken(request: APIRequestContext, name: string) {
 
 // The camera cannot run in a test, so the scans go through the API with the participant's own
 // token, exactly as the scanner screen would send them.
-async function registerOther(request: APIRequestContext, city: string) {
+async function registerOther(request: APIRequestContext, cityName: string) {
+  const reference = await request.get(`${backendUrl()}/api/registration/reference`)
+  const lists = (await reference.json()) as {
+    companies: { id: string; name: string }[]
+    cities: { id: string; name: string }[]
+  }
   const response = await request.post(`${backendUrl()}/api/auth/register`, {
     data: {
       email: uniqueEmail('web-e2e-other'),
       password: e2ePassword,
       firstName: 'Олег',
       lastName: 'Иванов',
-      company: 'Другое предприятие',
-      city,
-      consent: true, privacyPolicy: true,
+      companyId: lists.companies[1]!.id,
+      cityId: lists.cities.find((city) => city.name === cityName)!.id,
+      consent: true,
     },
     headers: { Origin: origin() },
   })
@@ -58,7 +63,7 @@ async function registerOther(request: APIRequestContext, city: string) {
   return profile.personalQrToken
 }
 
-test('the registration form checks required fields, then the consent, then the privacy policy, then registers', async ({ page }) => {
+test('the registration form checks required fields, then the consent, then registers', async ({ page }) => {
   await page.goto('/signup')
 
   // 1. Nothing filled: the first popup, with the product's exact wording.
@@ -67,7 +72,7 @@ test('the registration form checks required fields, then the consent, then the p
   await page.getByRole('button', { name: 'ОК' }).click()
 
   // 2. Everything filled but the consent: the second popup.
-  await fillSignupForm(page, uniqueEmail('web-e2e-form'), { consent: false, privacy: false })
+  await fillSignupForm(page, uniqueEmail('web-e2e-form'), { consent: false })
   await page.getByTestId('signup-submit').click()
   await expect(page.getByTestId('signup-notice')).toHaveText(
     'Не получено соглашение на обработку персональных данных',
@@ -84,19 +89,8 @@ test('the registration form checks required fields, then the consent, then the p
   await page.getByTestId('consent-agree').click()
   await expect(page.getByTestId('signup-consent')).toBeChecked()
 
-  // 4. Consent given, privacy policy not yet: the third popup, then the policy is read the same way.
-  await page.getByTestId('signup-submit').click()
-  await expect(page.getByTestId('signup-notice')).toHaveText(
-    'Не подтверждено ознакомление с Политикой конфиденциальности',
-  )
-  await page.getByRole('button', { name: 'ОК' }).click()
-  await page.getByTestId('privacy-link').click()
-  await expect(page.getByTestId('privacy-agree')).toBeDisabled()
-  await page.getByRole('dialog').locator('div.overflow-y-auto').evaluate((element) => {
-    element.scrollTo(0, element.scrollHeight)
-  })
-  await page.getByTestId('privacy-agree').click()
-  await expect(page.getByTestId('signup-privacy')).toBeChecked()
+  // 4. The policy is a link to the operator's published document, not a popup or a second tick.
+  await expect(page.getByTestId('privacy-policy-link')).toHaveAttribute('href', /sibur\.ru\/upload\//)
 
   await page.getByTestId('signup-submit').click()
   await expect(page).toHaveURL(/\/app$/)
@@ -108,7 +102,7 @@ test('a participant registers, scores at stations, connects, shares an idea and 
   playwright,
 }) => {
   const email = uniqueEmail('web-e2e-participant')
-  await signUp(page, email, { firstName: 'Мария', lastName: 'Сидорова', city: 'Тюмень', company: 'Завод' })
+  await signUp(page, email, { firstName: 'Мария', lastName: 'Сидорова', city: 'Нижневартовск', company: 'СИБУР (головной офис)' })
   await expect(page).toHaveURL(/\/app$/)
   await expect(page.getByTestId('total-points')).toHaveText('0')
 
@@ -127,8 +121,8 @@ test('a participant registers, scores at stations, connects, shares an idea and 
     expect(await (await scan()).json()).toMatchObject({ pointsAwarded: 1, totalPoints: 1 })
     expect(await (await scan()).json()).toMatchObject({ pointsAwarded: 0, alreadyCompleted: true })
 
-    // A connection with someone from another city.
-    const other = await registerOther(api, 'Омск')
+    // A connection with someone from another city and company.
+    const other = await registerOther(api, 'Пермь')
     const connect = await api.post(`${backendUrl()}/api/event/diffusion/connections`, {
       data: { token: other },
       headers: bearer(token),
@@ -163,7 +157,7 @@ test('a participant registers, scores at stations, connects, shares an idea and 
     // The profile is read-only and shows the registered data.
     await page.getByTestId('nav-profile').click()
     await expect(page.getByTestId('profile-firstName')).toHaveText('Мария')
-    await expect(page.getByTestId('profile-city')).toHaveText('Тюмень')
+    await expect(page.getByTestId('profile-city')).toHaveText('Нижневартовск')
     await expect(page.getByTestId('profile-email')).toHaveText(email)
   } finally {
     await api.dispose()

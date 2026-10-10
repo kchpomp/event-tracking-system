@@ -23,7 +23,7 @@ createRoot(document.getElementById('root')!).render(
       <TooltipProvider>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           storageKey="event_tracking_system_theme"
         >

@@ -29,9 +29,9 @@ const validRegistration = {
   password: 'password123',
   firstName: 'Анна',
   lastName: 'Петрова',
-  company: 'Завод',
-  city: 'Тюмень',
-  consent: true, privacyPolicy: true,
+  companyId: '01990000-0000-7000-8000-000000000101',
+  cityId: '01990000-0000-7000-8000-000000000203',
+  consent: true,
 } as const
 
 const validUser = {
@@ -71,13 +71,16 @@ describe('auth contracts', () => {
     expect(() => registerRequestSchema.parse({ ...valid, email: 'not-an-email' })).toThrow()
     expect(() => registerRequestSchema.parse({ ...valid, password: 'short' })).toThrow()
     expect(() => registerRequestSchema.parse({ ...valid, firstName: '  ' })).toThrow()
-    expect(() => registerRequestSchema.parse({ ...valid, city: 'x'.repeat(101) })).toThrow()
+    // The lists are chosen from: free text never registers. An absent choice is let through by the
+    // contract and decided by the server, which accepts it only for an address listed as a hostess.
+    expect(() => registerRequestSchema.parse({ ...valid, cityId: 'Тюмень' })).toThrow()
+    expect(() => registerRequestSchema.parse({ ...valid, companyId: 'not-an-id' })).toThrow()
+    expect(registerRequestSchema.parse({ ...valid, companyId: undefined, cityId: undefined })).toMatchObject({
+      email: 'user@example.com',
+    })
     // The consent is server-enforced: absent or false never registers.
     expect(() => registerRequestSchema.parse({ ...valid, consent: false })).toThrow()
     expect(() => registerRequestSchema.parse({ ...valid, consent: undefined })).toThrow()
-    // So is the separate privacy-policy acknowledgement.
-    expect(() => registerRequestSchema.parse({ ...valid, privacyPolicy: false })).toThrow()
-    expect(() => registerRequestSchema.parse({ ...valid, privacyPolicy: undefined })).toThrow()
     expect(() =>
       loginRequestSchema.parse({ email: 'user@example.com', password: 'short' }),
     ).toThrow()

@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   connectionPoints,
   ideaPoints,
+  listedNameMatches,
   orderedPair,
   participantFullName,
   sameCityAndCompany,
@@ -35,12 +36,26 @@ describe('event scoring rules', () => {
   })
 
   test('the same city AND company blocks a connection, anything else does not', () => {
-    const me = { city: 'Тюмень', company: 'Завод' }
-    expect(sameCityAndCompany(me, { city: ' тюмень ', company: 'ЗАВОД' })).toBe(true)
-    expect(sameCityAndCompany(me, { city: 'Тюмень', company: 'Офис' })).toBe(false)
-    expect(sameCityAndCompany(me, { city: 'Омск', company: 'Завод' })).toBe(false)
+    const me = { cityId: 'city-1', companyId: 'company-1' }
+    expect(sameCityAndCompany(me, { cityId: 'city-1', companyId: 'company-1' })).toBe(true)
+    expect(sameCityAndCompany(me, { cityId: 'city-1', companyId: 'company-2' })).toBe(false)
+    expect(sameCityAndCompany(me, { cityId: 'city-2', companyId: 'company-1' })).toBe(false)
     // An unknown value never blocks.
-    expect(sameCityAndCompany(me, { city: null, company: 'Завод' })).toBe(false)
-    expect(sameCityAndCompany({ city: null, company: null }, { city: null, company: null })).toBe(false)
+    expect(sameCityAndCompany(me, { cityId: null, companyId: 'company-1' })).toBe(false)
+    expect(sameCityAndCompany({ cityId: null, companyId: null }, { cityId: null, companyId: null })).toBe(false)
+  })
+
+  test('a listed name matches the account when it holds both the first and the last name', () => {
+    const anna = { firstName: 'Анна', lastName: 'Петрова' }
+    for (const listed of ['Анна Петрова', 'петрова анна', ' АННА  ПЕТРОВА ', 'Петрова Анна Ивановна', 'Петрова А. Анна']) {
+      expect(listedNameMatches(listed, anna), listed).toBe(true)
+    }
+    expect(listedNameMatches('Алёна Ёлкина', { firstName: 'Алена', lastName: 'Елкина' })).toBe(true)
+
+    // One of the two is not enough, and neither is nothing.
+    for (const listed of ['Анна', 'Петрова', 'Анна Петрович', 'Ольга Хостесова', '', null]) {
+      expect(listedNameMatches(listed, anna), String(listed)).toBe(false)
+    }
+    expect(listedNameMatches('Анна Петрова', { firstName: null, lastName: null })).toBe(false)
   })
 })

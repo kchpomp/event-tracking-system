@@ -11,6 +11,7 @@ import { privateStorageConfigFromEnv, type FilesystemStorageConfig } from '../..
 import { createFilesystemStorageRoutes } from '../../storage/filesystem-routes'
 import { FilesystemPrivateStorage } from '../../storage/filesystem-storage'
 import { pngFixture } from '../../storage/storage-contract'
+import { CITY_ID, COMPANY_ID } from '../../test-reference-ids'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 if (!databaseUrl) throw new Error('TEST_DATABASE_URL is required; run bun run test:backend:integration')
@@ -62,7 +63,7 @@ describe('avatar upload API integration', () => {
     const response = await app.request('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true,  email, password: 'password-1234' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', companyId: COMPANY_ID, cityId: CITY_ID, consent: true,  email, password: 'password-1234' }),
     })
     expect(response.status).toBe(201)
     return (await response.json()) as { accessToken: string; user: { id: string } }
@@ -268,7 +269,7 @@ describe('avatar upload API integration', () => {
     const register = await tightApp.request('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень', consent: true, privacyPolicy: true,  email: 'tight@example.com', password: 'password-1234' }),
+      body: JSON.stringify({ firstName: 'Анна', lastName: 'Петрова', companyId: COMPANY_ID, cityId: CITY_ID, consent: true,  email: 'tight@example.com', password: 'password-1234' }),
     })
     const { accessToken } = await register.json()
 

@@ -17,6 +17,7 @@ import {
   parseAdminSeedConfig,
 } from './infrastructure/admin-bootstrap'
 import { bootstrapDevelopmentData } from '../../../scripts/development-seed'
+import { CITY_ID, COMPANY_ID } from '../../test-reference-ids'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 if (!databaseUrl) throw new Error('TEST_DATABASE_URL is required; run bun run test:backend:integration')
@@ -134,7 +135,6 @@ describe('users and admin API integration', () => {
     expect(await dashboard.json()).toEqual({
       totalUsers: 2,
       totalAdmins: 1,
-      newUsersLast7Days: 2,
     })
 
     const list = await app.request('/api/admin/users?q=target&page=1&pageSize=20', {
@@ -963,9 +963,9 @@ describe('users and admin API integration', () => {
       body: JSON.stringify({
         firstName: 'Анна',
         lastName: 'Петрова',
-        company: 'Завод',
-        city: 'Тюмень',
-        consent: true, privacyPolicy: true,
+        companyId: COMPANY_ID,
+        cityId: CITY_ID,
+        consent: true,
         email,
         password: 'password123',
       }),

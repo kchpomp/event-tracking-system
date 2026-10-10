@@ -34,18 +34,20 @@ const profileTextSchema = z
   .max(PROFILE_FIELD_MAX, `Не более ${PROFILE_FIELD_MAX} символов`)
 
 // Event participant registration: the profile fields are the public name and the "Диффузия" rule
-// (a different city or company), `consent` is the personal-data consent and `privacyPolicy` is the
-// separate acknowledgement of the privacy policy. The server rejects a sign-up without either, so
-// neither can be skipped by calling the API directly. The one `consentedAt` stamps both.
+// (a different city or company; both are ids from the reference lists) and `consent` is the
+// separate personal-data consent (152-ФЗ, ст. 9). The server rejects a sign-up without it, so it
+// cannot be skipped by calling the API directly. `consentedAt` stamps it. The privacy policy is a
+// published document, not something a person has to acknowledge, so it has no field here.
 export const registerRequestSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   firstName: profileTextSchema,
   lastName: profileTextSchema,
-  company: profileTextSchema,
-  city: profileTextSchema,
+  // Required for a participant. A hostess, whose address the organisers listed as one, has none:
+  // the server refuses a sign-up without them from any other address.
+  companyId: z.uuid('Выберите предприятие').optional(),
+  cityId: z.uuid('Выберите город').optional(),
   consent: z.literal(true, { error: 'Не получено соглашение на обработку персональных данных' }),
-  privacyPolicy: z.literal(true, { error: 'Не подтверждено ознакомление с Политикой конфиденциальности' }),
 })
 
 export const loginRequestSchema = z.object({

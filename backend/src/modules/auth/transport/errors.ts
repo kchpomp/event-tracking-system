@@ -8,6 +8,10 @@ export function toAuthAppError(error: unknown) {
     return new AppError(409, 'CONFLICT', error.message)
   }
 
+  if (error.kind === 'invalid_reference') {
+    return new AppError(400, 'VALIDATION_ERROR', error.message)
+  }
+
   if (error.kind === 'password_reset_invalid') {
     return new AppError(400, 'AUTH_PASSWORD_RESET_INVALID', error.message)
   }

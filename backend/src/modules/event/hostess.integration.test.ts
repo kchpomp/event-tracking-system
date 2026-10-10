@@ -4,6 +4,7 @@ import { createApp } from '../../app'
 import { createPrisma } from '../../db'
 import { loadEnv } from '../../env'
 import { seedEvent } from './infrastructure/event-seed'
+import { CITY_IDS, COMPANY_IDS } from '../../test-reference-ids'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 if (!databaseUrl) throw new Error('TEST_DATABASE_URL is required; run bun run test:backend:integration')
@@ -32,9 +33,9 @@ async function register(overrides: Record<string, unknown> = {}): Promise<Person
       password: 'password-1234',
       firstName: `Имя${counter}`,
       lastName: `Фамилия${counter}`,
-      company: `Предприятие ${counter}`,
-      city: `Город ${counter}`,
-      consent: true, privacyPolicy: true,
+      companyId: COMPANY_IDS[counter % 10],
+      cityId: CITY_IDS[counter % 10],
+      consent: true,
       ...overrides,
     }),
   })
@@ -113,10 +114,46 @@ describe('hostess desk API', () => {
     expect((await award(participant, participant.id, station.id)).status).toBe(403)
   })
 
+  test('giving the hostess role removes the person points, and leaves the ideas and the progress of others', async () => {
+    const admin = await makeStaff('admin')
+    const olga = await register({ firstName: 'Ольга', lastName: 'Хостесова' })
+    const other = await register({ firstName: 'Олег', lastName: 'Иванов' })
+    await scan(olga, (await stationNamed('Воркшоп 1')).qrToken)
+    await api('POST', '/api/event/ideas', olga.accessToken, {
+      title: 'Идея',
+      direction: 'Направление',
+      problem: 'Проблема',
+      description: 'Описание',
+      expectedResult: 'Эффект',
+    })
+    await api('POST', '/api/event/diffusion/connections', olga.accessToken, { token: other.qr })
+    expect(await totalPoints(olga.id)).toBeGreaterThan(0)
+    const otherPoints = await totalPoints(other.id)
+
+    const promoted = await api('PATCH', `/api/admin/users/${olga.id}/role`, admin.accessToken, {
+      role: 'hostess',
+    })
+    expect(promoted.status).toBe(200)
+
+    expect(await totalPoints(olga.id)).toBe(0)
+    expect(await prisma.stationVisit.count({ where: { participantId: olga.id } })).toBe(0)
+    // What others built on stays: their points, their connection, and the idea.
+    expect(await totalPoints(other.id)).toBe(otherPoints)
+    expect(await prisma.connection.count()).toBe(1)
+    expect(await prisma.idea.count({ where: { authorId: olga.id } })).toBe(1)
+
+    // Any other role change leaves the ledger alone.
+    const participant = await register({ firstName: 'Павел', lastName: 'Смирнов' })
+    await scan(participant, (await stationNamed('Воркшоп 2')).qrToken)
+    const before = await totalPoints(participant.id)
+    await api('PATCH', `/api/admin/users/${participant.id}/role`, admin.accessToken, { role: 'admin' })
+    expect(await totalPoints(participant.id)).toBe(before)
+  })
+
   test('search matches every word, only participants, and shows their points', async () => {
     const hostess = await makeStaff('hostess')
-    const anna = await register({ firstName: 'Анна', lastName: 'Петрова', company: 'Завод', city: 'Тюмень' })
-    const oleg = await register({ firstName: 'Олег', lastName: 'Иванов', company: 'Офис', city: 'Омск' })
+    const anna = await register({ firstName: 'Анна', lastName: 'Петрова', companyId: COMPANY_IDS[0], cityId: CITY_IDS[2] })
+    const oleg = await register({ firstName: 'Олег', lastName: 'Иванов', companyId: COMPANY_IDS[1], cityId: CITY_IDS[4] })
     await scan(anna, (await stationNamed('Воркшоп 1')).qrToken)
 
     const byName = await search(hostess, 'анна ПЕТРОВА')
@@ -125,8 +162,8 @@ describe('hostess desk API', () => {
         {
           id: anna.id,
           fullName: 'Анна Петрова',
-          company: 'Завод',
-          city: 'Тюмень',
+          company: 'СИБУР (головной офис)',
+          city: 'Нижневартовск',
           totalPoints: 1,
         },
       ],
@@ -137,7 +174,7 @@ describe('hostess desk API', () => {
         (person) => person.id,
       )
     expect(await ids('Иванов')).toEqual([oleg.id])
-    expect(await ids('тюмень')).toEqual([anna.id])
+    expect(await ids('нижневартовск')).toEqual([anna.id])
     expect(await ids('Анна Иванов')).toEqual([]) // one word per person is not enough
     expect(await ids('Хостес')).toEqual([]) // staff are never listed
 

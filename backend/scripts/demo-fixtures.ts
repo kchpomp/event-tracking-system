@@ -37,12 +37,10 @@ const demoLongDisplayName = 'Persephone Featherington-Wintermoore-Abernathy'
 // "Administrators" count is more than one and the directory shows more than one admin badge.
 const demoAdminIndexes = new Set([2, 15, 28])
 
-// Days before "now" each fixture was created. The first six land inside the dashboard's rolling
-// 7-day window ("several users created within the last 7 days"); the rest spread across roughly
-// the last two years for a realistic, varied history. Values are relative to the seed run, not to
-// a fixed calendar date, so `newUsersLast7Days` is never zero - but every run recomputes the same
-// relative shape, so the row count, ages relative to each other, and the resulting order stay
-// stable across runs.
+// Days before "now" each fixture was created: six recent ones, the rest spread across roughly the
+// last two years for a realistic, varied history. Values are relative to the seed run, not to a
+// fixed calendar date, but every run recomputes the same relative shape, so the row count, ages
+// relative to each other, and the resulting order stay stable across runs.
 const demoDayOffsets = [
   0, 1, 2, 3, 4, 5,
   ...Array.from({ length: 34 }, (_, index) => 10 + index * 20),

@@ -15,6 +15,14 @@ export function createPrismaAuthRepository(db: DbClient): AuthRepository {
       return db.user.findUnique({ where: { email } })
     },
 
+    async isPlannedHostess(email) {
+      const listed = await db.plannedParticipant.findUnique({
+        where: { email },
+        select: { kind: true },
+      })
+      return listed?.kind === 'hostess'
+    },
+
     async createPasswordUserWithSession(input) {
       try {
         return await db.$transaction(async (tx) => {
@@ -25,8 +33,8 @@ export function createPrismaAuthRepository(db: DbClient): AuthRepository {
               displayName: `${input.user.firstName} ${input.user.lastName}`,
               firstName: input.user.firstName,
               lastName: input.user.lastName,
-              company: input.user.company,
-              city: input.user.city,
+              companyId: input.user.companyId,
+              cityId: input.user.cityId,
               consentedAt: input.user.consentedAt,
               role: 'user',
             },
@@ -48,6 +56,10 @@ export function createPrismaAuthRepository(db: DbClient): AuthRepository {
       } catch (error) {
         if (isUniqueConstraintError(error)) {
           throw new AuthFailure('email_already_exists', 'User with this email already exists')
+        }
+        // P2003: the company or city id is not in the reference lists (a stale form, or a forged id).
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+          throw new AuthFailure('invalid_reference', 'Unknown company or city')
         }
         throw error
       }

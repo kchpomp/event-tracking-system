@@ -3,7 +3,7 @@ import { expect, fillSignupForm, logIn, logOut, signUp, test, uniqueEmail } from
 test('registers, restores the session, opens the profile, and logs out and in again', async ({ page }) => {
   const email = uniqueEmail()
 
-  await signUp(page, email, { firstName: 'Ирина', lastName: 'Орлова', company: 'Завод', city: 'Омск' })
+  await signUp(page, email, { firstName: 'Ирина', lastName: 'Орлова', company: 'ЗапСибНефтехим', city: 'Пермь' })
 
   await expect(page).toHaveURL(/\/app$/)
   await expect(page.getByTestId('total-points')).toBeVisible()
