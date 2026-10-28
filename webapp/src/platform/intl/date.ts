@@ -12,3 +12,10 @@ const dateFormatter = new Intl.DateTimeFormat(uiLocale, { dateStyle: 'medium' })
 export function formatDate(value: Date | string): string {
   return dateFormatter.format(value instanceof Date ? value : new Date(value))
 }
+
+const timeFormatter = new Intl.DateTimeFormat(uiLocale, { timeStyle: 'short' })
+
+/** Formats a timestamp as the clock time the UI shows for it, e.g. `14:32`, in the viewer's time zone. */
+export function formatTime(value: Date | number): string {
+  return timeFormatter.format(value)
+}

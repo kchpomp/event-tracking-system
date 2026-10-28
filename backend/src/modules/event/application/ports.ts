@@ -9,6 +9,7 @@ import type {
   ImportPlannedRequest,
   ImportPlannedResponse,
   LeaderboardEntry,
+  NetworkResponse,
   PlannedParticipantsResponse,
   RegistrationReferenceResponse,
   ScanResponse,
@@ -92,4 +93,9 @@ export type PlannedParticipantsAdmin = {
   ): Promise<ImportPlannedResponse>
   /** False when no such entry exists. Never touches an account. */
   removePlanned(id: string): Promise<boolean>
+}
+
+export type NetworkReader = {
+  /** Every participant (never staff) with initials, and the connections between two participants. */
+  network(): Promise<NetworkResponse>
 }

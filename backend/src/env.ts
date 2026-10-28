@@ -86,6 +86,10 @@ const envSchema = z.object({
   EVENT_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   ADMIN_USERS_READ_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
   ADMIN_USERS_READ_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  // The venue network screen (GET /api/admin/network) polls every few seconds all day. Its own
+  // budget per administrator, so the phones behind the venue address never lock it out.
+  ADMIN_NETWORK_READ_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+  ADMIN_NETWORK_READ_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   IAP_BODY_LIMIT_BYTES: z.coerce.number().int().positive().max(1024 * 1024).default(64 * 1024),
   IAP_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   IAP_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),

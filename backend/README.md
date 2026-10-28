@@ -57,7 +57,7 @@ Cron, the scheduler, and the worker use `createBackgroundRuntime`. It replaces `
 | --- | --- | --- |
 | `/api/auth/*` | auth | Browser cookie sessions, `/api/auth/token/*` for native apps, password reset |
 | `/api/users/*` | users | The current user's profile |
-$1| `/api/admin/stations`, `/api/admin/event` | event | Station list with QR tokens, opening and closing the event; `admin` only |
+$1| `/api/admin/stations`, `/api/admin/event`, `/api/admin/network` | event | Station list with QR tokens, opening and closing the event, the venue network screen; `admin` only |
 | `/api/event/*` | event | A participant's profile and progress, stations, scan, connections, ideas, leaderboard; `user` only |
 | `/api/uploads/*` | uploads | Avatar upload, finalize, read, and delete |
 | `/api/notifications/*` | notifications | Push token registration and unregistration; a test push only with `ENABLE_TEST_PUSH=true` |
@@ -66,7 +66,7 @@ $1| `/api/admin/stations`, `/api/admin/event` | event | Station list with QR tok
 
 Switched-off capabilities mount no routes: social sign-in (`POST /api/auth/token/social/{provider}`) and subscriptions (`/api/iap/*`, `/api/webhooks/*`).
 
-Each client address gets `AUTH_RATE_LIMIT_MAX` writes per window under `/api/auth/*`, a separate equal budget under users, admin, and uploads, and a third under `/api/notifications/*`. `AUTH_BODY_LIMIT_BYTES` caps those request bodies. Both limits run before authentication. The removed `INGRESS_RATE_LIMIT_PROVIDER=yandex-sws` stops the backend at startup ([YANDEX_CLOUD](../docs/YANDEX_CLOUD.md#removed-smart-web-security-mode)). `GET /api/admin/users` has its own per-admin budget (`ADMIN_USERS_READ_RATE_LIMIT_*`). Session, token, reset, and role rules are in [ARCHITECTURE](../docs/ARCHITECTURE.md).
+Each client address gets `AUTH_RATE_LIMIT_MAX` writes per window under `/api/auth/*`, a separate equal budget under users, admin, and uploads, and a third under `/api/notifications/*`. `AUTH_BODY_LIMIT_BYTES` caps those request bodies. Both limits run before authentication. The removed `INGRESS_RATE_LIMIT_PROVIDER=yandex-sws` stops the backend at startup ([YANDEX_CLOUD](../docs/YANDEX_CLOUD.md#removed-smart-web-security-mode)). `GET /api/admin/users` has its own per-admin budget (`ADMIN_USERS_READ_RATE_LIMIT_*`), and so does the venue network screen's `GET /api/admin/network` (`ADMIN_NETWORK_READ_RATE_LIMIT_*`). Session, token, reset, and role rules are in [ARCHITECTURE](../docs/ARCHITECTURE.md).
 
 `notifications` registers Expo push tokens per app installation and queues pushes in PostgreSQL. Unregistering keeps an inactive installation row with a newer generation. The test push allows one message per user per minute. `notifications:process` or `start:worker:notifications` sends the queue and checks receipts ([BACKGROUND_JOBS](../docs/BACKGROUND_JOBS.md#push-pipeline)).
 

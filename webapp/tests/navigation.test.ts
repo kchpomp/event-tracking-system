@@ -34,10 +34,11 @@ test('cross-role destinations resolve to the current role home', () => {
 })
 
 test('workspace route table matches the routes registered under each workspace layout', () => {
-  // `WorkspaceRoute` in `src/pages.tsx` guards these two layout ids. Every path registered below
-  // them is a protected route that must survive a login round-trip whether or not it is in the
-  // sidebar, so the return-path allow-list is pinned to the router, not to the menu.
+  // `WorkspaceRoute` and `VenueScreenRoute` in `src/pages.tsx` guard these layout ids. Every path
+  // registered below them is a protected route that must survive a login round-trip whether or not
+  // it is in the sidebar, so the return-path allow-list is pinned to the router, not to the menu.
   const rolesByLayoutId: Record<string, UserRole> = {
+    '/adminScreen': 'admin',
     '/adminWorkspace': 'admin',
     '/hostessWorkspace': 'hostess',
     '/userWorkspace': 'user',

@@ -15,7 +15,15 @@ export const workspaceRoutesByRole = {
     '/app/polymer',
     '/app/profile',
   ],
-  admin: ['/admin', '/admin/participants', '/admin/users', '/admin/stations', '/admin/settings'],
+  // `/admin/network` is the venue display: same guard, no sidebar (layout `adminScreen`).
+  admin: [
+    '/admin',
+    '/admin/participants',
+    '/admin/users',
+    '/admin/stations',
+    '/admin/network',
+    '/admin/settings',
+  ],
   hostess: ['/hostess', '/hostess/scan', '/hostess/participant/$participantId'],
 } as const satisfies Record<UserRole, ReadonlyArray<`/${string}`>>
 
@@ -40,6 +48,7 @@ const navigationByRole = {
     { label: 'Участники', to: '/admin/participants' },
     { label: 'Пользователи', to: '/admin/users' },
     { label: 'Станции', to: '/admin/stations' },
+    { label: 'Сеть знакомств', to: '/admin/network' },
     { label: 'Настройки', to: '/admin/settings' },
   ],
   // Hostesses, like participants, use the phone shell without a sidebar.

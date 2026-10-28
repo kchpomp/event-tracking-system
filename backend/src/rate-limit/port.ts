@@ -19,7 +19,13 @@
  */
 
 /** The budgets that exist. A closed set so the `policy` column can only hold code-owned names. */
-export type RateLimitPolicy = 'auth' | 'account' | 'event' | 'notifications' | 'admin-users-read'
+export type RateLimitPolicy =
+  | 'auth'
+  | 'account'
+  | 'event'
+  | 'notifications'
+  | 'admin-users-read'
+  | 'admin-network-read'
 
 export type RateLimitConsumption = {
   /** Requests seen for the key in the current window, this one included. */

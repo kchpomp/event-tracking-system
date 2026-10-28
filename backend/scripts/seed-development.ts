@@ -18,7 +18,7 @@ try {
   // Opt-in: `DEV_SEED_DEMO=1 bun run dev:seed` (or the screens run, through its own config).
   if (config.demo) {
     const demo = await seedDemoFixtures(prisma)
-    console.log(`Seeded ${demo.count} demo fixture users.`)
+    console.log(`Seeded ${demo.count} demo fixture users and ${demo.connections} connections.`)
   }
 } finally {
   await prisma.$disconnect()

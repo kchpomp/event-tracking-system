@@ -86,6 +86,16 @@ export function createApp({
     store: rateLimitStore('admin-users-read'),
     windowSeconds: env.ADMIN_USERS_READ_RATE_LIMIT_WINDOW_SECONDS,
   })
+  // The venue network screen polls from the venue address all day. Keyed by the administrator,
+  // like the directory budget, so the phones behind that address can neither spend it nor be
+  // spent by it.
+  const adminNetworkReadRateLimit = createFixedWindowRateLimit<AuthHttpEnv>({
+    errorMessage: 'Too many network screen requests',
+    key: (c) => c.var.user.id,
+    max: env.ADMIN_NETWORK_READ_RATE_LIMIT_MAX,
+    store: rateLimitStore('admin-network-read'),
+    windowSeconds: env.ADMIN_NETWORK_READ_RATE_LIMIT_WINDOW_SECONDS,
+  })
   const users = createUsersModule({
     adminUsersReadRateLimit,
     db: prisma,
@@ -93,6 +103,7 @@ export function createApp({
     requireAuth: auth.requireAuth,
   })
   const event = createEventModule({
+    adminNetworkReadRateLimit,
     db: prisma,
     requireAdmin: auth.requireAdmin,
     requireAuth: auth.requireAuth,
