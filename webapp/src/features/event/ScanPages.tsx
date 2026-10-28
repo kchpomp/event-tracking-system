@@ -128,7 +128,16 @@ export function DiffusionScanPage() {
           leave: true,
         }
       }
-      if (connectionsCount >= DIFFUSION_GOAL) {
+      if (connectionsCount > DIFFUSION_GOAL) {
+        // Past the goal: the link counts for the network screen, not for points.
+        return {
+          variant: 'success',
+          title: 'Новое соединение создано',
+          message: `Связей: ${connectionsCount}. Баллы начисляются за первые ${DIFFUSION_GOAL}.`,
+          leave: true,
+        }
+      }
+      if (connectionsCount === DIFFUSION_GOAL) {
         return {
           variant: 'success',
           title: 'Новое соединение создано',

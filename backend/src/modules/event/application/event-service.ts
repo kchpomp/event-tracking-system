@@ -15,6 +15,7 @@ import type {
   HostessDesk,
   IdeaWriter,
   LeaderboardReader,
+  NetworkReader,
   ParticipantReader,
   RegistrationReader,
   StationReader,
@@ -27,6 +28,7 @@ type EventServiceDependencies = {
   hostess: HostessDesk
   ideas: IdeaWriter
   leaderboard: LeaderboardReader
+  network: NetworkReader
   participants: ParticipantReader
   registration: RegistrationReader
   scanner: StationScanner
@@ -93,6 +95,10 @@ export class EventService {
 
   async updateEvent(input: UpdateEventRequest) {
     return { event: await this.dependencies.admin.setEventState(input) }
+  }
+
+  network() {
+    return this.dependencies.network.network()
   }
 
   registrationOpen() {

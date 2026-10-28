@@ -4,6 +4,7 @@ import type { StationSummary } from '@event-tracking-system/contracts'
 import { eventErrorMessage, GENERIC_ERROR, OFFLINE_ERROR } from '../src/features/event/errors'
 import {
   activityProgress,
+  diffusionScan,
   fullName,
   hasOwnScanButton,
   pointsLabel,
@@ -92,4 +93,15 @@ test('every backend refusal has its own sentence and nothing raw reaches the use
   expect(eventErrorMessage(new TypeError('Failed to fetch'))).toBe(OFFLINE_ERROR)
   expect(eventErrorMessage(new Error('raw'))).toBe(GENERIC_ERROR)
   expect(eventErrorMessage(refusal('DIFFUSION_SELF'))).not.toContain('raw english text')
+})
+
+test('the participant scan stays available after the goal of three, and the page still reads complete', () => {
+  const [before, atGoal, after] = [2, 3, 7].map(diffusionScan)
+  expect(before!.complete).toBe(false)
+  expect(atGoal!.complete).toBe(true)
+  expect(after!.complete).toBe(true)
+  // Every count keeps a scan button; after the goal it invites to keep meeting people.
+  expect([0, 2, 3, 7].map((count) => diffusionScan(count).label.length > 0)).toEqual([true, true, true, true])
+  expect(atGoal!.label).not.toBe(before!.label)
+  expect(after!.label).toBe(atGoal!.label)
 })

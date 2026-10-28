@@ -15,6 +15,7 @@ import {
   hostessResolveRequestSchema,
   hostessSearchQuerySchema,
   leaderboardResponseSchema,
+  networkResponseSchema,
   registrationStatusResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
@@ -25,7 +26,7 @@ import {
 import type { MiddlewareHandler } from 'hono'
 
 import { AppError, validationErrorHook } from '../../../http/errors'
-import { ingressErrorResponses } from '../../../http/openapi'
+import { ingressErrorResponses, rateLimitErrorResponses } from '../../../http/openapi'
 import type { AuthHttpEnv } from '../../auth'
 import type { EventService } from '../application/event-service'
 import { executeEvent } from './errors'
@@ -136,6 +137,17 @@ const updateEventRoute = createRoute({
   },
 })
 
+const adminNetworkRoute = createRoute({
+  method: 'get',
+  path: '/network',
+  security: bearerSecurity,
+  responses: {
+    ...rateLimitErrorResponses,
+    200: { content: json(networkResponseSchema), description: 'Participants and their connections' },
+    ...authErrors,
+  },
+})
+
 const hostessSearchRoute = createRoute({
   method: 'get',
   path: '/participants',
@@ -200,6 +212,7 @@ const registrationStatusRoute = createRoute({
 })
 
 type CreateEventRoutesOptions = {
+  adminNetworkReadRateLimit: MiddlewareHandler<AuthHttpEnv>
   requireAdmin: MiddlewareHandler<AuthHttpEnv>
   requireAuth: MiddlewareHandler<AuthHttpEnv>
   requireHostess: MiddlewareHandler<AuthHttpEnv>
@@ -208,6 +221,7 @@ type CreateEventRoutesOptions = {
 }
 
 export function createEventRoutes({
+  adminNetworkReadRateLimit,
   requireAdmin,
   requireAuth,
   requireHostess,
@@ -262,6 +276,9 @@ export function createEventRoutes({
   adminRoutes.openapi(updateEventRoute, async (c) =>
     c.json(await executeEvent(() => service.updateEvent(c.req.valid('json'))), 200),
   )
+  // The venue screen polls this all day; its budget is per administrator (see app.ts).
+  adminRoutes.use('/network', adminNetworkReadRateLimit)
+  adminRoutes.openapi(adminNetworkRoute, async (c) => c.json(await service.network(), 200))
 
   // Public: no account exists yet when somebody opens the sign-up page.
   registrationRoutes.openapi(registrationStatusRoute, async (c) =>

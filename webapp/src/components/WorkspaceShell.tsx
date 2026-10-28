@@ -3,6 +3,7 @@ import {
   Home01Icon,
   QrCodeIcon,
   Settings01Icon,
+  Share08Icon,
   UserGroupIcon,
   UserIcon,
 } from '@hugeicons/core-free-icons'
@@ -25,6 +26,7 @@ const iconsByPath = {
   '/admin/users': UserGroupIcon,
   '/admin/stations': QrCodeIcon,
   '/admin/settings': Settings01Icon,
+  '/admin/network': Share08Icon,
 } as const
 
 function getSidebarDefaultOpen() {

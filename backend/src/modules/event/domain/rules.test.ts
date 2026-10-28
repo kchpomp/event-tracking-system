@@ -5,6 +5,7 @@ import {
   ideaPoints,
   orderedPair,
   participantFullName,
+  participantInitials,
   sameCityAndCompany,
   searchWords,
 } from './rules'
@@ -26,6 +27,29 @@ describe('event scoring rules', () => {
     expect(participantFullName({ ...none, firstName: 'Анна' })).toBe('Анна')
     expect(participantFullName({ ...none, displayName: ' Ася ' })).toBe('Ася')
     expect(participantFullName(none)).toBe('Участник')
+  })
+
+  test('the network screen shows the first letters of the first and the last name', () => {
+    const none = { firstName: null, lastName: null, displayName: null }
+    // Кремнев Иван Владимирович → «ИК»: first name first, capitals, spaces trimmed.
+    expect(participantInitials({ ...none, firstName: ' иван ', lastName: 'кремнев' })).toBe('ИК')
+    expect(participantInitials({ ...none, firstName: 'ёлка', lastName: 'Ёжикова' })).toBe('ЁЁ')
+    // A double surname gives one letter, its first.
+    expect(participantInitials({ ...none, firstName: 'Анна', lastName: 'Римская-Корсакова' })).toBe('АР')
+    expect(participantInitials({ ...none, firstName: 'Анна', lastName: 'Римская Корсакова' })).toBe('АР')
+    // Punctuation before a name is not a letter.
+    expect(participantInitials({ ...none, firstName: '«Анна»', lastName: '-Петрова' })).toBe('АП')
+  })
+
+  test('without both names the initials come from what there is, else a neutral symbol', () => {
+    const none = { firstName: null, lastName: null, displayName: null }
+    expect(participantInitials({ ...none, displayName: 'olivia nguyen' })).toBe('ON')
+    expect(participantInitials({ ...none, firstName: 'Анна', displayName: 'Анна Петрова' })).toBe('АП')
+    expect(participantInitials({ ...none, lastName: 'Петрова', displayName: '  ' })).toBe('П')
+    expect(participantInitials({ ...none, firstName: '   ', displayName: 'Ася' })).toBe('А')
+    expect(participantInitials({ ...none, firstName: '', lastName: '' })).toBe('•')
+    expect(participantInitials({ ...none, displayName: '123 !!' })).toBe('•')
+    expect(participantInitials(none)).toBe('•')
   })
 
   test('a staff search is split into at most five words', () => {

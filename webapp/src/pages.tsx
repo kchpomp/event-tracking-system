@@ -37,6 +37,7 @@ import {
   useRegistrationStatusQuery,
 } from '@/features/event'
 import { homePathForRole, safeReturnPath } from '@/features/navigation'
+import { NetworkScreen } from '@/features/network'
 
 export function HomePage() {
   const auth = useAuth()
@@ -175,6 +176,10 @@ export function AdminSettingsPage() {
   return <AdminSettings user={user} />
 }
 
+export function AdminNetworkPage() {
+  return <NetworkScreen />
+}
+
 export function UserWorkspaceLayout() {
   return <WorkspaceRoute role="user" />
 }
@@ -185,6 +190,11 @@ export function AdminWorkspaceLayout() {
 
 export function HostessWorkspaceLayout() {
   return <WorkspaceRoute role="hostess" />
+}
+
+/** Administrator pages for the venue display: full screen, without the workspace sidebar. */
+export function AdminScreenLayout() {
+  return <VenueScreenRoute />
 }
 
 export function NotFoundPage() {
@@ -237,6 +247,31 @@ function WorkspaceRoute({ role }: { role: UserRole }) {
       <Outlet />
     </WorkspaceShell>
   )
+}
+
+/**
+ * The same guard as the admin workspace, without its shell. Once the screen has been shown it
+ * stays mounted when the session is lost, so the display keeps its last picture (the screen
+ * marks it) instead of jumping to the sign-in form; signing in again in any tab resumes it.
+ */
+function VenueScreenRoute() {
+  const auth = useAuth()
+  const location = useLocation()
+  const isAdmin = auth.user?.role === 'admin'
+  const [shown, setShown] = useState(false)
+  if (isAdmin && !shown) setShown(true)
+
+  if (shown && (isAdmin || !auth.user)) return <Outlet />
+  if (auth.isBootstrapping) return <SessionLoadingSection />
+  if (auth.sessionError && !auth.user) {
+    return <SessionErrorSection retry={auth.retrySession} />
+  }
+  if (!auth.user) {
+    const returnTo = `${location.pathname}${location.searchStr}`
+    return <HrefRedirect href={`/login?returnTo=${encodeURIComponent(returnTo)}`} />
+  }
+  if (!isAdmin) return <HrefRedirect href={homePathForRole(auth.user.role)} />
+  return <Outlet />
 }
 
 function GuestAuthPage({

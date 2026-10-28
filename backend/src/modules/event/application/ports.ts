@@ -7,6 +7,7 @@ import type {
   HostessParticipant,
   HostessParticipantResponse,
   LeaderboardEntry,
+  NetworkResponse,
   ScanResponse,
   StationSummary,
 } from '@event-tracking-system/contracts'
@@ -71,4 +72,9 @@ export type EventAdmin = {
 export type RegistrationReader = {
   /** Whether new accounts may be created. True when there is no event yet. */
   registrationOpen(): Promise<boolean>
+}
+
+export type NetworkReader = {
+  /** Every participant (never staff) with initials, and the connections between two participants. */
+  network(): Promise<NetworkResponse>
 }
