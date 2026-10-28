@@ -96,6 +96,15 @@ export function activityProgress(
   }
 }
 
+/**
+ * «Диффузия» after the goal: the page still reads complete and only the first DIFFUSION_GOAL links
+ * score, but the scan button stays, so people keep meeting and new lines reach the venue screen.
+ */
+export function diffusionScan(connectionsCount: number) {
+  const complete = connectionsCount >= DIFFUSION_GOAL
+  return { complete, label: complete ? 'Познакомиться ещё' : 'Сканировать QR участника' }
+}
+
 /** A QR may encode a URL ending in the token or the bare token; a scanner may add spaces or a break. */
 export function tokenFrom(decodedText: string) {
   const text = decodedText.trim()

@@ -137,6 +137,18 @@ const adminSettingsRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'AdminSettingsPage'),
 })
 
+const adminScreenRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'adminScreen',
+  component: lazyRouteComponent(() => import('./pages'), 'AdminScreenLayout'),
+})
+
+const adminNetworkRoute = createRoute({
+  getParentRoute: () => adminScreenRoute,
+  path: '/admin/network',
+  component: lazyRouteComponent(() => import('./pages'), 'AdminNetworkPage'),
+})
+
 const hostessWorkspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'hostessWorkspace',
@@ -184,6 +196,7 @@ const routeTree = rootRoute.addChildren([
     adminStationsRoute,
     adminSettingsRoute,
   ]),
+  adminScreenRoute.addChildren([adminNetworkRoute]),
   hostessWorkspaceRoute.addChildren([
     hostessHomeRoute,
     hostessScanRoute,

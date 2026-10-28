@@ -31,7 +31,7 @@ import {
 } from './content'
 import { eventErrorMessage, GENERIC_ERROR } from './errors'
 import { ActivityIcon, PolymerChain, StationIcon } from './icons'
-import { hasOwnScanButton } from './model'
+import { diffusionScan, hasOwnScanButton } from './model'
 import {
   ActivityHead,
   LoadErrorState,
@@ -121,7 +121,7 @@ export function DiffusionPage() {
   if (me.isError) return <LoadErrorState onRetry={() => void me.refetch()} />
 
   const count = Math.min(me.data.progress.connectionsCount, DIFFUSION_GOAL)
-  const complete = count >= DIFFUSION_GOAL
+  const scan = diffusionScan(me.data.progress.connectionsCount)
 
   async function toggleQr() {
     if (qr) {
@@ -178,13 +178,12 @@ export function DiffusionPage() {
         </ItemGroup>
       </section>
 
-      {complete ? (
+      {scan.complete && (
         <Typography tone="primary" variant="bodySmMedium">
           Диффузия завершена. Вы создали 3 новых профессиональных связи.
         </Typography>
-      ) : (
-        <ScanButton label="Сканировать QR участника" to="/app/diffusion/scan" />
       )}
+      <ScanButton label={scan.label} to="/app/diffusion/scan" />
 
       <Button disabled={qrPending} onClick={() => void toggleQr()} size="lg" type="button" variant="secondary">
         {qrPending ? 'Создаём QR…' : 'Показать мой QR'}

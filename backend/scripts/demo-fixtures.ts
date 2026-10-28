@@ -102,6 +102,48 @@ function demoFixtureUpsert(fixture: DemoFixtureUser, now: number) {
   }
 }
 
+// «Диффузия» links between the fixture participants, by their index among the participants, so
+// the venue network screen (/admin/network) is captured filled: some people with no link, some
+// with one or two, some past the goal of three. Indexes 10, 21 and 33 stay unlinked on purpose.
+const demoUnlinkedParticipants = new Set([10, 21, 33])
+
+export function demoConnectionPairs(participantCount: number): Array<[number, number]> {
+  const pairs = new Map<string, [number, number]>()
+  const add = (first: number, second: number) => {
+    const low = Math.min(first, second)
+    const high = Math.max(first, second)
+    if (low === high || high >= participantCount) return
+    if (demoUnlinkedParticipants.has(low) || demoUnlinkedParticipants.has(high)) return
+    pairs.set(`${low}-${high}`, [low, high])
+  }
+  for (let index = 0; index < participantCount; index += 1) {
+    if (index % 5 !== 4) add(index, index + 1)
+    if (index % 3 === 0) add(index, index + 3)
+    if (index % 4 === 1) add(index, index + 8)
+  }
+  return [...pairs.values()]
+}
+
+async function seedDemoConnections(db: DbClient) {
+  const participantEmails = demoFixtureUsers
+    .filter((fixture) => fixture.role === 'user')
+    .map((fixture) => fixture.email)
+  const users = await db.user.findMany({
+    where: { email: { in: participantEmails } },
+    select: { id: true, email: true },
+  })
+  const idByEmail = new Map(users.map((user) => [user.email, user.id]))
+  const ids = participantEmails.map((email) => idByEmail.get(email)).filter((id) => id !== undefined)
+  const data = demoConnectionPairs(ids.length).map(([first, second]) => {
+    // Stored lowest id first, as the event module stores every pair.
+    const [participantA, participantB] = [ids[first]!, ids[second]!].sort()
+    return { participantA: participantA!, participantB: participantB! }
+  })
+  // Links only: no ledger rows, so no fixture gains points or appears on the leaderboard for them.
+  await db.connection.createMany({ data, skipDuplicates: true })
+  return data.length
+}
+
 export async function seedDemoFixtures(db: DbClient) {
   const now = Date.now()
 
@@ -113,5 +155,6 @@ export async function seedDemoFixtures(db: DbClient) {
     ])
   }
 
-  return { count: demoFixtureUsers.length }
+  const connections = await seedDemoConnections(db)
+  return { count: demoFixtureUsers.length, connections }
 }
