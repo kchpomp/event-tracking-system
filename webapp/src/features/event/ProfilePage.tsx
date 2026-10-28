@@ -2,7 +2,7 @@ import type { UserDto } from '@event-tracking-system/contracts'
 
 import { Typography } from '@/components/typography'
 import { Card, CardContent } from '@/components/ui/card'
-import { ActivityHead, LoadErrorState, LoadingState } from './parts'
+import { ActivityHead, LoadErrorState, LoadingState, ProfileAvatar } from './parts'
 import { useEventMeQuery } from './queries'
 
 /** Read-only: the name is public on the leaderboard, so participants cannot change it. */
@@ -25,7 +25,8 @@ export function ProfilePage({ user }: { user: Pick<UserDto, 'email'> }) {
     <div className="grid gap-6">
       <ActivityHead title="Профиль" />
       <Card>
-        <CardContent>
+        <CardContent className="grid gap-4">
+          <ProfileAvatar profile={profile} />
           <dl className="grid gap-4">
             {rows.map(([key, label, value]) => (
               <div className="grid gap-1" key={key}>

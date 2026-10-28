@@ -208,4 +208,38 @@ describe('cleanup jobs against a real database', () => {
     expect(await prisma.pushDelivery.findFirstOrThrow({ where: { outboxId: sent.id } }))
       .toMatchObject({ expoPushToken: null })
   })
+  test('removes only old, unreferenced guest photos', async () => {
+    const now = new Date()
+    const old = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+    await prisma.plannedParticipant.deleteMany()
+    await prisma.plannedParticipant.create({
+      data: { email: 'kept@example.com', photoObjectKey: 'planned-photos/2026/07/live' },
+    })
+    const objects = [
+      { key: 'planned-photos/2026/07/live', lastModified: old },
+      { key: 'planned-photos/2026/07/orphan', lastModified: old },
+      { key: 'planned-photos/2026/07/fresh', lastModified: now },
+    ]
+    const deletedObjects: string[] = []
+    const storage = {
+      listObjects: async () => objects,
+      deleteObject: async (objectKey: string) => {
+        deletedObjects.push(objectKey)
+      },
+    }
+    const log = spyOn(console, 'log').mockImplementation(() => {})
+
+    try {
+      await runBackgroundJob(
+        'planned-photos:orphans:cleanup',
+        { prisma, privateStorage: { storage } } as unknown as BackendRuntime,
+        now,
+      )
+    } finally {
+      log.mockRestore()
+      await prisma.plannedParticipant.deleteMany()
+    }
+
+    expect(deletedObjects).toEqual(['planned-photos/2026/07/orphan'])
+  })
 })

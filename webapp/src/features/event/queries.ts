@@ -6,6 +6,8 @@ import {
   type HostessAwardRequest,
   type HostessResolveRequest,
   type ImportPlannedRequest,
+  type PlannedPhotoFinalizeRequest,
+  type PlannedPhotoTicketsRequest,
   type ScanRequest,
   type UpdateEventRequest,
 } from '@event-tracking-system/contracts'
@@ -16,6 +18,7 @@ import {
   awardStationToParticipant,
   connectParticipant,
   createIdea,
+  finalizePlannedPhotos,
   getAdminStations,
   getEventMe,
   getHostessParticipant,
@@ -26,6 +29,7 @@ import {
   importPlannedParticipants,
   makeHostess,
   removePlannedParticipant,
+  requestPlannedPhotoTickets,
   getStations,
   resolveParticipant,
   scanStation,
@@ -51,10 +55,17 @@ export const eventQueryKeys = {
     [...eventQueryKeys.hostess(), 'participant', participantId] as const,
 }
 
+const PHOTO_REFRESH_MARGIN_MS = 30_000
+
 export function eventMeQueryOptions(transport: AuthenticatedTransport) {
   return queryOptions({
     queryKey: eventQueryKeys.me(),
     queryFn: ({ signal }) => getEventMe(transport, { signal }),
+    // The photo link is signed and short-lived: refetch a little before it expires.
+    refetchInterval: (query) => {
+      const expiresAt = query.state.data?.profile.photo?.expiresAt
+      return expiresAt ? Math.max(Date.parse(expiresAt) - Date.now() - PHOTO_REFRESH_MARGIN_MS, 10_000) : false
+    },
   })
 }
 
@@ -227,6 +238,16 @@ export function useRemovePlannedMutation() {
     mutationFn: (plannedId: string) => removePlannedParticipant(transport, plannedId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.planned() }),
   })
+}
+
+export function usePlannedPhotoApi() {
+  const { transport } = useAuth()
+  const queryClient = useQueryClient()
+  return {
+    tickets: (input: PlannedPhotoTicketsRequest) => requestPlannedPhotoTickets(transport, input),
+    finalize: (input: PlannedPhotoFinalizeRequest) => finalizePlannedPhotos(transport, input),
+    refresh: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.planned() }),
+  }
 }
 
 /** Gives a registered person the hostess role. Sessions of that person end, so lists refresh. */

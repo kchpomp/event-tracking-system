@@ -155,6 +155,10 @@ model PlannedParticipant {
   email     String   @unique @db.VarChar(254)
   fullName  String?  @map("full_name") @db.VarChar(200)
   kind      PlannedKind @default(participant)
+  /// Backend-generated key under `planned-photos/`; the photo belongs to the list row, not to an account.
+  photoObjectKey    String? @unique(map: "planned_participants_photo_object_key_key") @map("photo_object_key")
+  photoContentType  String? @map("photo_content_type")
+  photoByteSize     Int?    @map("photo_byte_size")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("planned_participants")

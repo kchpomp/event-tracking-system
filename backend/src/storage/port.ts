@@ -72,6 +72,9 @@ export interface PrivateStorage {
   /** Resolves to `null` for a missing object. Used to read magic bytes without a full download. */
   readRange(key: string, range: ReadRangeInput): Promise<Uint8Array | null>
 
+  /** Every object under `prefix` (all pages), with its last write time. For sweeps, not requests. */
+  listObjects(prefix: string): Promise<{ key: string; lastModified: Date }[]>
+
   /** Idempotent: deleting a key that is not there succeeds. */
   deleteObject(key: string): Promise<void>
 }

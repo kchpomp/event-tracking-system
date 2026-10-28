@@ -12,9 +12,12 @@ import type { AvatarContentType } from '@event-tracking-system/contracts'
 /** Enough for the PNG signature (8) and the ISO-BMFF box header plus brand (12). */
 export const imageSignatureByteLength = 12
 
+/** Detected formats include WebP, which only guest-list photos accept; avatars still refuse it. */
+export type DetectedImageFormat = AvatarContentType | 'image/webp'
+
 const heifBrands = new Set(['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1', 'heim', 'heis'])
 
-export function detectImageFormat(bytes: Uint8Array): AvatarContentType | null {
+export function detectImageFormat(bytes: Uint8Array): DetectedImageFormat | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
     return 'image/jpeg'
   }
@@ -33,6 +36,15 @@ export function detectImageFormat(bytes: Uint8Array): AvatarContentType | null {
     return 'image/png'
   }
 
+  // RIFF container with a WEBP form type.
+  if (
+    bytes.length >= imageSignatureByteLength &&
+    asciiAt(bytes, 0, 4) === 'RIFF' &&
+    asciiAt(bytes, 8, 4) === 'WEBP'
+  ) {
+    return 'image/webp'
+  }
+
   // ISO base media format: a `ftyp` box at offset 4, then a four-character brand.
   if (bytes.length >= imageSignatureByteLength && asciiAt(bytes, 4, 4) === 'ftyp') {
     return heifBrands.has(asciiAt(bytes, 8, 4)) ? 'image/heic' : null
@@ -47,13 +59,13 @@ export function detectImageFormat(bytes: Uint8Array): AvatarContentType | null {
  * reject valid photos rather than protect anything.
  */
 export function imageFormatMatchesDeclaredType(
-  detected: AvatarContentType,
-  declared: AvatarContentType,
+  detected: DetectedImageFormat,
+  declared: DetectedImageFormat,
 ) {
   return normalizeImageFormat(detected) === normalizeImageFormat(declared)
 }
 
-function normalizeImageFormat(contentType: AvatarContentType) {
+function normalizeImageFormat(contentType: DetectedImageFormat) {
   return contentType === 'image/heif' ? 'image/heic' : contentType
 }
 

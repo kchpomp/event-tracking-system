@@ -9,6 +9,7 @@ import type {
   IdeaWriter,
   LeaderboardReader,
   ParticipantReader,
+  PhotoSourceReader,
   PlannedParticipantsAdmin,
   RegistrationReader,
   StationReader,
@@ -34,7 +35,8 @@ type EventRepository = ParticipantReader &
   HostessDesk &
   EventAdmin &
   RegistrationReader &
-  PlannedParticipantsAdmin
+  PlannedParticipantsAdmin &
+  PhotoSourceReader
 
 const LEADERBOARD_SIZE = 10
 
@@ -456,13 +458,15 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
             registered_at: Date | null
             role: 'user' | 'admin' | 'hostess' | null
             user_id: string | null
+            has_photo: boolean
             first_name: string | null
             last_name: string | null
           }[]
         >(Prisma.sql`
           SELECT p.id, p.email, p.full_name, p.kind::text AS kind,
                  u.created_at AS registered_at, u.role::text AS role,
-                 u.id AS user_id, u.first_name, u.last_name
+                 u.id AS user_id, u.first_name, u.last_name,
+                 p.photo_object_key IS NOT NULL AS has_photo
           FROM planned_participants p
           LEFT JOIN users u ON u.email = p.email
           ORDER BY (u.id IS NOT NULL), p.full_name NULLS LAST, p.email
@@ -479,6 +483,7 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
         registeredAt: row.registered_at?.toISOString() ?? null,
         role: row.role,
         userId: row.user_id,
+        hasPhoto: row.has_photo,
         accountName:
           row.user_id === null
             ? null
@@ -523,8 +528,69 @@ export function createPrismaEventRepository(db: DbClient): EventRepository {
     },
 
     async removePlanned(id) {
-      const { count } = await db.plannedParticipant.deleteMany({ where: { id } })
-      return count > 0
+      const rows = await db.$queryRaw<{ photo_object_key: string | null }[]>(
+        Prisma.sql`DELETE FROM planned_participants WHERE id = ${id}::uuid RETURNING photo_object_key`,
+      )
+      return rows[0] ? { photoObjectKey: rows[0].photo_object_key } : null
+    },
+
+    async plannedByEmails(emails) {
+      const rows = await db.plannedParticipant.findMany({
+        where: { email: { in: emails } },
+        select: { id: true, email: true, photoObjectKey: true },
+      })
+      return rows
+    },
+
+    async setPhoto(id, photo) {
+      // One statement, so the old key is read and replaced atomically; a key that already
+      // belongs to another row matches nothing (the unique index would otherwise fail it).
+      const rows = await db.$queryRaw<{ previous_key: string | null }[]>(Prisma.sql`
+        WITH old AS (
+          SELECT id, photo_object_key FROM planned_participants WHERE id = ${id}::uuid FOR UPDATE
+        )
+        UPDATE planned_participants p
+        SET photo_object_key = ${photo.objectKey},
+            photo_content_type = ${photo.contentType},
+            photo_byte_size = ${photo.byteSize}
+        FROM old
+        WHERE p.id = old.id
+          AND NOT EXISTS (
+            SELECT 1 FROM planned_participants o
+            WHERE o.photo_object_key = ${photo.objectKey} AND o.id <> old.id
+          )
+        RETURNING old.photo_object_key AS previous_key
+      `)
+      return rows[0] ? { previousKey: rows[0].previous_key } : null
+    },
+
+    async photoSources(userIds) {
+      const rows = await db.$queryRaw<
+        {
+          user_id: string
+          first_name: string | null
+          last_name: string | null
+          avatar_key: string | null
+          planned_key: string | null
+          planned_name: string | null
+        }[]
+      >(Prisma.sql`
+        SELECT u.id AS user_id, u.first_name, u.last_name,
+               (SELECT a.object_key FROM user_avatars a
+                WHERE a.user_id = u.id AND a.state::text = 'ready' LIMIT 1) AS avatar_key,
+               p.photo_object_key AS planned_key, p.full_name AS planned_name
+        FROM users u
+        LEFT JOIN planned_participants p ON p.email = lower(u.email)
+        WHERE u.id = ANY(${userIds}::uuid[])
+      `)
+      return rows.map((row) => ({
+        userId: row.user_id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        avatarKey: row.avatar_key,
+        plannedKey: row.planned_key,
+        plannedName: row.planned_name,
+      }))
     },
   }
 }

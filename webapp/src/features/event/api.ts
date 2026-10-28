@@ -14,6 +14,10 @@ import {
   importPlannedRequestSchema,
   importPlannedResponseSchema,
   leaderboardResponseSchema,
+  plannedPhotoFinalizeRequestSchema,
+  plannedPhotoFinalizeResponseSchema,
+  plannedPhotoTicketsRequestSchema,
+  plannedPhotoTicketsResponseSchema,
   plannedParticipantsResponseSchema,
   registrationReferenceResponseSchema,
   registrationStatusResponseSchema,
@@ -30,6 +34,8 @@ import {
   type HostessAwardRequest,
   type HostessResolveRequest,
   type ImportPlannedRequest,
+  type PlannedPhotoFinalizeRequest,
+  type PlannedPhotoTicketsRequest,
   type ScanRequest,
   type UpdateEventRequest,
 } from '@event-tracking-system/contracts'
@@ -165,4 +171,21 @@ export function makeHostess(transport: AuthenticatedTransport, userId: string) {
     updateUserRoleResponseSchema,
     { method: 'PATCH', body: updateUserRoleRequestSchema.parse({ role: 'hostess' }) },
   )
+}
+
+export function requestPlannedPhotoTickets(
+  transport: AuthenticatedTransport,
+  input: PlannedPhotoTicketsRequest,
+) {
+  return transport.request('/api/admin/planned-participants/photos/tickets', plannedPhotoTicketsResponseSchema, {
+    method: 'POST',
+    body: plannedPhotoTicketsRequestSchema.parse(input),
+  })
+}
+
+export function finalizePlannedPhotos(transport: AuthenticatedTransport, input: PlannedPhotoFinalizeRequest) {
+  return transport.request('/api/admin/planned-participants/photos/finalize', plannedPhotoFinalizeResponseSchema, {
+    method: 'POST',
+    body: plannedPhotoFinalizeRequestSchema.parse(input),
+  })
 }

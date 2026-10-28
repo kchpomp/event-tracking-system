@@ -93,6 +93,34 @@ export const backgroundJobs = {
       `Job uploads:pending:cleanup removed ${rows.count} abandoned uploads, and left ${abandoned.length - deletedIds.length} to retry.`,
     )
   },
+  'planned-photos:orphans:cleanup': async ({ prisma, privateStorage }, now) => {
+    // A ticket whose PUT landed but whose finalize never came (or a file replaced or rejected
+    // whose deferred delete was lost) leaves an object no row points at. Anything under the
+    // prefix older than a day and unreferenced is junk; younger files may still be finalized.
+    const cutoff = now.getTime() - 24 * 60 * 60 * 1000
+    const old = (await privateStorage.storage.listObjects('planned-photos/'))
+      .filter((object) => object.lastModified.getTime() < cutoff)
+      .map((object) => object.key)
+    const referenced = new Set(
+      (
+        await prisma.plannedParticipant.findMany({
+          where: { photoObjectKey: { in: old } },
+          select: { photoObjectKey: true },
+        })
+      ).map((row) => row.photoObjectKey),
+    )
+
+    let removed = 0
+    for (const key of old.filter((candidate) => !referenced.has(candidate))) {
+      try {
+        await privateStorage.storage.deleteObject(key)
+        removed += 1
+      } catch (error) {
+        console.error(`Job planned-photos:orphans:cleanup could not delete ${key}:`, error)
+      }
+    }
+    console.log(`Job planned-photos:orphans:cleanup removed ${removed} orphaned photos.`)
+  },
   'maintenance:process': async (runtime, now) => {
     const { passwordResetTokensDeleted, rateLimitWindowsDeleted, sessionsDeleted } =
       await cleanupAuthState(runtime, now)

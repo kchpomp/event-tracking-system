@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { eventErrorMessage } from './errors'
+import { PlannedPhotoUpload } from './PlannedPhotoUpload'
 import { downloadCsv, plannedCsv, spreadsheetToText } from './planned-file'
 import {
   filterPlanned,
@@ -284,6 +285,9 @@ function PlannedRows({
               <Typography as="span" tone={status.done ? 'primary' : 'muted'} variant="bodyXs">
                 {status.text}
               </Typography>
+              <Typography as="span" data-testid="has-photo" tone="muted" variant="bodyXs">
+                {item.hasPhoto ? 'Есть фото' : 'Нет фото'}
+              </Typography>
               {onRemove && (
                 <Button
                   aria-label={`Убрать из списка: ${plannedLabel(item)}`}
@@ -422,6 +426,8 @@ function PlannedKindPanel({
           </div>
         </CardContent>
       </Card>
+
+      <PlannedPhotoUpload items={own} />
 
       {kind === 'hostess' && <HostessRoleQueue items={items} />}
 

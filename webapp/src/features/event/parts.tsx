@@ -5,11 +5,13 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import type { EventProfile } from '@event-tracking-system/contracts'
 import { Link } from '@tanstack/react-router'
 import { Fragment, useCallback, useEffect, useRef, type ReactNode } from 'react'
 
 import { Typography } from '@/components/typography'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -23,6 +25,23 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { Result } from './use-result-dialog'
+
+/** The guest-list or own photo; initials while there is none or it fails to load. */
+export function ProfileAvatar({
+  profile,
+  size = 'xl',
+}: {
+  profile: Pick<EventProfile, 'firstName' | 'lastName' | 'photo'>
+  size?: 'lg' | 'xl'
+}) {
+  const initials = [profile.firstName, profile.lastName].map((part) => part?.trim()[0]?.toUpperCase() ?? '').join('')
+  return (
+    <Avatar data-testid="profile-avatar" size={size}>
+      {profile.photo && <AvatarImage alt="" src={profile.photo.url} />}
+      <AvatarFallback>{initials || '?'}</AvatarFallback>
+    </Avatar>
+  )
+}
 
 export function Brand() {
   return (

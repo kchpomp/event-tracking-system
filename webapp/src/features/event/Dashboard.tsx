@@ -25,7 +25,7 @@ import {
   toStationCards,
   type StationCard,
 } from './model'
-import { LoadErrorState, LoadingState } from './parts'
+import { LoadErrorState, LoadingState, ProfileAvatar } from './parts'
 import { useEventMeQuery, useLeaderboardQuery, useStationsQuery } from './queries'
 
 const BOARD_SIZE = 10
@@ -57,13 +57,16 @@ export function EventDashboard() {
     <div className="grid gap-6">
       <Card>
         <CardContent className="grid gap-3">
-          <div className="grid gap-1">
-            <Typography as="h1" variant="h4">
-              {fullName(profile)}
-            </Typography>
-            <Typography tone="muted" variant="captionMedium">
-              Ваш индекс влияния
-            </Typography>
+          <div className="flex items-center gap-3">
+            <ProfileAvatar profile={profile} size="lg" />
+            <div className="grid gap-1">
+              <Typography as="h1" variant="h4">
+                {fullName(profile)}
+              </Typography>
+              <Typography tone="muted" variant="captionMedium">
+                Ваш индекс влияния
+              </Typography>
+            </div>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <Typography

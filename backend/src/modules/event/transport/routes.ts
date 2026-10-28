@@ -19,6 +19,10 @@ import {
   leaderboardResponseSchema,
   networkResponseSchema,
   plannedParticipantParamsSchema,
+  plannedPhotoFinalizeRequestSchema,
+  plannedPhotoFinalizeResponseSchema,
+  plannedPhotoTicketsRequestSchema,
+  plannedPhotoTicketsResponseSchema,
   plannedParticipantsResponseSchema,
   registrationReferenceResponseSchema,
   removePlannedResponseSchema,
@@ -180,6 +184,33 @@ const plannedDeleteRoute = createRoute({
   },
 })
 
+const plannedPhotoTicketsRoute = createRoute({
+  method: 'post',
+  path: '/planned-participants/photos/tickets',
+  security: bearerSecurity,
+  request: { body: { content: json(plannedPhotoTicketsRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    201: { content: json(plannedPhotoTicketsResponseSchema), description: 'One upload ticket per photo' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    404: { content: errorContent, description: 'An email is not in the guest list' },
+    ...authErrors,
+  },
+})
+
+const plannedPhotoFinalizeRoute = createRoute({
+  method: 'post',
+  path: '/planned-participants/photos/finalize',
+  security: bearerSecurity,
+  request: { body: { content: json(plannedPhotoFinalizeRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(plannedPhotoFinalizeResponseSchema), description: 'Outcome per photo' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    ...authErrors,
+  },
+})
+
 const adminNetworkRoute = createRoute({
   method: 'get',
   path: '/network',
@@ -337,6 +368,12 @@ export function createEventRoutes({
   )
   adminRoutes.openapi(plannedImportRoute, async (c) =>
     c.json(await service.importPlanned(c.req.valid('json')), 200),
+  )
+  adminRoutes.openapi(plannedPhotoTicketsRoute, async (c) =>
+    c.json(await executeEvent(() => service.photoTickets(c.req.valid('json'))), 201),
+  )
+  adminRoutes.openapi(plannedPhotoFinalizeRoute, async (c) =>
+    c.json(await service.finalizePhotos(c.req.valid('json')), 200),
   )
   adminRoutes.openapi(plannedDeleteRoute, async (c) => {
     await executeEvent(() => service.removePlanned(c.req.valid('param').plannedId))

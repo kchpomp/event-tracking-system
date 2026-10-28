@@ -104,11 +104,13 @@ export function createApp({
   })
   const event = createEventModule({
     adminNetworkReadRateLimit,
+    backgroundTasks,
     db: prisma,
     requireAdmin: auth.requireAdmin,
     requireAuth: auth.requireAuth,
     requireHostess: auth.requireHostess,
     requireParticipant: auth.requireParticipant,
+    storage: storage.storage,
   })
   const uploads = createUploadsModule({
     backgroundTasks,

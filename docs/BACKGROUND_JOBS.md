@@ -24,6 +24,7 @@ Declare a job once in `backend/src/jobs.ts`. Three processes run it:
 
 - `outbox:drain` and `notifications:process` every minute.
 - `uploads:pending:cleanup` every hour, at minute 15.
+- `planned-photos:orphans:cleanup` daily at 03:45. It deletes `planned-photos/` objects older than a day that no guest-list row points at.
 - `maintenance:process` every 15 minutes. It runs the auth cleanup, which deletes stale sessions, expired reset tokens, spent rate-limit windows, and push tokens whose session has ended. It also clears the title, body, data, and device tokens of finished push notifications. With subscriptions turned on, it also reconciles Google Play purchases in bounded batches ([IAP](IAP.md)).
 
 The registry also holds `noop`, `db:ping`, and `auth:sessions:cleanup` (the auth cleanup alone), which no schedule runs.

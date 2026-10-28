@@ -16,9 +16,32 @@ import type {
   StationSummary,
 } from '@event-tracking-system/contracts'
 
+import type { PrivateStorage } from '../../../storage/port'
+
+/** The provider-neutral storage port, as the uploads module uses it. */
+export type { PrivateStorage }
+
 export type ParticipantReader = {
-  /** The participant's own profile and numbers; null when the user does not exist. */
-  participant(userId: string): Promise<EventMeResponse | null>
+  /** The participant's own profile and numbers (the photo is added by the service); null when the user does not exist. */
+  participant(userId: string): Promise<{
+    profile: Omit<EventMeResponse['profile'], 'photo'>
+    progress: EventMeResponse['progress']
+  } | null>
+}
+
+export type PhotoSource = {
+  userId: string
+  firstName: string | null
+  lastName: string | null
+  /** Key of the user's own ready avatar. */
+  avatarKey: string | null
+  /** The photo on the guest-list row with the user's email, and the name listed there. */
+  plannedKey: string | null
+  plannedName: string | null
+}
+
+export type PhotoSourceReader = {
+  photoSources(userIds: string[]): Promise<PhotoSource[]>
 }
 
 export type StationReader = {
@@ -91,8 +114,18 @@ export type PlannedParticipantsAdmin = {
     kind: ImportPlannedRequest['kind'],
     entries: ImportPlannedRequest['entries'],
   ): Promise<ImportPlannedResponse>
-  /** False when no such entry exists. Never touches an account. */
-  removePlanned(id: string): Promise<boolean>
+  /** Null when no such entry exists, else its photo key (the caller deletes the file). Never touches an account. */
+  removePlanned(id: string): Promise<{ photoObjectKey: string | null } | null>
+  /** The listed rows among these lower-case emails. */
+  plannedByEmails(emails: string[]): Promise<{ id: string; email: string; photoObjectKey: string | null }[]>
+  /**
+   * Points a row at a stored photo and returns the key it replaced. Null when the row is gone or
+   * the key already belongs to another row.
+   */
+  setPhoto(
+    id: string,
+    photo: { objectKey: string; contentType: string; byteSize: number },
+  ): Promise<{ previousKey: string | null } | null>
 }
 
 export type NetworkReader = {

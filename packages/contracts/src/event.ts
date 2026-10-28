@@ -11,6 +11,11 @@ export const POLYMER_GROUP = 'polymer_solutions'
 const requiredText = (max: number) => z.string().trim().min(1).max(max)
 const tokenSchema = z.string().trim().min(1).max(512)
 
+/** A short-lived signed link; the client asks again after `expiresAt`. */
+export const signedPhotoSchema = z
+  .object({ url: z.string().min(1).max(2048), expiresAt: z.string().datetime() })
+  .strict()
+
 export const eventProfileSchema = z
   .object({
     firstName: z.string().nullable(),
@@ -19,6 +24,8 @@ export const eventProfileSchema = z
     city: z.string().nullable(),
     /** What the participant's own QR encodes; never sent about anyone else. */
     personalQrToken: z.string(),
+    /** Own avatar, else the photo on the guest list (email and name must match); null for initials. */
+    photo: signedPhotoSchema.nullable(),
   })
   .strict()
 
@@ -203,6 +210,8 @@ export const plannedParticipantSchema = z
     /** The role of that account: a planned hostess has the role only after an administrator gives it. */
     // The same three values as `userRoleSchema` (auth.ts imports this file, so it cannot be imported back).
     role: z.enum(['user', 'admin', 'hostess']).nullable(),
+    /** A photo is stored for this entry; the link itself is never listed. */
+    hasPhoto: z.boolean(),
   })
   .strict()
 
@@ -250,6 +259,80 @@ export const importPlannedResponseSchema = z
 
 export const removePlannedResponseSchema = z.object({ removed: z.literal(true) }).strict()
 
+// Guest photos go straight to storage, in batches: ticket, PUT, finalize (like avatars).
+export const PLANNED_PHOTO_BATCH_MAX = 50
+export const PLANNED_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+export const PLANNED_PHOTO_MIN_BYTES = 64
+export const plannedPhotoContentTypeSchema = z.enum(['image/jpeg', 'image/png', 'image/webp'])
+
+const plannedEmailSchema = z.string().trim().toLowerCase().email().max(254)
+
+export const plannedPhotoTicketsRequestSchema = z
+  .object({
+    items: z
+      .array(
+        z
+          .object({
+            email: plannedEmailSchema,
+            contentType: plannedPhotoContentTypeSchema,
+            byteSize: z.number().int().min(PLANNED_PHOTO_MIN_BYTES).max(PLANNED_PHOTO_MAX_BYTES),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(PLANNED_PHOTO_BATCH_MAX),
+  })
+  .strict()
+
+export const plannedPhotoTicketsResponseSchema = z
+  .object({
+    tickets: z.array(
+      z
+        .object({
+          email: z.string(),
+          /** Send it back to finalize once the PUT has succeeded. */
+          objectKey: z.string(),
+          upload: z
+            .object({
+              method: z.literal('PUT'),
+              url: z.string(),
+              headers: z.record(z.string(), z.string()),
+              contentLength: z.number().int(),
+              expiresAt: z.string().datetime(),
+            })
+            .strict(),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+
+export const plannedPhotoFinalizeRequestSchema = z
+  .object({
+    items: z
+      .array(
+        z
+          .object({ email: plannedEmailSchema, objectKey: z.string().trim().min(1).max(1024) })
+          .strict(),
+      )
+      .min(1)
+      .max(PLANNED_PHOTO_BATCH_MAX),
+  })
+  .strict()
+
+export const plannedPhotoFinalizeResponseSchema = z
+  .object({
+    results: z.array(
+      z
+        .object({
+          email: z.string(),
+          status: z.enum(['stored', 'not_listed', 'not_uploaded', 'rejected']),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+
 export const plannedParticipantParamsSchema = z.object({ plannedId: z.uuid() }).strict()
 
 /** Public: the sign-up page asks this before it shows the form. */
@@ -258,6 +341,11 @@ export type RegistrationStatusResponse = z.infer<typeof registrationStatusRespon
 
 export type ReferenceOption = z.infer<typeof referenceOptionSchema>
 export type RegistrationReferenceResponse = z.infer<typeof registrationReferenceResponseSchema>
+export type PlannedPhotoTicketsRequest = z.input<typeof plannedPhotoTicketsRequestSchema>
+export type PlannedPhotoTicketsResponse = z.infer<typeof plannedPhotoTicketsResponseSchema>
+export type PlannedPhotoFinalizeRequest = z.input<typeof plannedPhotoFinalizeRequestSchema>
+export type PlannedPhotoFinalizeResponse = z.infer<typeof plannedPhotoFinalizeResponseSchema>
+export type SignedPhoto = z.infer<typeof signedPhotoSchema>
 export type PlannedKind = z.infer<typeof plannedKindSchema>
 export type PlannedParticipant = z.infer<typeof plannedParticipantSchema>
 export type PlannedSummary = z.infer<typeof plannedSummarySchema>
