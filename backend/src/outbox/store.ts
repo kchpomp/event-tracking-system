@@ -10,7 +10,7 @@ import type { EnqueueTaskInput, EnqueueTaskResult } from './types'
 export type OutboxPrisma = Pick<DbClient, 'taskOutbox'>
 
 /** Statuses a row can no longer move out of. */
-export const terminalStatuses = ['done', 'skipped', 'failed'] as const
+const terminalStatuses = ['done', 'skipped', 'failed'] as const
 
 const emptyPayload = {}
 

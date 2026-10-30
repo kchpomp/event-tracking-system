@@ -10,6 +10,7 @@ export class AppError extends Error {
     public readonly code: ApiErrorCode,
     message: string,
     public readonly details?: unknown,
+    public readonly headers?: Record<string, string>,
   ) {
     super(message)
   }
@@ -31,7 +32,7 @@ export function errorResponse(
 
 type ValidationHookResult = { success: true } | { success: false; error: ZodError }
 
-export function validationErrorResponse(details: unknown) {
+function validationErrorResponse(details: unknown) {
   return errorResponse('VALIDATION_ERROR', 'Invalid request payload', details)
 }
 
@@ -43,6 +44,7 @@ export function validationErrorHook(result: ValidationHookResult, c: Context) {
 
 export function handleError(error: Error, c: Context) {
   if (error instanceof AppError) {
+    for (const [name, value] of Object.entries(error.headers ?? {})) c.header(name, value)
     return c.json(errorResponse(error.code, error.message, error.details), error.status)
   }
 

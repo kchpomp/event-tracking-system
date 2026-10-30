@@ -9,6 +9,10 @@ import {
   eventMeResponseSchema,
   hostessAwardRequestSchema,
   hostessAwardResponseSchema,
+  hostessBadgeStatusSchema,
+  participantBadgeSchema,
+  hostessTeamAwardRequestSchema,
+  hostessTeamAwardResponseSchema,
   hostessParticipantParamsSchema,
   hostessParticipantResponseSchema,
   hostessParticipantsResponseSchema,
@@ -17,8 +21,13 @@ import {
   importPlannedRequestSchema,
   importPlannedResponseSchema,
   leaderboardResponseSchema,
+  flaskResponseSchema,
   networkResponseSchema,
   plannedParticipantParamsSchema,
+  plannedPhotoFinalizeRequestSchema,
+  plannedPhotoFinalizeResponseSchema,
+  plannedPhotoTicketsRequestSchema,
+  plannedPhotoTicketsResponseSchema,
   plannedParticipantsResponseSchema,
   registrationReferenceResponseSchema,
   removePlannedResponseSchema,
@@ -26,12 +35,21 @@ import {
   scanRequestSchema,
   scanResponseSchema,
   stationsResponseSchema,
+  teamMembersResponseSchema,
+  teamsResponseSchema,
+  adminTeamsResponseSchema,
+  scheduleResponseSchema,
+  teamScheduleParamsSchema,
+  updateLiveRequestSchema,
+  updateLiveResponseSchema,
+  updateTeamScheduleRequestSchema,
+  adminTeamSchema,
   updateEventRequestSchema,
   updateEventResponseSchema,
 } from '@event-tracking-system/contracts'
-import type { MiddlewareHandler } from 'hono'
+import type { Context, MiddlewareHandler } from 'hono'
 
-import { AppError, validationErrorHook } from '../../../http/errors'
+import { AppError, errorResponse, validationErrorHook } from '../../../http/errors'
 import { ingressErrorResponses, rateLimitErrorResponses } from '../../../http/openapi'
 import type { AuthHttpEnv } from '../../auth'
 import type { EventService } from '../application/event-service'
@@ -180,6 +198,33 @@ const plannedDeleteRoute = createRoute({
   },
 })
 
+const plannedPhotoTicketsRoute = createRoute({
+  method: 'post',
+  path: '/planned-participants/photos/tickets',
+  security: bearerSecurity,
+  request: { body: { content: json(plannedPhotoTicketsRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    201: { content: json(plannedPhotoTicketsResponseSchema), description: 'One upload ticket per photo' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    404: { content: errorContent, description: 'An email is not in the guest list' },
+    ...authErrors,
+  },
+})
+
+const plannedPhotoFinalizeRoute = createRoute({
+  method: 'post',
+  path: '/planned-participants/photos/finalize',
+  security: bearerSecurity,
+  request: { body: { content: json(plannedPhotoFinalizeRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(plannedPhotoFinalizeResponseSchema), description: 'Outcome per photo' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    ...authErrors,
+  },
+})
+
 const adminNetworkRoute = createRoute({
   method: 'get',
   path: '/network',
@@ -187,6 +232,17 @@ const adminNetworkRoute = createRoute({
   responses: {
     ...rateLimitErrorResponses,
     200: { content: json(networkResponseSchema), description: 'Participants and their connections' },
+    ...authErrors,
+  },
+})
+
+const adminFlaskRoute = createRoute({
+  method: 'get',
+  path: '/flask',
+  security: bearerSecurity,
+  responses: {
+    ...rateLimitErrorResponses,
+    200: { content: json(flaskResponseSchema), description: 'The latest ideas: who and when, never the text' },
     ...authErrors,
   },
 })
@@ -230,6 +286,42 @@ const hostessParticipantRoute = createRoute({
   },
 })
 
+const hostessBadgeRoute = createRoute({
+  method: 'get',
+  path: '/participants/{participantId}/badge',
+  security: bearerSecurity,
+  request: { params: hostessParticipantParamsSchema },
+  responses: {
+    200: { content: json(hostessBadgeStatusSchema), description: 'Badge progress and whether it is issued' },
+    404: { content: errorContent, description: 'Participant not found' },
+    ...authErrors,
+  },
+})
+
+const hostessIssueBadgeRoute = createRoute({
+  method: 'post',
+  path: '/participants/{participantId}/badge',
+  security: bearerSecurity,
+  request: { params: hostessParticipantParamsSchema },
+  responses: {
+    ...ingressErrorResponses,
+    201: { content: json(hostessBadgeStatusSchema), description: 'Badge issued' },
+    404: { content: errorContent, description: 'Participant not found' },
+    409: { content: errorContent, description: 'Not enough activities, already issued, or the event is closed' },
+    ...authErrors,
+  },
+})
+
+const myBadgeRoute = createRoute({
+  method: 'get',
+  path: '/badge',
+  security: bearerSecurity,
+  responses: {
+    200: { content: json(participantBadgeSchema), description: 'The caller badge progress' },
+    ...authErrors,
+  },
+})
+
 const hostessAwardRoute = createRoute({
   method: 'post',
   path: '/awards',
@@ -241,6 +333,91 @@ const hostessAwardRoute = createRoute({
     400: { content: errorContent, description: 'Invalid payload' },
     404: { content: errorContent, description: 'Unknown participant or station' },
     409: { content: errorContent, description: 'Station inactive or event closed' },
+    ...authErrors,
+  },
+})
+
+const teamMembersRoute = createRoute({
+  method: 'get',
+  path: '/team/members',
+  security: bearerSecurity,
+  responses: {
+    200: { content: json(teamMembersResponseSchema), description: 'The caller\'s team and its members' },
+    ...authErrors,
+  },
+})
+
+const scheduleRoute = createRoute({
+  method: 'get',
+  path: '/schedule',
+  security: bearerSecurity,
+  responses: {
+    200: { content: json(scheduleResponseSchema), description: 'Every team with its slot, and the server clock' },
+    401: authErrors[401],
+  },
+})
+
+const adminTeamsRoute = createRoute({
+  method: 'get',
+  path: '/teams',
+  security: bearerSecurity,
+  responses: {
+    200: { content: json(adminTeamsResponseSchema), description: 'Every team with its member count and slot' },
+    ...authErrors,
+  },
+})
+
+const updateTeamScheduleRoute = createRoute({
+  method: 'put',
+  path: '/teams/{teamId}/schedule',
+  security: bearerSecurity,
+  request: {
+    params: teamScheduleParamsSchema,
+    body: { content: json(updateTeamScheduleRequestSchema) },
+  },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(adminTeamSchema), description: 'The team with its new slot' },
+    400: { content: errorContent, description: 'One time only, or an end that is not after the start' },
+    404: { content: errorContent, description: 'Unknown team' },
+    ...authErrors,
+  },
+})
+
+const updateLiveRoute = createRoute({
+  method: 'put',
+  path: '/schedule/live',
+  security: bearerSecurity,
+  request: { body: { content: json(updateLiveRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(updateLiveResponseSchema), description: 'Who performs now' },
+    404: { content: errorContent, description: 'Unknown team' },
+    ...authErrors,
+  },
+})
+
+const hostessTeamsRoute = createRoute({
+  method: 'get',
+  path: '/teams',
+  security: bearerSecurity,
+  responses: {
+    200: { content: json(teamsResponseSchema), description: 'Every team with its member count' },
+    ...authErrors,
+  },
+})
+
+const hostessTeamAwardRoute = createRoute({
+  method: 'post',
+  path: '/team-award',
+  security: bearerSecurity,
+  request: { body: { content: json(hostessTeamAwardRequestSchema) } },
+  responses: {
+    ...ingressErrorResponses,
+    200: { content: json(hostessTeamAwardResponseSchema), description: 'Award result; `awarded` is 0 on a retry' },
+    400: { content: errorContent, description: 'Invalid payload' },
+    404: { content: errorContent, description: 'Unknown team' },
+    409: { content: errorContent, description: 'The team has no participants' },
     ...authErrors,
   },
 })
@@ -263,30 +440,80 @@ const registrationReferenceRoute = createRoute({
   },
 })
 
+/** A rejected slot: the message names the problem (`Invalid request payload` would not tell the admin). */
+function scheduleHook(
+  result: { success: true } | { success: false; error: { issues: readonly { message: string; code: string }[] } },
+  c: Context,
+) {
+  if (result.success) return
+  const custom = result.error.issues.find((issue) => issue.code === 'custom')
+  return c.json(
+    errorResponse(
+      'VALIDATION_ERROR',
+      custom?.message ?? 'Invalid request payload',
+      result.error.issues,
+    ),
+    400,
+  )
+}
+
+/** A rejected list file: the first problems, each naming its data row (the header is not counted). */
+function plannedImportHook(
+  result: { success: true } | { success: false; error: { issues: readonly { path: PropertyKey[]; code: string; message: string; keys?: string[] }[] } },
+  c: Context,
+) {
+  if (result.success) return
+  const lines = result.error.issues.slice(0, 5).map((issue) => {
+    const [root, index] = issue.path
+    if (root !== 'entries') return `Не указан тип списка: нужен «participant» или «hostess»`
+    if (typeof index !== 'number') return `Список: ${issue.message}`
+    const problem =
+      issue.code === 'unrecognized_keys'
+        ? `лишняя колонка «${(issue.keys ?? []).join('», «')}»; нужны ровно пять: email, имя, фамилия, подразделение, город`
+        : issue.message
+    return `Строка ${index + 1}: ${problem}`
+  })
+  return c.json(
+    errorResponse('VALIDATION_ERROR', lines.join('\n'), result.error.issues),
+    400,
+  )
+}
+
 type CreateEventRoutesOptions = {
   adminNetworkReadRateLimit: MiddlewareHandler<AuthHttpEnv>
+  connectionRateLimit: MiddlewareHandler<AuthHttpEnv>
+  ideaRateLimit: MiddlewareHandler<AuthHttpEnv>
   requireAdmin: MiddlewareHandler<AuthHttpEnv>
   requireAuth: MiddlewareHandler<AuthHttpEnv>
   requireHostess: MiddlewareHandler<AuthHttpEnv>
+  requireNetworkViewer: MiddlewareHandler<AuthHttpEnv>
   requireParticipant: MiddlewareHandler<AuthHttpEnv>
   service: EventService
 }
 
 export function createEventRoutes({
   adminNetworkReadRateLimit,
+  connectionRateLimit,
+  ideaRateLimit,
   requireAdmin,
   requireAuth,
   requireHostess,
+  requireNetworkViewer,
   requireParticipant,
   service,
 }: CreateEventRoutesOptions) {
   const participantRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
   const hostessRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
+  const networkRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
   const adminRoutes = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
   const registrationRoutes = new OpenAPIHono({ defaultHook: validationErrorHook })
 
   participantRoutes.use('*', requireAuth)
+  // Registered before the participant guard on purpose: every signed-in role sees the schedule.
+  participantRoutes.openapi(scheduleRoute, async (c) => c.json(await service.schedule(), 200))
   participantRoutes.use('*', requireParticipant)
+  participantRoutes.on('POST', '/diffusion/connections', connectionRateLimit)
+  participantRoutes.on('POST', '/ideas', ideaRateLimit)
   participantRoutes.openapi(meRoute, async (c) =>
     c.json(await executeEvent(() => service.me(c.var.user)), 200),
   )
@@ -300,6 +527,8 @@ export function createEventRoutes({
   participantRoutes.openapi(ideaRoute, async (c) =>
     c.json(await service.addIdea(c.var.user, c.req.valid('json')), 201),
   )
+  participantRoutes.openapi(myBadgeRoute, async (c) => c.json(await service.myBadge(c.var.user), 200))
+  participantRoutes.openapi(teamMembersRoute, async (c) => c.json(await service.myTeam(c.var.user), 200))
   participantRoutes.openapi(leaderboardRoute, async (c) =>
     c.json(await service.leaderboard(c.var.user), 200),
   )
@@ -318,9 +547,28 @@ export function createEventRoutes({
       200,
     ),
   )
+  hostessRoutes.openapi(hostessBadgeRoute, async (c) =>
+    c.json(await executeEvent(() => service.participantBadge(c.req.valid('param').participantId)), 200),
+  )
+  hostessRoutes.openapi(hostessIssueBadgeRoute, async (c) =>
+    c.json(await executeEvent(() => service.issueBadge(c.var.user, c.req.valid('param').participantId)), 201),
+  )
   hostessRoutes.openapi(hostessAwardRoute, async (c) =>
     c.json(await executeEvent(() => service.awardStation(c.var.user, c.req.valid('json'))), 200),
   )
+
+  hostessRoutes.openapi(hostessTeamsRoute, async (c) => c.json(await service.teams(), 200))
+  hostessRoutes.openapi(hostessTeamAwardRoute, async (c) =>
+    c.json(await executeEvent(() => service.awardTeam(c.var.user, c.req.valid('json'))), 200),
+  )
+
+  // The venue screen polls this all day; its budget is per account (see app.ts).
+  networkRoutes.use('*', requireAuth)
+  networkRoutes.use('*', requireNetworkViewer)
+  networkRoutes.use('/network', adminNetworkReadRateLimit)
+  networkRoutes.use('/flask', adminNetworkReadRateLimit)
+  networkRoutes.openapi(adminNetworkRoute, async (c) => c.json(await service.network(), 200))
+  networkRoutes.openapi(adminFlaskRoute, async (c) => c.json(await service.flask(), 200))
 
   adminRoutes.use('*', requireAuth)
   adminRoutes.use('*', requireAdmin)
@@ -328,15 +576,32 @@ export function createEventRoutes({
   adminRoutes.openapi(updateEventRoute, async (c) =>
     c.json(await executeEvent(() => service.updateEvent(c.req.valid('json'))), 200),
   )
-  // The venue screen polls this all day; its budget is per administrator (see app.ts).
-  adminRoutes.use('/network', adminNetworkReadRateLimit)
-  adminRoutes.openapi(adminNetworkRoute, async (c) => c.json(await service.network(), 200))
+  adminRoutes.openapi(adminTeamsRoute, async (c) => c.json(await service.adminTeams(), 200))
+  adminRoutes.openapi(
+    updateTeamScheduleRoute,
+    async (c) => {
+      const { teamId } = c.req.valid('param')
+      return c.json(await executeEvent(() => service.setTeamSchedule(teamId, c.req.valid('json'))), 200)
+    },
+    scheduleHook,
+  )
+  adminRoutes.openapi(updateLiveRoute, async (c) =>
+    c.json(await executeEvent(() => service.setLive(c.req.valid('json'))), 200),
+  )
 
   adminRoutes.openapi(plannedListRoute, async (c) =>
     c.json(await service.plannedParticipants(), 200),
   )
-  adminRoutes.openapi(plannedImportRoute, async (c) =>
-    c.json(await service.importPlanned(c.req.valid('json')), 200),
+  adminRoutes.openapi(
+    plannedImportRoute,
+    async (c) => c.json(await service.importPlanned(c.req.valid('json')), 200),
+    plannedImportHook,
+  )
+  adminRoutes.openapi(plannedPhotoTicketsRoute, async (c) =>
+    c.json(await executeEvent(() => service.photoTickets(c.req.valid('json'))), 201),
+  )
+  adminRoutes.openapi(plannedPhotoFinalizeRoute, async (c) =>
+    c.json(await executeEvent(() => service.finalizePhotos(c.req.valid('json'))), 200),
   )
   adminRoutes.openapi(plannedDeleteRoute, async (c) => {
     await executeEvent(() => service.removePlanned(c.req.valid('param').plannedId))
@@ -345,7 +610,7 @@ export function createEventRoutes({
 
   // Public: no account exists yet when somebody opens the sign-up page.
   registrationRoutes.openapi(registrationStatusRoute, async (c) =>
-    c.json({ open: await service.registrationOpen() }, 200),
+    c.json({ open: await service.cachedRegistrationOpen() }, 200),
   )
   registrationRoutes.openapi(registrationReferenceRoute, async (c) =>
     c.json(await service.registrationReference(), 200),
@@ -363,5 +628,5 @@ export function createEventRoutes({
     await next()
   }
 
-  return { adminRoutes, hostessRoutes, participantRoutes, registrationGate, registrationRoutes }
+  return { adminRoutes, hostessRoutes, networkRoutes, participantRoutes, registrationGate, registrationRoutes }
 }

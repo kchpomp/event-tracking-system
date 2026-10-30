@@ -1,6 +1,12 @@
 import { expect, test } from 'bun:test'
 
-import { adminUsersPagination } from '../src/features/admin/model'
+import {
+  adminUsersPagination,
+  roleBlockedByUnverifiedEmail,
+  roleChangeDeletesPoints,
+  roleMutationFeedback,
+} from '../src/features/admin/model'
+import { ApiRequestError } from '../src/platform/api'
 
 test('admin pagination respects the reachable server window', () => {
   expect(adminUsersPagination({
@@ -14,4 +20,29 @@ test('admin pagination respects the reachable server window', () => {
     totalPages: 100,
     wasBounded: true,
   })
+})
+
+test('every role but participant deletes points on a role change', () => {
+  expect(roleChangeDeletesPoints('user')).toBe(false)
+  for (const role of ['hostess', 'admin', 'screen'] as const) expect(roleChangeDeletesPoints(role)).toBe(true)
+})
+
+test('staff roles are blocked for an unverified email, other roles are not', () => {
+  const unverified = { emailVerified: false, role: 'user' as const }
+  expect(roleBlockedByUnverifiedEmail(unverified, 'hostess')).toBe(true)
+  expect(roleBlockedByUnverifiedEmail(unverified, 'admin')).toBe(true)
+  expect(roleBlockedByUnverifiedEmail(unverified, 'screen')).toBe(false)
+  expect(roleBlockedByUnverifiedEmail({ ...unverified, emailVerified: true }, 'admin')).toBe(false)
+  // A role the person already holds stays selectable.
+  expect(roleBlockedByUnverifiedEmail({ emailVerified: false, role: 'hostess' }, 'hostess')).toBe(false)
+})
+
+test('the server refusing an unverified email is explained, not echoed', () => {
+  const feedback = roleMutationFeedback({
+    data: undefined,
+    error: new ApiRequestError(409, 'EMAIL_NOT_VERIFIED', 'raw english text'),
+    isError: true,
+    isSuccess: false,
+  })
+  expect(feedback?.kind === 'error' && feedback.reason).not.toContain('raw english text')
 })

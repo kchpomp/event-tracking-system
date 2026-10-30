@@ -2,8 +2,9 @@ import type { UserDto } from '@event-tracking-system/contracts'
 
 import { Typography } from '@/components/typography'
 import { Card, CardContent } from '@/components/ui/card'
-import { ActivityHead, LoadErrorState, LoadingState } from './parts'
+import { ActivityHead, LoadErrorState, LoadingState, ProfileAvatar } from './parts'
 import { useEventMeQuery } from './queries'
+import { TeamSection } from './TeamSection'
 
 /** Read-only: the name is public on the leaderboard, so participants cannot change it. */
 export function ProfilePage({ user }: { user: Pick<UserDto, 'email'> }) {
@@ -18,6 +19,7 @@ export function ProfilePage({ user }: { user: Pick<UserDto, 'email'> }) {
     ['lastName', 'Фамилия Участника', profile.lastName],
     ['company', 'Подразделение', profile.company],
     ['city', 'Город', profile.city],
+    ['team', 'Команда', profile.team?.name ?? 'Команда не назначена'],
     ['email', 'Email', user.email],
   ]
 
@@ -25,7 +27,8 @@ export function ProfilePage({ user }: { user: Pick<UserDto, 'email'> }) {
     <div className="grid gap-6">
       <ActivityHead title="Профиль" />
       <Card>
-        <CardContent>
+        <CardContent className="grid gap-4">
+          <ProfileAvatar profile={profile} />
           <dl className="grid gap-4">
             {rows.map(([key, label, value]) => (
               <div className="grid gap-1" key={key}>
@@ -40,6 +43,7 @@ export function ProfilePage({ user }: { user: Pick<UserDto, 'email'> }) {
           </dl>
         </CardContent>
       </Card>
+      <TeamSection />
     </div>
   )
 }

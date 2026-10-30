@@ -1,5 +1,7 @@
 import {
   ArrowRight01Icon,
+  Award01Icon,
+  Calendar03Icon,
   QrCodeScanIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons'
@@ -12,7 +14,7 @@ import { Typography } from '@/components/typography'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { ActivityIcon, PolymerChain, StationIcon } from './icons'
@@ -25,7 +27,7 @@ import {
   toStationCards,
   type StationCard,
 } from './model'
-import { LoadErrorState, LoadingState } from './parts'
+import { LoadErrorState, LoadingState, ProfileAvatar } from './parts'
 import { useEventMeQuery, useLeaderboardQuery, useStationsQuery } from './queries'
 
 const BOARD_SIZE = 10
@@ -57,13 +59,16 @@ export function EventDashboard() {
     <div className="grid gap-6">
       <Card>
         <CardContent className="grid gap-3">
-          <div className="grid gap-1">
-            <Typography as="h1" variant="h4">
-              {fullName(profile)}
-            </Typography>
-            <Typography tone="muted" variant="captionMedium">
-              Ваш индекс влияния
-            </Typography>
+          <div className="flex items-center gap-3">
+            <ProfileAvatar profile={profile} size="lg" />
+            <div className="grid gap-1">
+              <Typography as="h1" variant="h4">
+                {fullName(profile)}
+              </Typography>
+              <Typography tone="muted" variant="captionMedium">
+                Ваш индекс влияния
+              </Typography>
+            </div>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <Typography
@@ -98,6 +103,13 @@ export function EventDashboard() {
         </Link>
       </Button>
 
+      <Button asChild size="lg" variant="secondary">
+        <Link data-testid="schedule-button" to="/app/schedule">
+          <HugeiconsIcon aria-hidden icon={Calendar03Icon} strokeWidth={2} />
+          Расписание выступлений
+        </Link>
+      </Button>
+
       <Section title="Активности">
         <ItemGroup className="gap-2">
           {start.map((card) => (
@@ -128,6 +140,18 @@ export function EventDashboard() {
           {others.map((card) => (
             <StationRow card={card} key={card.id} />
           ))}
+          <Item asChild variant="outline">
+            <Link data-testid="badge-card" to="/app/badge">
+              <ActivityBody
+                description="Пройдите 3 активности и получите значок на мерч-точке"
+                done={false}
+                doneLabel=""
+                icon={<HugeiconsIcon aria-hidden className="size-5" icon={Award01Icon} strokeWidth={2} />}
+                name="Значок"
+                right="+1 балл"
+              />
+            </Link>
+          </Item>
         </ItemGroup>
       </Section>
 
@@ -184,11 +208,13 @@ function StationRow({ card }: { card: StationCard }) {
 /** One card of the list: the whole card is the link, with its icon, state and points or progress. */
 function ActivityBody({
   done,
+  description,
   doneLabel,
   icon,
   name,
   right,
 }: {
+  description?: string
   done: boolean
   doneLabel: string
   icon: ReactNode
@@ -202,6 +228,7 @@ function ActivityBody({
       </ItemMedia>
       <ItemContent>
         <ItemTitle>{name}</ItemTitle>
+        {description && <ItemDescription>{description}</ItemDescription>}
         {done && (
           <Typography as="span" className="flex items-center gap-1" tone="primary" variant="caption">
             <HugeiconsIcon aria-hidden className="size-3" icon={Tick02Icon} strokeWidth={2.5} />

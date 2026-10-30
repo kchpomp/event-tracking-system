@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -153,6 +154,27 @@ export class S3PrivateStorage implements PrivateStorage {
       if (isMissingObject(error)) return null
       throw error
     }
+  }
+
+  async listObjects(prefix: string) {
+    const found: { key: string; lastModified: Date }[] = []
+    let continuationToken: string | undefined
+    do {
+      const page = await this.s3.send(
+        new ListObjectsV2Command({
+          Bucket: this.config.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        }),
+      )
+      for (const object of page.Contents ?? []) {
+        if (object.Key && object.LastModified) {
+          found.push({ key: object.Key, lastModified: object.LastModified })
+        }
+      }
+      continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined
+    } while (continuationToken)
+    return found
   }
 
   async deleteObject(key: string) {

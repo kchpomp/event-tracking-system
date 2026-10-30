@@ -106,6 +106,16 @@ The backend stores the bytes it receives, and `webapp` uploads originals. Browse
 
 Create variants in the backend or a worker under stable keys, such as `images/<entity>/<id>/<variant>.webp`. For transforms by URL, put `imgproxy` in front of the bucket. Use Cloudinary or ImageKit only when the user chooses them.
 
+## Guest-list photos
+
+Photos of listed guests belong to the `planned_participants` row, not to an account, so they exist before sign-up. Keys are `planned-photos/<yyyy>/<mm>/<uuid>`. `webapp` (`/admin/participants`) matches file names to emails, scales each image to 512 px JPEG on a canvas, and works in batches of 50:
+
+1. `POST /api/admin/planned-participants/photos/tickets` returns a signed PUT per photo.
+2. The browser PUTs directly to storage, four streams at a time.
+3. `POST .../photos/finalize` checks size, type, and magic bytes, stores the key, and removes the old object. A retry is safe.
+
+The list API returns only `hasPhoto`. The profile shows the photo through a short-lived signed URL when the email and the name match the row. The `planned-photos:orphans:cleanup` job ([BACKGROUND_JOBS](BACKGROUND_JOBS.md)) deletes objects that no row references after a day, such as uploads that were never finalized.
+
 ## Security and privacy
 
 - Never commit access keys. The fixed local keys are loopback-only demo values.

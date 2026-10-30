@@ -33,6 +33,21 @@ export const taskHandlers = {
       return createAuthTasks(runtime).deliverPasswordReset(input, { finalAttempt, now, signal })
     },
   },
+  /** Mints an email verification token and sends the link; retries like a password reset. */
+  'auth:email-verification': {
+    maxAttempts: 5,
+    run: async ({ finalAttempt, now, payload, signal }, runtime) => {
+      const userId = (payload as { userId?: unknown })?.userId
+      if (typeof userId !== 'string' || userId.length === 0) {
+        throw new TerminalTaskError('Task payload is missing a user id')
+      }
+      const { createAuthTasks } = await import('../modules/auth')
+      return createAuthTasks(runtime).deliverEmailVerification(
+        { userId },
+        { finalAttempt, now, signal },
+      )
+    },
+  },
   /** Tells someone their password changed. Nothing to compensate for if it never arrives. */
   'auth:password-changed': {
     maxAttempts: 3,

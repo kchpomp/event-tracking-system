@@ -1,4 +1,4 @@
-export type UsersFailureKind = 'forbidden' | 'not_found' | 'role_conflict'
+export type UsersFailureKind = 'email_not_verified' | 'forbidden' | 'not_found' | 'role_conflict'
 
 export class UsersFailure extends Error {
   constructor(

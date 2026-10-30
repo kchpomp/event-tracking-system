@@ -18,7 +18,7 @@ The start profile (one database node) is cheap, not highly available. Scale up b
 
 ## This project
 
-- Hosting is Yandex Cloud only: the users are in Russia and their data must stay there. Use `project_slug = "event-tracking-system"` in both `terraform.tfvars`. The DigitalOcean roots and guide were removed.
+- Hosting is Yandex Cloud only: the users are in Russia and their data must stay there. Use `project_slug = "event-tracking-system"` in both `terraform.tfvars`. The DigitalOcean roots and guide were removed; see [REMOVED](REMOVED.md).
 - `bun run --cwd backend db:deploy` (the release runs it in the migration container) also creates the first event with its 15 stations when the database has none. Sign in to the webapp as the seeded administrator and print the QR codes from `/admin/stations`. A repeat deploy never regenerates codes that are already printed.
 - Everyone at a venue shares one Wi-Fi address, so `/api/event/*` has its own per-address budget, `EVENT_RATE_LIMIT_MAX` (default 6000 a minute). Raise it through `extra_runtime_env` if the busiest address can send more. The auth and account budgets stay at 60 a minute.
 - The Expo app, push notifications, store subscriptions and social sign-in are not deployed ([mobile/README](../mobile/README.md)).

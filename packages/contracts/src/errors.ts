@@ -20,6 +20,11 @@ export const apiErrorCodeSchema = z.enum([
   'PAYLOAD_TOO_LARGE',
   'RATE_LIMITED',
   'AUTH_PASSWORD_RESET_INVALID',
+  'AUTH_EMAIL_VERIFICATION_INVALID',
+  // Too many failed sign-ins for one address; answered with Retry-After until the window ends.
+  'AUTH_LOGIN_LOCKED',
+  // Staff roles (hostess, admin) go only to people whose email is verified.
+  'EMAIL_NOT_VERIFIED',
   // Upload failures a client can actually recover from, kept apart from generic CONFLICT so the
   // UI can say what to do: retry the transfer, pick a different file, or start over.
   'UPLOAD_NOT_COMPLETED',
@@ -30,6 +35,9 @@ export const apiErrorCodeSchema = z.enum([
   'EVENT_INVALID_STATION_TOKEN',
   'EVENT_STATION_INACTIVE',
   'EVENT_NOT_ACTIVE',
+  'EVENT_TEAM_EMPTY',
+  'BADGE_NOT_ELIGIBLE',
+  'BADGE_ALREADY_ISSUED',
   'REGISTRATION_CLOSED',
   'DIFFUSION_INVALID_PARTICIPANT_TOKEN',
   'DIFFUSION_SELF',

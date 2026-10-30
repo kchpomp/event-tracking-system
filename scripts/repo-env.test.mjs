@@ -81,7 +81,6 @@ test('assertLocalPrivateStorageEndpoint accepts loopback endpoints', () => {
 test('assertLocalPrivateStorageEndpoint refuses anything not loopback, so this cannot touch a real bucket', () => {
   for (const endpoint of [
     'https://storage.yandexcloud.net',
-    'https://nyc3.digitaloceanspaces.com',
     'http://10.0.0.5:9000',
     'not-a-url',
   ]) {

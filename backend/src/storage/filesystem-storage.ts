@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { link, mkdir, open, readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import { link, mkdir, open, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 
 import type { FilesystemStorageConfig } from './config'
@@ -117,6 +117,28 @@ export class FilesystemPrivateStorage implements PrivateStorage {
     } finally {
       await handle.close()
     }
+  }
+
+  async listObjects(prefix: string) {
+    const directory = this.resolveWithin(join(this.config.root, 'objects'), prefix)
+    let names: string[]
+    try {
+      names = await readdir(directory, { recursive: true })
+    } catch (error) {
+      if (isMissingFile(error)) return []
+      throw error
+    }
+
+    const found: { key: string; lastModified: Date }[] = []
+    for (const name of names) {
+      // Half-written uploads (`*.part`) are not objects yet.
+      if (name.endsWith('.part')) continue
+      const info = await stat(join(directory, name))
+      if (info.isFile()) {
+        found.push({ key: `${prefix.replace(/\/+$/, '')}/${name.split(sep).join('/')}`, lastModified: info.mtime })
+      }
+    }
+    return found
   }
 
   async deleteObject(key: string) {

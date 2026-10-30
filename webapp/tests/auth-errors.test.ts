@@ -18,7 +18,14 @@ test('a wrong password and a taken email each get their own sentence', () => {
 test('limits, outages and anything unknown never show the server text', () => {
   expect(authErrorMessage(refusal(429, 'RATE_LIMITED'), 'login')).toContain('Слишком много попыток')
   expect(authErrorMessage(new TypeError('Failed to fetch'), 'register')).toContain('Нет связи')
-  for (const action of ['login', 'register', 'reset-request', 'reset-confirm'] as const) {
+  for (const action of [
+    'login',
+    'register',
+    'reset-request',
+    'reset-confirm',
+    'verify-request',
+    'verify-confirm',
+  ] as const) {
     expect(authErrorMessage(refusal(500, 'INTERNAL_ERROR'), action)).toBe(
       'Что-то пошло не так. Попробуйте ещё раз.',
     )
@@ -26,4 +33,10 @@ test('limits, outages and anything unknown never show the server text', () => {
   }
   // A 401 only means "wrong password" while logging in.
   expect(authErrorMessage(refusal(401), 'register')).not.toContain('Неверный')
+})
+
+test('a locked sign-in and a spent verification link each get their own sentence', () => {
+  expect(authErrorMessage(refusal(429, 'AUTH_LOGIN_LOCKED'), 'login')).toContain('15 минут')
+  expect(authErrorMessage(refusal(400, 'AUTH_EMAIL_VERIFICATION_INVALID'), 'verify-confirm'))
+    .toContain('недействительна')
 })

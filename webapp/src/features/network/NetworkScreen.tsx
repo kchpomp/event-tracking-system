@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useLocation } from '@tanstack/react-router'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { Typography } from '@/components/typography'
@@ -11,13 +11,14 @@ import { createNetworkEngine } from './engine'
 import {
   degreeTier,
   freshKeys,
+  mergePhotos,
   nextFreshExpiry,
   SCREEN_HEIGHT,
   SCREEN_WIDTH,
   type DegreeTier,
   type ScreenNode,
 } from './model'
-import { useNetworkQuery } from './queries'
+import { isScreenViewer, useNetworkQuery } from './queries'
 
 // Variant D, «Вес связей»: the circle's colour says how far the person is with «Диффузия».
 const tierStyles: Record<DegreeTier, { circle: string; text: string }> = {
@@ -36,7 +37,8 @@ const translate = (node: Pick<ScreenNode, 'x' | 'y'>) => `translate(${node.x.toF
  */
 export function NetworkScreen() {
   const auth = useAuth()
-  const signedIn = auth.user?.role === 'admin'
+  const signedIn = isScreenViewer(auth.user?.role)
+  const { pathname } = useLocation()
   const query = useNetworkQuery()
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const [engine] = useState(createNetworkEngine)
@@ -45,6 +47,15 @@ export function NetworkScreen() {
   const edgeElements = useRef(new Map<string, SVGLineElement>())
   // Moves forward only when an accent is due to fade; until then new arrivals count as fresh.
   const [clock, setClock] = useState(0)
+  // Photo links held across polls, and the links that failed to load (those people show initials).
+  const [photos, setPhotos] = useState<ReturnType<typeof mergePhotos>>(new Map())
+  const [failedPhotos, setFailedPhotos] = useState<ReadonlySet<string>>(new Set())
+
+  const [photosFrom, setPhotosFrom] = useState(query.data)
+  if (query.data && query.data !== photosFrom) {
+    setPhotosFrom(query.data)
+    setPhotos(mergePhotos(photos, query.data.nodes, query.dataUpdatedAt))
+  }
 
   // Registered before the first snapshot is taken in: the layout ticks move the SVG directly.
   useEffect(() => {
@@ -98,6 +109,11 @@ export function NetworkScreen() {
         role="img"
         viewBox={`0 0 ${SCREEN_WIDTH} ${SCREEN_HEIGHT}`}
       >
+        <defs>
+          <clipPath id="network-photo-clip">
+            <circle r={radius} />
+          </clipPath>
+        </defs>
         <g>
           {graph?.edges.map((edge) => {
             const a = byId.get(edge.a)
@@ -126,6 +142,8 @@ export function NetworkScreen() {
           {graph?.nodes.map((node) => {
             const tier = tierStyles[degreeTier(node.degree)]
             const isFresh = fresh?.nodes.has(node.id) ?? false
+            const photoUrl = photos.get(node.id)?.url
+            const photo = photoUrl && !failedPhotos.has(photoUrl) ? photoUrl : null
             return (
               <g
                 data-testid="network-node"
@@ -137,20 +155,42 @@ export function NetworkScreen() {
                 transform={translate(node)}
               >
                 {isFresh && <circle className="fill-highlight/25" r={radius + 8} />}
+                {photo && <circle className="fill-background" r={radius} />}
+                {photo && (
+                  <image
+                    aria-hidden
+                    clipPath="url(#network-photo-clip)"
+                    height={radius * 2}
+                    href={photo}
+                    onError={() => setFailedPhotos((failed) => new Set(failed).add(photo))}
+                    preserveAspectRatio="xMidYMid slice"
+                    width={radius * 2}
+                    x={-radius}
+                    y={-radius}
+                  />
+                )}
+                {/* With a photo this is only the connection-count ring on top of it. */}
                 <circle
-                  className={cn('transition-colors duration-150', tier.circle, isFresh && 'stroke-highlight')}
+                  className={cn(
+                    'transition-colors duration-150',
+                    tier.circle,
+                    photo && 'fill-none',
+                    isFresh && 'stroke-highlight',
+                  )}
                   r={radius}
                   strokeWidth={isFresh ? 3 : 2}
                 />
-                <text
-                  className={tier.text}
-                  dominantBaseline="central"
-                  fontSize={Math.round(radius * 0.74)}
-                  fontWeight={700}
-                  textAnchor="middle"
-                >
-                  {node.initials}
-                </text>
+                {!photo && (
+                  <text
+                    className={tier.text}
+                    dominantBaseline="central"
+                    fontSize={Math.round(radius * 0.74)}
+                    fontWeight={700}
+                    textAnchor="middle"
+                  >
+                    {node.initials}
+                  </text>
+                )}
               </g>
             )
           })}
@@ -178,7 +218,7 @@ export function NetworkScreen() {
           <span aria-hidden className="size-2 rounded-full border-2 border-muted-foreground" />
           {status === 'session' ? (
             <Typography asChild tone="muted" variant="caption">
-              <Link search={{ returnTo: '/admin/network' }} to="/login">
+              <Link search={{ returnTo: pathname }} to="/login">
                 Сессия истекла · войти снова
               </Link>
             </Typography>

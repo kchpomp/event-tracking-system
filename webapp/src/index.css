@@ -159,3 +159,31 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* «Колба идей»: the bulb falls into the flask; the caption slides in, holds and leaves. */
+@theme {
+  --animate-flask-drop: flask-drop 2s ease-in forwards;
+  --animate-flask-fade: flask-fade 0.3s ease-out both;
+  --animate-flask-caption: flask-caption 5s ease-in-out both;
+  --animate-flask-bubble: flask-bubble 6s ease-in infinite;
+
+  @keyframes flask-drop {
+    from { transform: translate(0, 0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    to { transform: translate(var(--drop-dx), var(--drop-dy)) scale(0.5); opacity: 1; }
+  }
+  @keyframes flask-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes flask-caption {
+    from { transform: translateY(2rem); opacity: 0; }
+    8%, 92% { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(2rem); opacity: 0; }
+  }
+  @keyframes flask-bubble {
+    from { transform: translateY(0); opacity: 0; }
+    15% { opacity: 1; }
+    to { transform: translateY(-9rem); opacity: 0; }
+  }
+}

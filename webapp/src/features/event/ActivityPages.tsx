@@ -37,6 +37,7 @@ import {
   LoadErrorState,
   LoadingState,
   MiniChain,
+  MyQr,
   ResultDialog,
   StatCard,
 } from './parts'
@@ -114,31 +115,12 @@ export function StationPage({ stationId }: { stationId: string }) {
 export function DiffusionPage() {
   const me = useEventMeQuery()
   const [questionsFor, setQuestionsFor] = useState<number | null>(null)
-  const [qr, setQr] = useState<{ src: string } | { error: true } | null>(null)
-  const [qrPending, setQrPending] = useState(false)
 
   if (me.isPending) return <LoadingState />
   if (me.isError) return <LoadErrorState onRetry={() => void me.refetch()} />
 
   const count = Math.min(me.data.progress.connectionsCount, DIFFUSION_GOAL)
   const scan = diffusionScan(me.data.progress.connectionsCount)
-
-  async function toggleQr() {
-    if (qr) {
-      setQr(null) // a second tap hides it
-      return
-    }
-    setQrPending(true)
-    try {
-      // Loaded on demand: the QR generator is not needed anywhere else.
-      const { default: QRCode } = await import('qrcode')
-      setQr({ src: await QRCode.toDataURL(me.data!.profile.personalQrToken, { width: 280, margin: 2 }) })
-    } catch {
-      setQr({ error: true })
-    } finally {
-      setQrPending(false)
-    }
-  }
 
   return (
     <div className="grid gap-6">
@@ -185,24 +167,10 @@ export function DiffusionPage() {
       )}
       <ScanButton label={scan.label} to="/app/diffusion/scan" />
 
-      <Button disabled={qrPending} onClick={() => void toggleQr()} size="lg" type="button" variant="secondary">
-        {qrPending ? 'Создаём QR…' : 'Показать мой QR'}
-      </Button>
-      {qr && 'src' in qr && (
-        <Card>
-          <CardContent className="grid justify-items-center gap-3">
-            <img alt="Мой QR-код" className="size-64 rounded-lg bg-white" data-testid="my-qr" src={qr.src} />
-            <Typography align="center" tone="muted" variant="bodySm">
-              Покажите этот код участнику, с которым познакомились.
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
-      {qr && 'error' in qr && (
-        <Alert variant="destructive">
-          <AlertDescription>Не удалось создать QR-код. Попробуйте ещё раз.</AlertDescription>
-        </Alert>
-      )}
+      <MyQr
+        hint="Покажите этот код участнику, с которым познакомились."
+        token={me.data.profile.personalQrToken}
+      />
 
       <Dialog onOpenChange={(open) => !open && setQuestionsFor(null)} open={questionsFor !== null}>
         <DialogContent>

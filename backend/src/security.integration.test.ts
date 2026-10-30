@@ -84,6 +84,7 @@ const doors: Door[] = [
   { area: 'event', method: 'GET', path: '/api/event/me' },
   { area: 'event', method: 'GET', path: '/api/event/stations' },
   { area: 'event', method: 'GET', path: '/api/event/leaderboard' },
+  { area: 'event', method: 'GET', path: '/api/event/team/members' },
   { area: 'event', method: 'POST', path: '/api/event/scan', body: { token: 'nope' } },
   { area: 'event', method: 'POST', path: '/api/event/diffusion/connections', body: { token: 'nope' } },
   {
@@ -101,17 +102,34 @@ const doors: Door[] = [
     path: '/api/hostess/awards',
     body: { participantId: SOME_UUID, stationId: SOME_UUID },
   },
+  { area: 'hostess', method: 'GET', path: '/api/hostess/teams' },
+  {
+    area: 'hostess',
+    method: 'POST',
+    path: '/api/hostess/team-award',
+    body: { teamId: SOME_UUID, points: 5, awardKey: SOME_UUID },
+  },
   { area: 'admin', method: 'GET', path: '/api/admin/dashboard' },
   { area: 'admin', method: 'GET', path: '/api/admin/users' },
   { area: 'admin', method: 'PATCH', path: `/api/admin/users/${SOME_UUID}/role`, body: { role: 'admin' } },
   { area: 'admin', method: 'GET', path: '/api/admin/stations' },
+  { area: 'admin', method: 'GET', path: '/api/admin/teams' },
+  {
+    area: 'admin',
+    method: 'PUT',
+    path: `/api/admin/teams/${SOME_UUID}/schedule`,
+    body: { startsAt: null, endsAt: null },
+  },
   { area: 'admin', method: 'PATCH', path: '/api/admin/event', body: { isActive: true } },
   { area: 'admin', method: 'GET', path: '/api/admin/planned-participants' },
   {
     area: 'admin',
     method: 'POST',
     path: '/api/admin/planned-participants',
-    body: { kind: 'participant', entries: [{ email: 'matrix@example.com' }] },
+    body: {
+      kind: 'participant',
+      entries: [{ email: 'matrix@example.com', firstName: 'А', lastName: 'Б', department: 'В', city: 'Г' }],
+    },
   },
   { area: 'admin', method: 'DELETE', path: `/api/admin/planned-participants/${SOME_UUID}` },
 ]
@@ -195,6 +213,8 @@ describe('access control', () => {
     const admin = await account('admin')
     const user = await account('user')
     expect((await call('GET', '/api/event/me', user.accessToken)).status).toBe(200)
+    // Staff roles need a verified email (users.integration.test.ts covers the refusal).
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } })
 
     const promoted = await call('PATCH', `/api/admin/users/${user.id}/role`, admin.accessToken, {
       role: 'hostess',
@@ -250,13 +270,21 @@ describe('hostile input', () => {
 
     const imported = await call('POST', '/api/admin/planned-participants', admin.accessToken, {
       kind: 'hostess',
-      entries: [{ email: 'inject@example.com', fullName: `Robert'); DROP TABLE planned_participants;--` }],
+      entries: [
+        {
+          email: 'inject@example.com',
+          firstName: `Robert'); DROP TABLE planned_participants;--`,
+          lastName: 'Tables',
+          department: `x'); DROP TABLE companies;--`,
+          city: 'Москва',
+        },
+      ],
     })
     expect(imported.status).toBe(200)
     const listed = (await (await call('GET', '/api/admin/planned-participants', admin.accessToken)).json()) as {
-      items: { fullName: string | null }[]
+      items: { firstName: string | null }[]
     }
-    expect(listed.items[0]?.fullName).toBe(`Robert'); DROP TABLE planned_participants;--`)
+    expect(listed.items[0]?.firstName).toBe(`Robert'); DROP TABLE planned_participants;--`)
 
     // Markup is stored as typed and sent as JSON with the headers that stop a browser guessing HTML.
     const person = await call('POST', '/api/auth/register', undefined, {

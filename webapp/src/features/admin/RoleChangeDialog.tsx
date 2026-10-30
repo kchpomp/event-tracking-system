@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { roleLabel } from './model'
+import { roleChangeDeletesPoints, roleLabel } from './model'
 
 export function RoleChangeDialog({
   failureReason,
@@ -42,7 +42,7 @@ export function RoleChangeDialog({
           <AlertDialogDescription>
             {pendingChange
               ? `${pendingChange.user.email}: новая роль — ${roleLabel(pendingChange.role)}. Все активные сессии пользователя будут завершены.${
-                  pendingChange.role === 'hostess'
+                  roleChangeDeletesPoints(pendingChange.role)
                     ? ' Баллы и отметки о посещении станций этого пользователя будут удалены безвозвратно.'
                     : ''
                 }`

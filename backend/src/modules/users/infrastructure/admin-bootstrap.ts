@@ -47,6 +47,8 @@ async function upsertAdmin(
           displayName: 'Administrator',
           passwordHash: requestedPasswordHash ?? null,
           role: 'admin',
+          // The operator configured this address, so it counts as verified.
+          emailVerifiedAt: new Date(),
         },
         select: { email: true, passwordHash: true },
       })
@@ -68,7 +70,7 @@ function updateExistingAdmin(
     await acquireUserAuthenticationAuthorityLock(tx, userId)
     const existing = await tx.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { id: true, passwordHash: true, role: true },
+      select: { id: true, passwordHash: true, role: true, emailVerifiedAt: true },
     })
     const passwordMatches =
       config.password !== null &&
@@ -85,6 +87,7 @@ function updateExistingAdmin(
       where: { id: existing.id },
       data: {
         role: 'admin',
+        emailVerifiedAt: existing.emailVerifiedAt ?? now,
         ...(passwordChanges ? { passwordHash: requestedPasswordHash! } : {}),
       },
       select: { email: true, passwordHash: true },

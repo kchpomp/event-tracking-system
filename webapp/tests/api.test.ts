@@ -433,6 +433,7 @@ function currentUser(id = 'user_1', email = 'user@example.com') {
         email,
         displayName: null,
         role: 'user',
+        emailVerified: false,
         createdAt: '2026-05-11T00:00:00.000Z',
       },
     },

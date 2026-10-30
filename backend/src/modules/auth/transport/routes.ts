@@ -4,6 +4,8 @@ import {
   cookieLogoutRequestSchema,
   cookieRefreshRequestSchema,
   cookieRefreshResponseSchema,
+  emailVerificationConfirmRequestSchema,
+  emailVerificationRequestResponseSchema,
   loginRequestSchema,
   meResponseSchema,
   passwordResetConfirmRequestSchema,
@@ -345,6 +347,35 @@ const passwordResetConfirmRoute = createRoute({
   },
 })
 
+const emailVerificationRequestRoute = createRoute({
+  method: 'post',
+  path: '/email-verification/request',
+  security: bearerSecurity,
+  responses: {
+    ...ingressErrorResponses,
+    202: {
+      content: { 'application/json': { schema: emailVerificationRequestResponseSchema } },
+      description: 'Verification email queued, or nothing to do for a verified address',
+    },
+    401: { content: errorResponseContent, description: 'Invalid access token' },
+  },
+})
+
+const emailVerificationConfirmRoute = createRoute({
+  method: 'post',
+  path: '/email-verification/confirm',
+  request: {
+    body: {
+      content: { 'application/json': { schema: emailVerificationConfirmRequestSchema } },
+    },
+  },
+  responses: {
+    ...ingressErrorResponses,
+    204: { description: 'Email verified' },
+    400: { content: errorResponseContent, description: 'Invalid payload or verification link' },
+  },
+})
+
 type CreateAuthRoutesOptions = {
   env: AppEnv
   requireAuth: MiddlewareHandler<AuthHttpEnv>
@@ -415,6 +446,10 @@ export function createAuthRoutes({ env, requireAuth, service }: CreateAuthRoutes
   protectedRoutes.openapi(meRoute, async (c) => {
     return c.json({ user: userDtoFromPrincipal(c.var.user) }, 200)
   })
+  protectedRoutes.use('/email-verification/request', requireAuth)
+  protectedRoutes.openapi(emailVerificationRequestRoute, async (c) => {
+    return c.json(await service.requestEmailVerification(c.var.user), 202)
+  })
   routes.route('/', protectedRoutes)
 
   routes.openapi(cookieLogoutRoute, async (c) => {
@@ -439,6 +474,11 @@ export function createAuthRoutes({ env, requireAuth, service }: CreateAuthRoutes
       service.requestPasswordReset(c.req.valid('json')),
     )
     return c.json(result, 202)
+  })
+
+  routes.openapi(emailVerificationConfirmRoute, async (c) => {
+    await executeAuth(() => service.confirmEmailVerification(c.req.valid('json')))
+    return c.body(null, 204)
   })
 
   routes.openapi(passwordResetConfirmRoute, async (c) => {

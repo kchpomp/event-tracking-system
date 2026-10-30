@@ -47,6 +47,12 @@ const resetPasswordRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'ResetPasswordPage'),
 })
 
+const verifyEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/verify-email',
+  component: lazyRouteComponent(() => import('./pages'), 'VerifyEmailPage'),
+})
+
 const userWorkspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'userWorkspace',
@@ -95,10 +101,22 @@ const userIdeasRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'UserIdeasPage'),
 })
 
+const userScheduleRoute = createRoute({
+  getParentRoute: () => userWorkspaceRoute,
+  path: '/app/schedule',
+  component: lazyRouteComponent(() => import('./pages'), 'UserSchedulePage'),
+})
+
 const userPolymerRoute = createRoute({
   getParentRoute: () => userWorkspaceRoute,
   path: '/app/polymer',
   component: lazyRouteComponent(() => import('./pages'), 'UserPolymerPage'),
+})
+
+const userBadgeRoute = createRoute({
+  getParentRoute: () => userWorkspaceRoute,
+  path: '/app/badge',
+  component: lazyRouteComponent(() => import('./pages'), 'UserBadgePage'),
 })
 
 const adminWorkspaceRoute = createRoute({
@@ -131,6 +149,12 @@ const adminStationsRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'AdminStationsPage'),
 })
 
+const adminScheduleRoute = createRoute({
+  getParentRoute: () => adminWorkspaceRoute,
+  path: '/admin/schedule',
+  component: lazyRouteComponent(() => import('./pages'), 'AdminSchedulePage'),
+})
+
 const adminSettingsRoute = createRoute({
   getParentRoute: () => adminWorkspaceRoute,
   path: '/admin/settings',
@@ -147,6 +171,12 @@ const adminNetworkRoute = createRoute({
   getParentRoute: () => adminScreenRoute,
   path: '/admin/network',
   component: lazyRouteComponent(() => import('./pages'), 'AdminNetworkPage'),
+})
+
+const adminFlaskRoute = createRoute({
+  getParentRoute: () => adminScreenRoute,
+  path: '/admin/flask',
+  component: lazyRouteComponent(() => import('./pages'), 'AdminFlaskPage'),
 })
 
 const hostessWorkspaceRoute = createRoute({
@@ -167,10 +197,40 @@ const hostessScanRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages'), 'HostessScanRoutePage'),
 })
 
+const hostessBadgeRoute = createRoute({
+  getParentRoute: () => hostessWorkspaceRoute,
+  path: '/hostess/badge',
+  component: lazyRouteComponent(() => import('./pages'), 'HostessBadgeRoutePage'),
+})
+
 const hostessParticipantRoute = createRoute({
   getParentRoute: () => hostessWorkspaceRoute,
   path: '/hostess/participant/$participantId',
   component: lazyRouteComponent(() => import('./pages'), 'HostessParticipantRoutePage'),
+})
+
+const screenWorkspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'screenWorkspace',
+  component: lazyRouteComponent(() => import('./pages'), 'ScreenWorkspaceLayout'),
+})
+
+const screenHomeRoute = createRoute({
+  getParentRoute: () => screenWorkspaceRoute,
+  path: '/screen',
+  component: lazyRouteComponent(() => import('./pages'), 'ScreenPage'),
+})
+
+const screenNetworkRoute = createRoute({
+  getParentRoute: () => screenWorkspaceRoute,
+  path: '/screen/network',
+  component: lazyRouteComponent(() => import('./pages'), 'ScreenNetworkPage'),
+})
+
+const screenFlaskRoute = createRoute({
+  getParentRoute: () => screenWorkspaceRoute,
+  path: '/screen/flask',
+  component: lazyRouteComponent(() => import('./pages'), 'ScreenFlaskPage'),
 })
 
 const routeTree = rootRoute.addChildren([
@@ -179,6 +239,7 @@ const routeTree = rootRoute.addChildren([
   signupRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
+  verifyEmailRoute,
   userWorkspaceRoute.addChildren([
     userHomeRoute,
     userScanRoute,
@@ -186,7 +247,9 @@ const routeTree = rootRoute.addChildren([
     userDiffusionRoute,
     userDiffusionScanRoute,
     userIdeasRoute,
+    userScheduleRoute,
     userPolymerRoute,
+    userBadgeRoute,
     userProfileRoute,
   ]),
   adminWorkspaceRoute.addChildren([
@@ -194,12 +257,15 @@ const routeTree = rootRoute.addChildren([
     adminParticipantsRoute,
     adminUsersRoute,
     adminStationsRoute,
+    adminScheduleRoute,
     adminSettingsRoute,
   ]),
-  adminScreenRoute.addChildren([adminNetworkRoute]),
+  adminScreenRoute.addChildren([adminNetworkRoute, adminFlaskRoute]),
+  screenWorkspaceRoute.addChildren([screenHomeRoute, screenNetworkRoute, screenFlaskRoute]),
   hostessWorkspaceRoute.addChildren([
     hostessHomeRoute,
     hostessScanRoute,
+    hostessBadgeRoute,
     hostessParticipantRoute,
   ]),
 ])

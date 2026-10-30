@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  completedActivities,
   connectionPoints,
   ideaPoints,
   listedNameMatches,
@@ -81,5 +82,24 @@ describe('event scoring rules', () => {
       expect(listedNameMatches(listed, anna), String(listed)).toBe(false)
     }
     expect(listedNameMatches('Анна Петрова', { firstName: null, lastName: null })).toBe(false)
+  })
+})
+
+describe('badge activities', () => {
+  test('stations count one each, Polymer, connections and ideas once; other rows do not count', () => {
+    const rows = [
+      { actionType: 'station_scan', refId: 'a' },
+      { actionType: 'station_scan', refId: 'b' },
+      { actionType: 'polymer', refId: 'p1' },
+      { actionType: 'connection', refId: 'c1' },
+      { actionType: 'connection', refId: 'c2' },
+      { actionType: 'idea', refId: 'i1' },
+      { actionType: 'idea', refId: 'i2' },
+      { actionType: 'team_bonus', refId: 'k' },
+      { actionType: 'badge', refId: 'e' },
+    ]
+    expect(completedActivities(rows)).toHaveLength(5)
+    expect(completedActivities(rows.slice(2, 3))).toHaveLength(1)
+    expect(completedActivities([])).toHaveLength(0)
   })
 })

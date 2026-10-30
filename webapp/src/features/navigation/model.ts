@@ -13,18 +13,24 @@ export const workspaceRoutesByRole = {
     '/app/diffusion/scan',
     '/app/ideas',
     '/app/polymer',
+    '/app/badge',
     '/app/profile',
+    '/app/schedule',
   ],
-  // `/admin/network` is the venue display: same guard, no sidebar (layout `adminScreen`).
+  // `/admin/network` and `/admin/flask` are venue displays: same guard, no sidebar (layout `adminScreen`).
   admin: [
     '/admin',
     '/admin/participants',
     '/admin/users',
     '/admin/stations',
+    '/admin/schedule',
     '/admin/network',
+    '/admin/flask',
     '/admin/settings',
   ],
-  hostess: ['/hostess', '/hostess/scan', '/hostess/participant/$participantId'],
+  hostess: ['/hostess', '/hostess/scan', '/hostess/badge', '/hostess/participant/$participantId'],
+  // The venue display account: the network visualization and the flask, nothing else.
+  screen: ['/screen', '/screen/network', '/screen/flask'],
 } as const satisfies Record<UserRole, ReadonlyArray<`/${string}`>>
 
 type WorkspaceRouteTable = Record<UserRole, ReadonlyArray<string>>
@@ -48,11 +54,14 @@ const navigationByRole = {
     { label: 'Участники', to: '/admin/participants' },
     { label: 'Пользователи', to: '/admin/users' },
     { label: 'Станции', to: '/admin/stations' },
+    { label: 'Расписание', to: '/admin/schedule' },
     { label: 'Сеть знакомств', to: '/admin/network' },
+    { label: 'Колба идей (экран)', to: '/admin/flask' },
     { label: 'Настройки', to: '/admin/settings' },
   ],
   // Hostesses, like participants, use the phone shell without a sidebar.
   hostess: [],
+  screen: [],
 } as const satisfies Record<UserRole, ReadonlyArray<{ label: string; to: WorkspaceRoutePath }>>
 
 export function navigationItemsForRole(role: UserRole) {
@@ -63,6 +72,7 @@ const homeByRole = {
   user: '/app',
   admin: '/admin',
   hostess: '/hostess',
+  screen: '/screen',
 } as const satisfies Record<UserRole, `/${string}`>
 
 export function homePathForRole(role: UserRole) {

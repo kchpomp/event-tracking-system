@@ -16,9 +16,8 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const supportedProviders = new Set(['digitalocean', 'yandex'])
+const supportedProviders = new Set(['yandex'])
 const providerRootNames = {
-  digitalocean: ['foundation', 'runtime', 'static'],
   yandex: ['foundation', 'migration', 'runtime'],
 }
 // scripts/deploy-setup.ps1 writes a Terraform CLI config that installs the Yandex provider from a
@@ -43,10 +42,6 @@ const localBackendOverrideName = 'zz_local_backend_override.tf'
 const localBackendOverride = 'terraform {\n  backend "local" {}\n}\n'
 
 const protectedResourcePatterns = [
-  /digitalocean_container_registry\.production/,
-  /digitalocean_database_(cluster|db|firewall|user)\./,
-  /digitalocean_spaces_bucket\.(media|terraform_state)/,
-  /digitalocean_spaces_key\.(media|terraform_state)/,
   /yandex_mdb_postgresql_(cluster|database|user)\./,
   /yandex_storage_bucket\.(media|terraform_state)/,
   /yandex_storage_bucket_policy\.terraform_state/,
@@ -63,9 +58,7 @@ function providerPaths(provider) {
     foundation: productionRoot,
     operations: resolve(providerRoot, 'operations'),
     runtime: resolve(providerRoot, 'runtime'),
-    ...(provider === 'digitalocean'
-      ? { static: resolve(providerRoot, 'static') }
-      : { migration: resolve(providerRoot, 'migration') }),
+    migration: resolve(providerRoot, 'migration'),
   }
   return {
     providerRoot,
@@ -130,18 +123,12 @@ export function renderBackendConfig(provider, { bucket, key, region }) {
   if (!supportedProviders.has(provider))
     throw new Error(`Unsupported provider: ${provider}`)
 
-  const endpoint =
-    provider === 'digitalocean'
-      ? `https://${region}.digitaloceanspaces.com`
-      : 'https://storage.yandexcloud.net'
-
-  const backendRegion = provider === 'digitalocean' ? 'us-east-1' : region
   return `bucket = ${JSON.stringify(bucket)}
 key    = ${JSON.stringify(key)}
-region = ${JSON.stringify(backendRegion)}
+region = ${JSON.stringify(region)}
 
 endpoints = {
-  s3 = ${JSON.stringify(endpoint)}
+  s3 = "https://storage.yandexcloud.net"
 }
 
 use_lockfile                 = true
@@ -189,38 +176,6 @@ export function s3CredentialEnvironment(
   }
 }
 
-export function githubRepositoryFromRemoteUrl(remoteUrl) {
-  const value = String(remoteUrl ?? '')
-    .trim()
-    .replace(/\/$/, '')
-    .replace(/\.git$/i, '')
-  let repository
-
-  if (/^git@github\.com:/i.test(value)) {
-    repository = value.replace(/^git@github\.com:/i, '')
-  } else if (/^ssh:\/\/git@github\.com\//i.test(value)) {
-    repository = value.replace(/^ssh:\/\/git@github\.com\//i, '')
-  } else {
-    try {
-      const url = new URL(value)
-      if (
-        !['http:', 'https:'].includes(url.protocol) ||
-        url.hostname.toLowerCase() !== 'github.com'
-      ) {
-        return null
-      }
-      repository = url.pathname.replace(/^\//, '')
-    } catch {
-      return null
-    }
-  }
-
-  const segments = repository.split('/')
-  if (segments.length !== 2 || segments.some((segment) => !segment.trim()))
-    return null
-  return segments.map((segment) => segment.toLowerCase()).join('/')
-}
-
 export function releaseGitProblems({
   dirtyLines,
   currentBranch,
@@ -228,9 +183,6 @@ export function releaseGitProblems({
   upstreamRef,
   headCommit,
   upstreamCommit,
-  configuredGithubRepo,
-  upstreamGithubRepo,
-  githubRepositoryRequired = false,
   expectedCommit,
 }) {
   const problems = []
@@ -270,22 +222,6 @@ export function releaseGitProblems({
     problems.push(
       `release source changed after preflight: expected ${expectedCommit}, found ${headCommit || 'no HEAD'}`,
     )
-  }
-
-  if (githubRepositoryRequired && !configuredGithubRepo) {
-    problems.push(
-      'Terraform foundation state does not identify the configured GitHub repository; run bun run infra:apply for digitalocean',
-    )
-  } else if (configuredGithubRepo) {
-    if (!upstreamGithubRepo) {
-      problems.push('release upstream must be a supported GitHub remote')
-    } else if (
-      configuredGithubRepo.toLowerCase() !== upstreamGithubRepo.toLowerCase()
-    ) {
-      problems.push(
-        `release upstream repository is ${upstreamGithubRepo}, but Terraform deploys ${configuredGithubRepo}`,
-      )
-    }
   }
 
   if (dirtyLines.length > 0) {
@@ -403,17 +339,6 @@ export function stateRecoveryOutputs(
 }
 
 const safeOutputNames = {
-  digitalocean: [
-    'api_url',
-    'webapp_url',
-    'website_url',
-    'media_bucket',
-    'media_endpoint',
-    'registry',
-    'image_repository',
-    'runtime_image_digest',
-    'release_revision',
-  ],
   yandex: [
     'registry_id',
     'image_repository',
@@ -493,62 +418,6 @@ export function yandexRuntimeStateProblems({
   return [
     `Yandex runtime state has no credential slot, but deployed runtime containers still exist: ${runtimeNames.join(', ')}. Recover or import the runtime state before changing foundation credentials.`,
   ]
-}
-
-/**
- * The DigitalOcean foundation trusts the API app by ID and falls back to the VPC range while no
- * ID is known, so a lost runtime state reads exactly like a first release: Terraform would widen
- * the database firewall as an in-place attribute change that neither `prevent_destroy` nor
- * `planSafetyProblems` can see. Ask the provider before believing an empty runtime state.
- */
-export function digitalOceanRuntimeStateProblems(
-  { apiAppId, projectSlug },
-  { listApps = digitalOceanAppList } = {},
-) {
-  if (apiAppId) return []
-
-  const apiAppName = `${projectSlug}-prod-api`
-  const deployedApiApps = digitalOceanDeployedApps(listApps()).filter(
-    (app) => app.name === apiAppName,
-  )
-  if (deployedApiApps.length === 0) return []
-
-  const described = deployedApiApps
-    .map((app) => `${app.name} (${app.id})`)
-    .join(', ')
-  return [
-    `DigitalOcean runtime state has no API App ID, but the deployed API app still exists: ${described}. Recover or import the runtime state before the database firewall falls back to the VPC range.`,
-  ]
-}
-
-function digitalOceanAppList() {
-  return runDigitalOceanCli(['apps', 'list', '--output', 'json'], {
-    capture: true,
-    sensitiveOutput: true,
-    log: false,
-  })
-}
-
-function digitalOceanDeployedApps(raw) {
-  let parsed
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    throw new Error(
-      'Could not verify DigitalOcean runtime state because doctl returned invalid app JSON',
-    )
-  }
-  // doctl prints a bare array; an account without apps serializes as null.
-  const apps =
-    parsed === null ? [] : Array.isArray(parsed) ? parsed : parsed?.apps
-  if (!Array.isArray(apps)) {
-    throw new Error(
-      'Could not verify DigitalOcean runtime state because doctl returned no app list',
-    )
-  }
-  return apps
-    .filter((app) => typeof app?.spec?.name === 'string')
-    .map((app) => ({ id: app.id ?? 'unknown id', name: app.spec.name }))
 }
 
 export function safeYandexSecretVersionDestroyAddresses(liveSlot) {
@@ -685,85 +554,6 @@ export function redactArguments(args) {
   })
 }
 
-export function digitalOceanCliEnvironment(source = process.env) {
-  const token = source.DIGITALOCEAN_TOKEN?.trim()
-  if (!token) {
-    throw new Error(
-      'DIGITALOCEAN_TOKEN is required for both Terraform and doctl',
-    )
-  }
-
-  return {
-    ...source,
-    // doctl otherwise prefers the currently selected saved context. Force its documented default
-    // context and map Terraform's token into doctl's own environment variable so every provider
-    // and CLI operation is authorized by the same credential.
-    DIGITALOCEAN_ACCESS_TOKEN: token,
-    DIGITALOCEAN_CONTEXT: 'default',
-  }
-}
-
-export function digitalOceanSpacesKeyProblems(rawResponse, expectedAccessKey) {
-  let parsed
-  try {
-    parsed = JSON.parse(rawResponse)
-  } catch {
-    return ['DigitalOcean returned invalid JSON for the Spaces key']
-  }
-
-  const candidates = [
-    ...(Array.isArray(parsed) ? parsed : []),
-    ...(Array.isArray(parsed?.keys) ? parsed.keys : []),
-    parsed?.key,
-    parsed,
-  ].filter((candidate) => candidate && typeof candidate === 'object')
-  const returnedAccessKey = candidates
-    .map(
-      (candidate) =>
-        candidate.access_key ??
-        candidate.accessKey ??
-        candidate.AccessKey ??
-        candidate['Access Key'] ??
-        candidate['Access Key ID'],
-    )
-    .find((value) => typeof value === 'string' && value.length > 0)
-
-  if (!returnedAccessKey) {
-    return ['the DigitalOcean response contains no Spaces access key']
-  }
-  if (returnedAccessKey !== expectedAccessKey) {
-    return ['the returned Spaces key does not match SPACES_ACCESS_KEY_ID']
-  }
-  return []
-}
-
-export function digitalOceanTeamIdentityProblems(
-  rawResponse,
-  expectedTeamUuid,
-) {
-  let parsed
-  try {
-    parsed = JSON.parse(rawResponse)
-  } catch {
-    return ['DigitalOcean returned invalid JSON for the account identity']
-  }
-  const account = Array.isArray(parsed) ? parsed[0] : parsed
-  const actualTeamUuid =
-    account?.team?.uuid ??
-    account?.Team?.UUID ??
-    account?.team_uuid ??
-    account?.TeamUUID
-  if (!actualTeamUuid) {
-    return ['DigitalOcean account response contains no immutable team UUID']
-  }
-  if (actualTeamUuid !== expectedTeamUuid) {
-    return [
-      `DigitalOcean token belongs to team UUID ${actualTeamUuid}, expected ${expectedTeamUuid}`,
-    ]
-  }
-  return []
-}
-
 export function staticUploadSteps({
   distDirectory,
   bucket,
@@ -817,8 +607,6 @@ export function writeYandexStaticReleaseMarkers(artifactRoot, commit) {
 export function sanitizedBuildEnvironment(source = process.env) {
   const secretNames = [
     /^TF_VAR_/,
-    /^DIGITALOCEAN_TOKEN$/,
-    /^SPACES_/,
     /^AWS_/,
     /^YC_TOKEN$/,
     /^YC_SERVICE_ACCOUNT_KEY_FILE$/,
@@ -885,13 +673,6 @@ function runCommand(
   }
 
   return capture ? String(result.stdout ?? '') : ''
-}
-
-function runDigitalOceanCli(args, options = {}) {
-  return runCommand('doctl', ['--context', 'default', ...args], {
-    ...options,
-    env: digitalOceanCliEnvironment(options.env ?? process.env),
-  })
 }
 
 function gitArchive(commit) {
@@ -1060,54 +841,6 @@ function assertEnvironmentKeys(keys) {
 }
 
 function assertProviderIdentity(provider, tfvars) {
-  if (provider === 'digitalocean') {
-    assertEnvironmentKeys([
-      'DIGITALOCEAN_TOKEN',
-      'DO_EXPECTED_TEAM_UUID',
-      'SPACES_ACCESS_KEY_ID',
-      'SPACES_SECRET_ACCESS_KEY',
-    ])
-    const rawAccount = runDigitalOceanCli(
-      ['account', 'get', '--output', 'json'],
-      { capture: true, sensitiveOutput: true, log: false },
-    )
-    const teamProblems = digitalOceanTeamIdentityProblems(
-      rawAccount,
-      process.env.DO_EXPECTED_TEAM_UUID.trim(),
-    )
-    if (teamProblems.length > 0) {
-      throw new Error(
-        `DigitalOcean account verification failed: ${teamProblems.join('; ')}`,
-      )
-    }
-    const spacesAccessKey = process.env.SPACES_ACCESS_KEY_ID.trim()
-    let rawSpacesKey
-    try {
-      rawSpacesKey = runDigitalOceanCli(
-        ['spaces', 'keys', 'get', spacesAccessKey, '--output', 'json'],
-        {
-          capture: true,
-          sensitiveOutput: true,
-          log: false,
-        },
-      )
-    } catch {
-      throw new Error(
-        'DIGITALOCEAN_TOKEN cannot read SPACES_ACCESS_KEY_ID in the expected team; use matching credentials and grant spaces_key:read',
-      )
-    }
-    const spacesKeyProblems = digitalOceanSpacesKeyProblems(
-      rawSpacesKey,
-      spacesAccessKey,
-    )
-    if (spacesKeyProblems.length > 0) {
-      throw new Error(
-        `DigitalOcean Spaces credential verification failed: ${spacesKeyProblems.join('; ')}`,
-      )
-    }
-    return
-  }
-
   const expectedCloud = String(tfvars.cloud_id ?? '').trim()
   const expectedFolder = String(tfvars.folder_id ?? '').trim()
   if (
@@ -1845,20 +1578,6 @@ function assertSafeYandexDatabaseRotation(context) {
   return liveSlot
 }
 
-function assertDigitalOceanRuntimeState(context) {
-  if (context.provider !== 'digitalocean') return
-  const runtimeOutputs = readManagedRootOutputs(context, 'runtime')
-  const problems = digitalOceanRuntimeStateProblems({
-    apiAppId: runtimeOutputs.api_app_id,
-    projectSlug: context.tfvars.project_slug,
-  })
-  if (problems.length > 0) {
-    throw new Error(
-      `Unsafe DigitalOcean foundation change:\n- ${problems.join('\n- ')}`,
-    )
-  }
-}
-
 function writeManagedRootInputs(context, rootName, releaseInputs) {
   const foundationInputs = context.outputs[`${rootName}_inputs`]
   if (!foundationInputs || typeof foundationInputs !== 'object') {
@@ -1873,12 +1592,10 @@ function writeManagedRootInputs(context, rootName, releaseInputs) {
 }
 
 /**
- * Cross-state inputs carry production secrets: the DigitalOcean runtime root receives
- * `component_secret_environments` - `JWT_SECRET` for the API, the media bucket key, and the
- * `extra_runtime_secret_env` values - and even a read-only `infra:plan` writes them. Terraform needs them only while a command runs, so they live
- * for that window and are removed when it ends - including when it fails. Nothing is lost by
- * removing them: every terraform invocation on a managed root writes them again from foundation
- * state first. Yandex needs none of this, because its foundation hands out Lockbox references.
+ * Cross-state inputs may carry secrets, and even a read-only `infra:plan` writes them.
+ * Terraform needs them only while a command runs, so they live for that window and are removed
+ * when it ends - including when it fails. Nothing is lost by removing them: every terraform
+ * invocation on a managed root writes them again from foundation state first.
  */
 const disposableSecretPaths = new Set()
 
@@ -1909,18 +1626,7 @@ export function discardDisposableSecrets() {
   disposableSecretPaths.clear()
 }
 
-function syncDigitalOceanFirewallInput(context, apiAppId) {
-  if (context.provider !== 'digitalocean') return
-  writeJsonFile(
-    resolve(context.paths.productionRoot, 'runtime-link.auto.tfvars.json'),
-    { trusted_api_app_id: apiAppId ?? null },
-  )
-}
-
 function hasFoundationOutputs(provider, outputs) {
-  if (provider === 'digitalocean') {
-    return Boolean(outputs.runtime_inputs && outputs.static_inputs)
-  }
   return Boolean(outputs.migration_inputs && outputs.runtime_inputs)
 }
 
@@ -1934,50 +1640,12 @@ function contextWithProvider(provider) {
     )
     if (existsSync(bootstrapAccessPath)) rmSync(bootstrapAccessPath)
   }
-  if (provider === 'digitalocean') {
-    const runtimeOutputs = readManagedRootOutputs(context, 'runtime')
-    syncDigitalOceanFirewallInput(context, runtimeOutputs.api_app_id)
-  }
   context.outputs = terraformOutputs(context.paths.productionRoot, context.env)
   return context
 }
 
 function planExistingReleaseRoots(context, options) {
   if (!hasFoundationOutputs(context.provider, context.outputs)) return
-
-  if (context.provider === 'digitalocean') {
-    const runtimeOutputs = readManagedRootOutputs(context, 'runtime')
-    if (runtimeOutputs.runtime_image_digest) {
-      const root = writeManagedRootInputs(context, 'runtime', {
-        runtime_image_digest: runtimeOutputs.runtime_image_digest,
-        admin_seed_email: null,
-        admin_seed_password: null,
-      })
-      terraformPlan({
-        root,
-        env: context.env,
-        apply: false,
-        allowedDestroyAddresses: options.allowedDestroyAddresses,
-        label: 'digitalocean-runtime',
-      })
-    }
-
-    const staticOutputs = readManagedRootOutputs(context, 'static')
-    if (staticOutputs.release_revision && staticOutputs.source_branch) {
-      const root = writeManagedRootInputs(context, 'static', {
-        release_revision: staticOutputs.release_revision,
-        source_branch: staticOutputs.source_branch,
-      })
-      terraformPlan({
-        root,
-        env: context.env,
-        apply: false,
-        allowedDestroyAddresses: options.allowedDestroyAddresses,
-        label: 'digitalocean-static',
-      })
-    }
-    return
-  }
 
   const migrationOutputs = readManagedRootOutputs(context, 'migration')
   if (migrationOutputs.migration_image_digest) {
@@ -2016,7 +1684,6 @@ function planExistingReleaseRoots(context, options) {
 async function planProduction(provider, options) {
   const context = contextWithProvider(provider)
   const liveSlot = assertSafeYandexDatabaseRotation(context)
-  assertDigitalOceanRuntimeState(context)
   const safeSecretVersionDestroyAddresses =
     provider === 'yandex'
       ? safeYandexSecretVersionDestroyAddresses(liveSlot)
@@ -2062,7 +1729,6 @@ async function planProduction(provider, options) {
 async function applyFoundation(provider, options) {
   const context = contextWithProvider(provider)
   const liveSlot = assertSafeYandexDatabaseRotation(context)
-  assertDigitalOceanRuntimeState(context)
   const safeSecretVersionDestroyAddresses =
     provider === 'yandex'
       ? safeYandexSecretVersionDestroyAddresses(liveSlot)
@@ -2141,37 +1807,6 @@ function showOutputs(provider) {
 
 export function importReleaseInputs(provider, rootName, options) {
   const digest = options.runtimeImageDigest
-  if (provider === 'digitalocean' && rootName === 'runtime') {
-    if (!/^sha256:[0-9a-f]{64}$/.test(digest ?? '')) {
-      throw new Error(
-        'runtime import requires --runtime-image-digest=sha256:...',
-      )
-    }
-    return {
-      runtime_image_digest: digest,
-      admin_seed_email: null,
-      admin_seed_password: null,
-    }
-  }
-  if (provider === 'digitalocean' && rootName === 'static') {
-    if (!/^[0-9a-f]{40}$/.test(options.releaseRevision ?? '')) {
-      throw new Error('static import requires --release-revision=<40-char-sha>')
-    }
-    if (!/^infra-release\/[0-9a-f]{40}$/.test(options.sourceBranch ?? '')) {
-      throw new Error(
-        'static import requires --source-branch=infra-release/<40-char-sha>',
-      )
-    }
-    if (options.sourceBranch !== `infra-release/${options.releaseRevision}`) {
-      throw new Error(
-        'static import release revision and source branch must identify the same commit',
-      )
-    }
-    return {
-      release_revision: options.releaseRevision,
-      source_branch: options.sourceBranch,
-    }
-  }
   if (provider === 'yandex' && rootName === 'migration') {
     if (!/^sha256:[0-9a-f]{64}$/.test(digest ?? '')) {
       throw new Error(
@@ -2197,11 +1832,12 @@ export function importReleaseInputs(provider, rootName, options) {
 
 export function nonImportableResourceProblem(provider, resourceAddress) {
   const resourceType = resourceAddress?.split('.', 1)[0]
-  const unsupportedTypes = {
-    digitalocean: 'digitalocean_spaces_key',
-    yandex: 'yandex_iam_service_account_static_access_key',
+  if (
+    provider !== 'yandex' ||
+    resourceType !== 'yandex_iam_service_account_static_access_key'
+  ) {
+    return null
   }
-  if (resourceType !== unsupportedTypes[provider]) return null
 
   return `${resourceType} does not support import in the pinned provider and its secret cannot be recovered. Import the surrounding bucket/service account, create a new Terraform-owned key, switch and verify every consumer, then revoke the legacy key. See docs/DEPLOYMENT.md#existing-manually-created-infrastructure.`
 }
@@ -2308,7 +1944,7 @@ async function importResource(
   )
 }
 
-function assertCleanReleaseSource(releaseSource, provider, expectedCommit = null) {
+function assertCleanReleaseSource(releaseSource, expectedCommit = null) {
   const currentBranch = runCommand('git', ['branch', '--show-current'], {
     capture: true,
     log: false,
@@ -2321,7 +1957,6 @@ function assertCleanReleaseSource(releaseSource, provider, expectedCommit = null
   const remoteName = upstreamRef.includes('/')
     ? upstreamRef.slice(0, upstreamRef.indexOf('/'))
     : ''
-  let upstreamGithubRepo = null
 
   if (remoteName) {
     const remoteUrl = runCommand('git', ['remote', 'get-url', remoteName], {
@@ -2329,7 +1964,6 @@ function assertCleanReleaseSource(releaseSource, provider, expectedCommit = null
       log: false,
       okStatuses: [0, 2],
     }).trim()
-    upstreamGithubRepo = githubRepositoryFromRemoteUrl(remoteUrl)
     // Refresh the exact remote-tracking ref before comparing commits. A stale local ref could
     // otherwise approve a checkout that is already behind the source App Platform will build.
     runCommand('git', ['fetch', '--quiet', '--no-tags', remoteName])
@@ -2360,10 +1994,6 @@ function assertCleanReleaseSource(releaseSource, provider, expectedCommit = null
     upstreamRef,
     headCommit,
     upstreamCommit,
-    configuredGithubRepo:
-      provider === 'digitalocean' ? releaseSource?.github_repo : null,
-    upstreamGithubRepo,
-    githubRepositoryRequired: provider === 'digitalocean',
     expectedCommit,
   })
   if (problems.length > 0)
@@ -2371,47 +2001,6 @@ function assertCleanReleaseSource(releaseSource, provider, expectedCommit = null
       `Release source is not deployable:\n- ${problems.join('\n- ')}`,
     )
   return { commit: headCommit, remoteName, upstreamRef }
-}
-
-export function immutableReleaseBranch(commit) {
-  if (!/^[0-9a-f]{40}$/.test(commit ?? '')) {
-    throw new Error(
-      'An immutable release branch requires a 40-character Git commit',
-    )
-  }
-  return `infra-release/${commit}`
-}
-
-async function ensureDigitalOceanReleaseBranch(source, assertLeaseHeld) {
-  const branch = immutableReleaseBranch(source.commit)
-  const ref = `refs/heads/${branch}`
-  const current = runCommand(
-    'git',
-    ['ls-remote', '--heads', source.remoteName, ref],
-    { capture: true, log: false },
-  ).trim()
-  if (current) {
-    const remoteCommit = current.split(/\s+/)[0]
-    if (remoteCommit !== source.commit) {
-      throw new Error(
-        `${ref} already exists at ${remoteCommit}; immutable release refs are never overwritten`,
-      )
-    }
-    return branch
-  }
-
-  await assertLeaseHeld()
-  runCommand('git', ['push', source.remoteName, `${source.commit}:${ref}`])
-  await assertLeaseHeld()
-  const verified = runCommand(
-    'git',
-    ['ls-remote', '--heads', source.remoteName, ref],
-    { capture: true, log: false },
-  ).trim()
-  if (verified.split(/\s+/)[0] !== source.commit) {
-    throw new Error(`Remote did not confirm immutable release branch ${branch}`)
-  }
-  return branch
 }
 
 // Docker Hub often drops the TLS handshake from some networks, and `docker build` asks the registry
@@ -2464,11 +2053,7 @@ async function buildAndPushImage(
   commit,
   assertLeaseHeld,
 ) {
-  if (provider === 'digitalocean') {
-    runDigitalOceanCli(['registry', 'login', '--expiry-seconds', '1200'])
-  } else {
-    runCommand('yc', ['container', 'registry', 'configure-docker'])
-  }
+  runCommand('yc', ['container', 'registry', 'configure-docker'])
   await assertLeaseHeld()
 
   const tag = `${repository}:${commit}`
@@ -2792,55 +2377,6 @@ export async function verifyYandexStaticReadsAfterApply(
   })
 }
 
-export function activeDeploymentCommitProblems(
-  response,
-  expectedCommit,
-  expectedComponent,
-) {
-  const deployments = Array.isArray(response)
-    ? response
-    : (response?.deployments ?? [])
-  const active = deployments.find(
-    (deployment) => deployment?.phase === 'ACTIVE',
-  )
-  if (!active) return ['no ACTIVE deployment was returned']
-  const components = active.static_sites ?? active.staticSites ?? []
-  const component = components.find((item) => item?.name === expectedComponent)
-  if (!component) {
-    return [`ACTIVE deployment has no ${expectedComponent} static component`]
-  }
-  if (component.source_commit_hash !== expectedCommit) {
-    return [
-      `${expectedComponent} deployed ${component.source_commit_hash ?? 'no source commit'}, expected ${expectedCommit}`,
-    ]
-  }
-  return []
-}
-
-async function verifyDigitalOceanStaticCommit(outputs, commit) {
-  for (const [name, appId] of [
-    ['webapp', outputs.webapp_app_id],
-    ['website', outputs.website_app_id],
-  ]) {
-    if (!appId) throw new Error(`Terraform did not return ${name} App ID`)
-    let problems = ['deployment has not been checked']
-    for (let attempt = 1; attempt <= 12; attempt += 1) {
-      const raw = runDigitalOceanCli(
-        ['apps', 'list-deployments', appId, '--output', 'json'],
-        { capture: true, log: false },
-      )
-      problems = activeDeploymentCommitProblems(JSON.parse(raw), commit, name)
-      if (problems.length === 0) break
-      if (attempt < 12) await Bun.sleep(5_000)
-    }
-    if (problems.length > 0) {
-      throw new Error(
-        `${name} source verification failed: ${problems.join('; ')}`,
-      )
-    }
-  }
-}
-
 async function verifyDeployment(outputs) {
   await verifyUrl(
     'API readiness',
@@ -2861,13 +2397,6 @@ export async function executePromotionPipeline(
     await assertLeaseHeld()
     return result
   }
-  if (provider === 'digitalocean') {
-    const runtime = await runPhase(operations.deployRuntime)
-    await runPhase(operations.tightenFoundation, runtime)
-    const staticDeployment = await runPhase(operations.deployStatic, runtime)
-    await runPhase(operations.verify, { runtime, staticDeployment })
-    return { runtime, staticDeployment }
-  }
   if (provider === 'yandex') {
     const migration = await runPhase(operations.deployMigration)
     await runPhase(operations.invokeMigration, migration)
@@ -2884,7 +2413,7 @@ async function release(provider, options) {
   const context = contextWithProvider(provider)
   const source = options.dryRun
     ? null
-    : assertCleanReleaseSource(context.outputs.release_source, provider)
+    : assertCleanReleaseSource(context.outputs.release_source)
   const seed = seedVariables()
   const assertLeaseHeld = () => assertProductionMutationLease(options)
 
@@ -2909,7 +2438,7 @@ async function release(provider, options) {
     return
   }
 
-  assertCleanReleaseSource(context.outputs.release_source, provider, source.commit)
+  assertCleanReleaseSource(context.outputs.release_source, source.commit)
   const commit = source.commit
   const repository = repositoryForImage(provider, context.outputs)
   await assertProductionMutationLease(options)
@@ -2920,92 +2449,7 @@ async function release(provider, options) {
     assertLeaseHeld,
   )
   await assertProductionMutationLease(options)
-  assertCleanReleaseSource(context.outputs.release_source, provider, commit)
-
-  if (provider === 'digitalocean') {
-    await assertProductionMutationLease(options)
-    const sourceBranch = await ensureDigitalOceanReleaseBranch(
-      source,
-      assertLeaseHeld,
-    )
-    await assertProductionMutationLease(options)
-    return executePromotionPipeline(provider, {
-      async deployRuntime() {
-        const runtimeRoot = writeManagedRootInputs(context, 'runtime', {
-          runtime_image_digest: digest,
-          admin_seed_email: seed?.admin_seed_email ?? null,
-          admin_seed_password: seed?.admin_seed_password ?? null,
-        })
-        terraformPlan({
-          root: runtimeRoot,
-          env: context.env,
-          apply: true,
-          allowedDestroyAddresses: options.allowedDestroyAddresses,
-          label: 'digitalocean-runtime-migration-gated',
-        })
-        await assertProductionMutationLease(options)
-
-        if (seed) {
-          writeManagedRootInputs(context, 'runtime', {
-            runtime_image_digest: digest,
-            admin_seed_email: null,
-            admin_seed_password: null,
-          })
-          terraformPlan({
-            root: runtimeRoot,
-            env: context.env,
-            apply: true,
-            allowedDestroyAddresses: options.allowedDestroyAddresses,
-            label: 'digitalocean-remove-bootstrap-secret',
-          })
-          await assertProductionMutationLease(options)
-        }
-        return terraformOutputs(runtimeRoot, context.env)
-      },
-      async tightenFoundation(runtimeOutputs) {
-        syncDigitalOceanFirewallInput(context, runtimeOutputs.api_app_id)
-        terraformPlan({
-          root: context.paths.productionRoot,
-          env: context.env,
-          apply: true,
-          allowedDestroyAddresses: options.allowedDestroyAddresses,
-          label: 'digitalocean-tighten-database-firewall',
-        })
-      },
-      async deployStatic() {
-        assertCleanReleaseSource(context.outputs.release_source, provider, commit)
-        const staticRoot = writeManagedRootInputs(context, 'static', {
-          release_revision: commit,
-          source_branch: sourceBranch,
-        })
-        terraformPlan({
-          root: staticRoot,
-          env: context.env,
-          apply: true,
-          allowedDestroyAddresses: options.allowedDestroyAddresses,
-          label: 'digitalocean-static-after-migration',
-        })
-        await assertProductionMutationLease(options)
-        assertCleanReleaseSource(context.outputs.release_source, provider, commit)
-        await assertProductionMutationLease(options)
-        await ensureDigitalOceanReleaseBranch(source, assertLeaseHeld)
-        await assertProductionMutationLease(options)
-        return terraformOutputs(staticRoot, context.env)
-      },
-      async verify({ runtime, staticDeployment }) {
-        const promotedOutputs = {
-          ...context.outputs,
-          ...runtime,
-          ...staticDeployment,
-        }
-        await verifyDigitalOceanStaticCommit(staticDeployment, commit)
-        await verifyDeployment(promotedOutputs)
-        console.log(
-          `[infra] ${provider}: release ${commit} completed and verified.`,
-        )
-      },
-    }, () => assertProductionMutationLease(options))
-  }
+  assertCleanReleaseSource(context.outputs.release_source, commit)
 
   return executePromotionPipeline(provider, {
     async deployMigration() {
@@ -3062,11 +2506,11 @@ async function release(provider, options) {
     },
     async publishStatic(runtimeOutputs) {
       const promotedOutputs = { ...context.outputs, ...runtimeOutputs }
-      assertCleanReleaseSource(context.outputs.release_source, provider, commit)
+      assertCleanReleaseSource(context.outputs.release_source, commit)
       const artifactRoot = buildYandexStaticArtifacts(commit, promotedOutputs)
       try {
         await assertLeaseHeld()
-        assertCleanReleaseSource(context.outputs.release_source, provider, commit)
+        assertCleanReleaseSource(context.outputs.release_source, commit)
         await publishYandexStatic(
           promotedOutputs,
           context.env,
@@ -3079,7 +2523,7 @@ async function release(provider, options) {
       return promotedOutputs
     },
     async verify({ staticDeployment }) {
-      assertCleanReleaseSource(context.outputs.release_source, provider, commit)
+      assertCleanReleaseSource(context.outputs.release_source, commit)
       await verifyYandexStaticCommit(staticDeployment, commit)
       await verifyYandexWebappFallback(staticDeployment, commit)
       await verifyDeployment(staticDeployment)
@@ -3103,13 +2547,11 @@ export function parseArguments(argv) {
   const commands = ['bootstrap', 'apply', 'plan', 'release', 'output', 'import']
   if (!commands.includes(command) || !supportedProviders.has(provider)) {
     throw new Error(
-      'Usage: bun scripts/infra.mjs <bootstrap|apply|plan|release|output> <digitalocean|yandex> [options], or import <provider> <root> <terraform-address> <provider-resource-id>',
+      'Usage: bun scripts/infra.mjs <bootstrap|apply|plan|release|output> <yandex> [options], or import <provider> <root> <terraform-address> <provider-resource-id>',
     )
   }
   const importFlagPrefixes = [
     '--runtime-image-digest=',
-    '--release-revision=',
-    '--source-branch=',
   ]
   const bootstrapFlagPrefixes = [
     '--recover-state-bucket=',
@@ -3161,7 +2603,7 @@ export function parseArguments(argv) {
   if (command === 'import' ? operands.length !== 3 : operands.length !== 0) {
     throw new Error(
       command === 'import'
-        ? 'Usage: bun scripts/infra.mjs import <digitalocean|yandex> <root> <terraform-address> <provider-resource-id>'
+        ? 'Usage: bun scripts/infra.mjs import <yandex> <root> <terraform-address> <provider-resource-id>'
         : `${command} does not accept positional arguments after the provider`,
     )
   }
@@ -3189,8 +2631,6 @@ export function parseArguments(argv) {
     resourceAddress: operands[1],
     resourceId: operands[2],
     runtimeImageDigest: flagValue('--runtime-image-digest='),
-    releaseRevision: flagValue('--release-revision='),
-    sourceBranch: flagValue('--source-branch='),
     newBootstrap: args.includes('--new'),
     recoverStateBucket,
     recoverStateRegion,

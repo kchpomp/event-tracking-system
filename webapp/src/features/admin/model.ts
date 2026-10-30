@@ -1,19 +1,36 @@
 import {
   ADMIN_USERS_MAX_PAGE,
+  roleRequiresVerifiedEmail,
   type AdminUserSummary,
   type UpdateUserRoleResponse,
   type UserRole,
 } from '@event-tracking-system/contracts'
 
+import { ApiRequestError } from '@/platform/api'
+
 const ROLE_LABELS: Record<UserRole, string> = {
   user: 'участник',
   admin: 'администратор',
   hostess: 'хостес',
+  screen: 'экран',
 }
 
 /** The role in a sentence: «теперь хостес», «новая роль администратор». */
 export function roleLabel(role: UserRole) {
   return ROLE_LABELS[role]
+}
+
+/** Any role but «участник» wipes the person's points and station visits on the server. */
+export function roleChangeDeletesPoints(role: UserRole) {
+  return role !== 'user'
+}
+
+/** Mirrors the server: hostess and admin go only to a verified email (409 EMAIL_NOT_VERIFIED). */
+export function roleBlockedByUnverifiedEmail(
+  user: Pick<AdminUserSummary, 'emailVerified' | 'role'>,
+  role: UserRole,
+) {
+  return role !== user.role && !user.emailVerified && roleRequiresVerifiedEmail(role)
 }
 
 type AdminUsersQueryState = {
@@ -76,7 +93,14 @@ export function roleMutationFeedback({
   isError: boolean
   isSuccess: boolean
 }): RoleMutationFeedback {
-  if (isError && error) return { kind: 'error', reason: error.message }
+  if (isError && error) {
+    return {
+      kind: 'error',
+      reason: error instanceof ApiRequestError && error.code === 'EMAIL_NOT_VERIFIED'
+        ? 'Пользователь ещё не подтвердил почту. Попросите его нажать «Подтвердить почту» в профиле.'
+        : error.message,
+    }
+  }
   if (isSuccess && data) return { kind: 'success', user: data.user }
   return null
 }

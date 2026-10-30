@@ -5,6 +5,7 @@ import {
   adminUserSummarySchema,
   adminUsersQuerySchema,
   updateProfileRequestSchema,
+  roleRequiresVerifiedEmail,
   updateUserRoleRequestSchema,
   userSchema,
 } from './index'
@@ -14,6 +15,7 @@ const user = {
   email: 'user@example.com',
   displayName: 'User',
   role: 'user',
+  emailVerified: false,
   createdAt: '2026-07-20T00:00:00.000Z',
 } as const
 
@@ -61,6 +63,7 @@ describe('user and admin contracts', () => {
       email: user.email,
       displayName: user.displayName,
       role: user.role,
+      emailVerified: user.emailVerified,
       createdAt: user.createdAt,
     }
     expect(adminUserSummarySchema.parse(summary)).toEqual(summary)
@@ -73,4 +76,8 @@ describe('user and admin contracts', () => {
     expect(() => adminUserParamsSchema.parse({ userId: 'not-a-uuid' })).toThrow()
   })
 
+  test('only staff roles need a verified email', () => {
+    expect(['user', 'admin', 'hostess', 'screen'].filter((role) =>
+      roleRequiresVerifiedEmail(role as 'user'))).toEqual(['admin', 'hostess'])
+  })
 })

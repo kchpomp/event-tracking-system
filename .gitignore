@@ -112,3 +112,4 @@ scripts/setup-check.ps1
 scripts/apex-migrate.ps1
 docs/LAPTOP_SETUP.md
 docs/MANUAL_TESTING.md
+HANDOFF_CONTEXT.md

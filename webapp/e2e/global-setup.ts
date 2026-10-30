@@ -9,6 +9,7 @@ import {
   postgresTestService,
   repositoryRoot,
 } from './env'
+import { markEmailVerified } from './helpers/test'
 
 const composeArgs = ['compose', '-p', composeProjectName]
 
@@ -77,4 +78,6 @@ export default async function globalSetup() {
     // accounts and the screens tour gets realistic fixture data. See docs/TESTING.md.
     ...(process.env.SCREENS_SEED_DEMO ? { DEV_SEED_DEMO: process.env.SCREENS_SEED_DEMO } : {}),
   })
+  // The dialogs spec opens the role dialog on this seeded user, and staff roles need a verified address.
+  markEmailVerified('user@example.com')
 }

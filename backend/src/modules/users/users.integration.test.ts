@@ -154,6 +154,7 @@ describe('users and admin API integration', () => {
         email: 'target@example.com',
         displayName: 'Target',
         role: 'user',
+        emailVerified: false,
         createdAt: target.user.createdAt,
       },
     ])
@@ -182,6 +183,22 @@ describe('users and admin API integration', () => {
     })
     expect(malformedUserId.status).toBe(400)
     expect((await malformedUserId.json()).error.code).toBe('VALIDATION_ERROR')
+
+    // Staff roles need a verified email; the refusal changes nothing.
+    for (const role of ['admin', 'hostess']) {
+      const unverified = await app.request(`/api/admin/users/${target.user.id}/role`, {
+        method: 'PATCH',
+        headers: authenticatedJsonHeaders(admin.accessToken),
+        body: JSON.stringify({ role }),
+      })
+      expect(unverified.status).toBe(409)
+      expect((await unverified.json()).error.code).toBe('EMAIL_NOT_VERIFIED')
+    }
+    const stillUser = await app.request('/api/auth/me', {
+      headers: authenticatedHeaders(target.accessToken),
+    })
+    expect((await stillUser.json()).user).toMatchObject({ role: 'user', emailVerified: false })
+    await verifyEmail(target.user.id)
 
     const promote = await app.request(`/api/admin/users/${target.user.id}/role`, {
       method: 'PATCH',
@@ -305,6 +322,7 @@ describe('users and admin API integration', () => {
     const firstTarget = await register('queue-first@example.com')
     const secondTarget = await register('queue-second@example.com')
     const thirdTarget = await register('queue-third@example.com')
+    for (const target of [firstTarget, secondTarget, thirdTarget]) await verifyEmail(target.user.id)
 
     const firstUpdateGate = gateNextUserUpdate(firstTarget.user.id)
     const firstRoleApp = createApp({ env, prisma: firstUpdateGate.db })
@@ -450,6 +468,7 @@ describe('users and admin API integration', () => {
       data: { role: 'admin' },
     })
     const target = await register('role-first-target@example.com')
+    await verifyEmail(target.user.id)
     const userUpdateGate = gateNextUserUpdate(target.user.id)
     const roleApp = createApp({ env, prisma: userUpdateGate.db })
     const roleChange = roleApp.request(`/api/admin/users/${target.user.id}/role`, {
@@ -976,6 +995,10 @@ describe('users and admin API integration', () => {
       await prisma.user.update({ where: { email }, data: { displayName } })
     }
     return response.json()
+  }
+
+  async function verifyEmail(userId: string) {
+    await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } })
   }
 
   async function login(email: string) {

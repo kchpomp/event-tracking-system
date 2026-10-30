@@ -7,7 +7,7 @@ import {
   readXlsx,
   rowsToText,
 } from '../src/features/event/planned-file'
-import { parsePlannedLines } from '../src/features/event/planned-model'
+import { parsePlannedTable } from '../src/features/event/planned-model'
 
 /** A zip of the given files, each deflated the way Excel does it. Checksums are left at zero. */
 async function zip(files: Record<string, string>, stored = false) {
@@ -78,6 +78,20 @@ const workbook = {
     '</sheetData></worksheet>',
 }
 
+const fiveColumns = {
+  'xl/worksheets/sheet1.xml':
+    '<worksheet><sheetData>' +
+    '<row r="1">' +
+    ['почта', 'имя', 'фамилия', 'подразделение', 'город']
+      .map((text, i) => `<c r="${'ABCDE'[i]}1" t="inlineStr"><is><t>${text}</t></is></c>`)
+      .join('') +
+    '</row><row r="2">' +
+    ['anna@example.com', 'Анна', 'Петрова &amp; Ко', 'Цех "1"', 'Тюмень']
+      .map((text, i) => `<c r="${'ABCDE'[i]}2" t="inlineStr"><is><t>${text}</t></is></c>`)
+      .join('') +
+    '</row></sheetData></worksheet>',
+}
+
 test('reads the first sheet of an .xlsx: shared strings, rich text, inline strings, entities', async () => {
   for (const stored of [false, true]) {
     const rows = await readXlsx(await zip(workbook, stored))
@@ -88,12 +102,13 @@ test('reads the first sheet of an .xlsx: shared strings, rich text, inline strin
     ])
   }
 
-  // The header row is dropped, then the lines are what the paste box would hold.
-  const entries = parsePlannedLines(rowsToText(await readXlsx(await zip(workbook)))).entries
-  expect(entries).toEqual([
-    { email: 'anna@example.com', fullName: 'Анна Петрова & Ко' },
-    { email: 'oleg@example.com', fullName: 'Олег Иванов' },
+  // The rows as the paste box would hold them, read back as a table.
+  const table = parseCsv(rowsToText(await readXlsx(await zip(fiveColumns))))
+  expect(parsePlannedTable(table).entries).toEqual([
+    { email: 'anna@example.com', firstName: 'Анна', lastName: 'Петрова & Ко', department: 'Цех "1"', city: 'Тюмень' },
   ])
+  // The old two-column workbook is refused before anything is sent.
+  expect(parsePlannedTable(parseCsv(rowsToText(await readXlsx(await zip(workbook))))).error).toContain('Лишняя колонка «ФИО»')
 })
 
 test('a file that is not a workbook is refused with a sentence, not a stack', async () => {
@@ -118,19 +133,18 @@ test('reads CSV from Russian Excel: semicolons, quotes, a BOM and Windows-1251',
     ['a@example.com', 'Анна'],
     ['b@example.com', 'Ольга'],
   ])
-  expect(rowsToText(parseCsv('a@example.com\tАнна'))).toBe('a@example.com\tАнна')
+  expect(rowsToText(parseCsv('a@example.com\tАнна\t\t'))).toBe('a@example.com\tАнна')
 })
 
-test('the exported CSV opens in Excel and cannot run a formula', () => {
+test('the exported CSV opens in Excel, re-imports as a list and cannot run a formula', () => {
   const csv = plannedCsv([
-    { email: 'anna@example.com', fullName: 'Петрова; Анна' },
-    { email: 'oleg@example.com', fullName: null },
-    { email: 'x@example.com', fullName: '=HYPERLINK("http://x")' },
+    { email: 'anna@example.com', firstName: 'Анна', lastName: 'Петрова; Ко', department: 'Цех', city: null },
+    { email: 'x@example.com', firstName: '=HYPERLINK("http://x")', lastName: 'Б', department: 'В', city: 'Г' },
   ])
-  expect(csv.startsWith('\uFEFFEmail;ФИО\r\n')).toBe(true)
-  expect(csv).toContain('anna@example.com;"Петрова; Анна"\r\n')
-  expect(csv).toContain('oleg@example.com;\r\n')
-  expect(csv).toContain(`x@example.com;"'=HYPERLINK(""http://x"")"\r\n`)
+  expect(csv.startsWith('\uFEFFПочта;Имя;Фамилия;Подразделение;Город\r\n')).toBe(true)
+  expect(csv).toContain('anna@example.com;Анна;"Петрова; Ко";Цех;\r\n')
+  expect(csv).toContain(`x@example.com;"'=HYPERLINK(""http://x"")";Б;В;Г\r\n`)
+  expect(parsePlannedTable(parseCsv(csv)).error).toContain('Строка 2')
 })
 
 test('a zip that understates its size cannot make the reader inflate without limit', async () => {

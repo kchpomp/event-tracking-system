@@ -65,10 +65,15 @@ Password reset:
 - The task handler looks up the account and issues at most one token per account per minute. It stores the SHA-256 of a random 32-byte token valid for 30 minutes and mails a link with the token in its URL fragment. If delivery fails permanently or on the final attempt, the handler invalidates the unsent token.
 - Confirmation is one transaction: it changes the password hash, consumes all reset tokens, revokes all sessions, and enqueues an `auth:password-changed` notice. The response clears the refresh cookie; there is no automatic sign-in.
 
+Email verification:
+
+- `POST /api/auth/email-verification/request` (signed in) enqueues an `auth:email-verification` task, collapsed per account per minute; it does nothing for a verified address. The handler works like the reset handler: one token per account per minute, SHA-256 stored, valid 24 hours, a `/verify-email#token=` link, the unsent token invalidated on a permanent or final failure.
+- `POST /api/auth/email-verification/confirm` (public) uses an unexpired token once and sets `users.email_verified_at`. Any other token gets `400 AUTH_EMAIL_VERIFICATION_INVALID`.
+
 Roles:
 
 - `user | admin` lives in `users.role` and `UserDto`, never in the JWT. Registration and social sign-in create `user`; clients never choose a role. Only the role endpoint and the admin bootstraps (`db:deploy`, dev seed) grant `admin`.
-- `PATCH /api/admin/users/{userId}/role` runs under a global lock. It refuses self-demotion and removal of the last admin. A real change revokes the target's sessions, push tokens, and unused reset tokens in one transaction.
+- `PATCH /api/admin/users/{userId}/role` runs under a global lock. It refuses self-demotion and removal of the last admin, and `hostess` or `admin` for an unverified email (`409 EMAIL_NOT_VERIFIED`). The admin bootstraps create a verified admin. A real change revokes the target's sessions, push tokens, and unused reset tokens in one transaction.
 - `/api/admin/*` requires `admin` on the server and returns `403 FORBIDDEN` otherwise.
 
 Login, role changes, reset tokens, and bootstraps share a per-user advisory lock (`acquireUserAuthenticationAuthorityLock` in `backend/src/db.ts`). Under it, login re-reads the user and re-checks the password before it inserts the session, so an old password cannot open a session after a reset.

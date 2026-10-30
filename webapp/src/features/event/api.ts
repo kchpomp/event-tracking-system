@@ -1,19 +1,29 @@
 import {
   adminStationsResponseSchema,
+  adminTeamSchema,
+  adminTeamsResponseSchema,
   connectRequestSchema,
   connectResponseSchema,
   createIdeaRequestSchema,
   createIdeaResponseSchema,
   eventMeResponseSchema,
   hostessAwardRequestSchema,
+  hostessBadgeStatusSchema,
+  participantBadgeSchema,
   hostessAwardResponseSchema,
   hostessParticipantResponseSchema,
   hostessParticipantsResponseSchema,
   hostessResolveRequestSchema,
   hostessSearchQuerySchema,
+  hostessTeamAwardRequestSchema,
+  hostessTeamAwardResponseSchema,
   importPlannedRequestSchema,
   importPlannedResponseSchema,
   leaderboardResponseSchema,
+  plannedPhotoFinalizeRequestSchema,
+  plannedPhotoFinalizeResponseSchema,
+  plannedPhotoTicketsRequestSchema,
+  plannedPhotoTicketsResponseSchema,
   plannedParticipantsResponseSchema,
   registrationReferenceResponseSchema,
   registrationStatusResponseSchema,
@@ -22,16 +32,27 @@ import {
   updateUserRoleResponseSchema,
   scanRequestSchema,
   scanResponseSchema,
+  scheduleResponseSchema,
   stationsResponseSchema,
+  teamMembersResponseSchema,
+  teamsResponseSchema,
   updateEventRequestSchema,
   updateEventResponseSchema,
+  updateLiveRequestSchema,
+  updateLiveResponseSchema,
+  updateTeamScheduleRequestSchema,
   type ConnectRequest,
   type CreateIdeaRequest,
   type HostessAwardRequest,
   type HostessResolveRequest,
+  type HostessTeamAwardRequest,
   type ImportPlannedRequest,
+  type PlannedPhotoFinalizeRequest,
+  type PlannedPhotoTicketsRequest,
   type ScanRequest,
   type UpdateEventRequest,
+  type UpdateLiveRequest,
+  type UpdateTeamScheduleRequest,
 } from '@event-tracking-system/contracts'
 
 import { HttpClient, type AuthenticatedTransport } from '@/platform/api'
@@ -60,6 +81,47 @@ export function getStations(transport: AuthenticatedTransport, options: ReadOpti
 
 export function getLeaderboard(transport: AuthenticatedTransport, options: ReadOptions = {}) {
   return transport.request('/api/event/leaderboard', leaderboardResponseSchema, options)
+}
+
+export function getTeamMembers(transport: AuthenticatedTransport, options: ReadOptions = {}) {
+  return transport.request('/api/event/team/members', teamMembersResponseSchema, options)
+}
+
+export function getSchedule(transport: AuthenticatedTransport, options: ReadOptions = {}) {
+  return transport.request('/api/event/schedule', scheduleResponseSchema, options)
+}
+
+export function getAdminTeams(transport: AuthenticatedTransport, options: ReadOptions = {}) {
+  return transport.request('/api/admin/teams', adminTeamsResponseSchema, options)
+}
+
+export function updateTeamSchedule(
+  transport: AuthenticatedTransport,
+  teamId: string,
+  input: UpdateTeamScheduleRequest,
+) {
+  return transport.request(`/api/admin/teams/${encodeURIComponent(teamId)}/schedule`, adminTeamSchema, {
+    method: 'PUT',
+    body: updateTeamScheduleRequestSchema.parse(input),
+  })
+}
+
+export function updateLive(transport: AuthenticatedTransport, input: UpdateLiveRequest) {
+  return transport.request('/api/admin/schedule/live', updateLiveResponseSchema, {
+    method: 'PUT',
+    body: updateLiveRequestSchema.parse(input),
+  })
+}
+
+export function getHostessTeams(transport: AuthenticatedTransport, options: ReadOptions = {}) {
+  return transport.request('/api/hostess/teams', teamsResponseSchema, options)
+}
+
+export function awardTeam(transport: AuthenticatedTransport, input: HostessTeamAwardRequest) {
+  return transport.request('/api/hostess/team-award', hostessTeamAwardResponseSchema, {
+    method: 'POST',
+    body: hostessTeamAwardRequestSchema.parse(input),
+  })
 }
 
 export function scanStation(transport: AuthenticatedTransport, input: ScanRequest) {
@@ -164,5 +226,46 @@ export function makeHostess(transport: AuthenticatedTransport, userId: string) {
     `/api/admin/users/${encodeURIComponent(userId)}/role`,
     updateUserRoleResponseSchema,
     { method: 'PATCH', body: updateUserRoleRequestSchema.parse({ role: 'hostess' }) },
+  )
+}
+
+export function requestPlannedPhotoTickets(
+  transport: AuthenticatedTransport,
+  input: PlannedPhotoTicketsRequest,
+) {
+  return transport.request('/api/admin/planned-participants/photos/tickets', plannedPhotoTicketsResponseSchema, {
+    method: 'POST',
+    body: plannedPhotoTicketsRequestSchema.parse(input),
+  })
+}
+
+export function finalizePlannedPhotos(transport: AuthenticatedTransport, input: PlannedPhotoFinalizeRequest) {
+  return transport.request('/api/admin/planned-participants/photos/finalize', plannedPhotoFinalizeResponseSchema, {
+    method: 'POST',
+    body: plannedPhotoFinalizeRequestSchema.parse(input),
+  })
+}
+
+export function getMyBadge(transport: AuthenticatedTransport, options: ReadOptions = {}) {
+  return transport.request('/api/event/badge', participantBadgeSchema, options)
+}
+
+export function getHostessBadge(
+  transport: AuthenticatedTransport,
+  participantId: string,
+  options: ReadOptions = {},
+) {
+  return transport.request(
+    `/api/hostess/participants/${encodeURIComponent(participantId)}/badge`,
+    hostessBadgeStatusSchema,
+    options,
+  )
+}
+
+export function issueHostessBadge(transport: AuthenticatedTransport, participantId: string) {
+  return transport.request(
+    `/api/hostess/participants/${encodeURIComponent(participantId)}/badge`,
+    hostessBadgeStatusSchema,
+    { method: 'POST' },
   )
 }

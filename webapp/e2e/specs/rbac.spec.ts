@@ -1,5 +1,5 @@
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
-import { expect, fillSignupForm, logIn, signUp, test, uniqueEmail } from '../helpers/test'
+import { expect, fillSignupForm, logIn, markEmailVerified, signUp, test, uniqueEmail } from '../helpers/test'
 
 test('keeps participant and administrator workspaces separate', async ({ browser, page }) => {
   await page.goto('/admin/users')
@@ -38,6 +38,7 @@ test('promoting a user revokes the old session and opens the admin workspace aft
 
   await signUp(page, userEmail)
   await expect(page).toHaveURL(/\/app$/)
+  markEmailVerified(userEmail)
 
   const adminContext = await browser.newContext()
   const adminPage = await adminContext.newPage()

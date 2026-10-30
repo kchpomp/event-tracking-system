@@ -6,8 +6,15 @@ import {
 } from '../../../db'
 import { Prisma } from '../../../generated/prisma/client'
 import { enqueueTask } from '../../../outbox'
-import type { AuthRepository } from '../application/ports'
+import type { RateLimitPolicy } from '../../../rate-limit'
+import { passwordResetCooldownSeconds, type AuthRepository } from '../application/ports'
 import { AuthFailure } from '../domain/errors'
+
+/**
+ * Failed sign-ins live in the shared rate-limit table whatever RATE_LIMIT_STORE says, so every
+ * backend process sees one count. Keyed by the hashed address, not by client address.
+ */
+const loginFailurePolicy: RateLimitPolicy = 'login-failures'
 
 export function createPrismaAuthRepository(db: DbClient): AuthRepository {
   return {
@@ -337,6 +344,92 @@ export function createPrismaAuthRepository(db: DbClient): AuthRepository {
         select: { id: true },
       })
       return token !== null
+    },
+
+    async queueEmailVerification({ userId, now }) {
+      // The bucket is the cooldown, as for password resets: a burst collapses into one task.
+      const bucket = Math.floor(now.getTime() / (passwordResetCooldownSeconds * 1000))
+      await enqueueTask(db, {
+        type: 'auth:email-verification',
+        dedupeKey: `${userId}:${bucket}`,
+        payload: { userId },
+        scheduledFor: now,
+      })
+    },
+
+    createEmailVerificationToken(input) {
+      return db.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: input.userId },
+          select: { email: true, emailVerifiedAt: true },
+        })
+        if (!user || user.emailVerifiedAt) return null
+        const recentToken = await tx.emailVerificationToken.findFirst({
+          where: { userId: input.userId, createdAt: { gte: input.createdAfter } },
+          select: { id: true },
+        })
+        if (recentToken) return null
+
+        // One live link per account: a new one retires the older ones.
+        await tx.emailVerificationToken.updateMany({
+          where: { userId: input.userId, usedAt: null },
+          data: { usedAt: input.now },
+        })
+        await tx.emailVerificationToken.create({
+          data: { userId: input.userId, tokenHash: input.tokenHash, expiresAt: input.expiresAt },
+        })
+        return user.email
+      })
+    },
+
+    async invalidateEmailVerificationToken(input) {
+      await db.emailVerificationToken.updateMany({
+        where: { tokenHash: input.tokenHash, usedAt: null },
+        data: { usedAt: input.now },
+      })
+    },
+
+    confirmEmailVerification({ tokenHash, now }) {
+      return db.$transaction(async (tx) => {
+        const token = await tx.emailVerificationToken.findUnique({
+          where: { tokenHash },
+          select: { id: true, userId: true },
+        })
+        if (!token) return false
+        // Conditional, so two concurrent confirmations cannot both use it.
+        const used = await tx.emailVerificationToken.updateMany({
+          where: { id: token.id, usedAt: null, expiresAt: { gt: now } },
+          data: { usedAt: now },
+        })
+        if (used.count !== 1) return false
+        await tx.user.updateMany({
+          where: { id: token.userId, emailVerifiedAt: null },
+          data: { emailVerifiedAt: now },
+        })
+        return true
+      })
+    },
+
+    async countLoginFailures({ key, windowStart }) {
+      const bucket = await db.rateLimitBucket.findUnique({
+        where: { policy_key_windowStart: { policy: loginFailurePolicy, key, windowStart } },
+        select: { count: true },
+      })
+      return bucket?.count ?? 0
+    },
+
+    async recordLoginFailure({ key, windowStart, expiresAt }) {
+      // The same upsert as rate-limit/database-store.ts; the maintenance sweep deletes old rows.
+      await db.$executeRaw`
+        INSERT INTO "rate_limit_buckets" ("policy", "key", "window_start", "count", "expires_at")
+        VALUES (${loginFailurePolicy}, ${key}, ${windowStart}, 1, ${expiresAt})
+        ON CONFLICT ("policy", "key", "window_start")
+        DO UPDATE SET "count" = "rate_limit_buckets"."count" + 1
+      `
+    },
+
+    async clearLoginFailures({ key }) {
+      await db.rateLimitBucket.deleteMany({ where: { policy: loginFailurePolicy, key } })
     },
 
     completePasswordReset(input) {

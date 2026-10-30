@@ -23,7 +23,8 @@ const prisma = createPrisma(databaseUrl)
 const app = createApp({ env, prisma })
 
 type Person = { accessToken: string; id: string; qr: string }
-type NetworkBody = { nodes: { id: string; initials: string }[]; edges: { a: string; b: string }[] }
+type NetworkBody = {
+  nodes: { id: string; initials: string; photo: { url: string; expiresAt: string } | null }[]; edges: { a: string; b: string }[] }
 
 let counter = 0
 async function register(overrides: Record<string, unknown> = {}): Promise<Person> {
@@ -95,7 +96,7 @@ describe('venue network screen API', () => {
     expect((await get('/api/admin/network', admin.accessToken)).status).toBe(200)
   })
 
-  test('nodes are participants only, with initials and nothing else; staff and their links are left out', async () => {
+  test('nodes are participants only, with initials and a photo link and nothing else; staff and their links are left out', async () => {
     const ivan = await register({ firstName: 'Иван', lastName: 'Кремнев' })
     const yolka = await register({ firstName: ' ёлка', lastName: 'Римская-Корсакова' })
     const hostess = await makeStaff('hostess')
@@ -109,13 +110,44 @@ describe('venue network screen API', () => {
     const body = JSON.parse(text) as NetworkBody
 
     expect(body.nodes).toEqual([
-      { id: ivan.id, initials: 'ИК' },
-      { id: yolka.id, initials: 'ЁР' },
+      { id: ivan.id, initials: 'ИК', photo: null },
+      { id: yolka.id, initials: 'ЁР', photo: null },
     ])
     expect(body.edges).toEqual([])
     for (const secret of ['Иван', 'Кремнев', 'Тюмень', 'Завод', ivan.qr, '@example.com']) {
       expect(text).not.toContain(secret)
     }
+  })
+
+  test('a node gets the guest-list photo only when email and name match the account; others keep initials', async () => {
+    const admin = await makeStaff('admin')
+    const listed = await register()
+    const stranger = await register()
+    const plain = await register()
+    const planned = async (user: Person, lastName?: string) => {
+      const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+      await prisma.plannedParticipant.create({
+        data: {
+          email: row.email,
+          firstName: row.firstName,
+          lastName: lastName ?? row.lastName,
+          department: 'СИБУР',
+          city: 'Москва',
+          photoObjectKey: `planned-photos/2026/10/${user.id}`,
+          photoContentType: 'image/png',
+          photoByteSize: 100,
+        },
+      })
+    }
+    await planned(listed)
+    await planned(stranger, 'Другой')
+
+    const body = await network(admin)
+    const photoOf = (user: Person) => body.nodes.find((node) => node.id === user.id)!.photo
+    expect(photoOf(listed)?.url).toBeString()
+    expect(photoOf(listed)?.expiresAt).toBeString()
+    expect(photoOf(stranger)).toBeNull()
+    expect(photoOf(plain)).toBeNull()
   })
 
   test('A scanning B and then B scanning A is exactly one edge, stored lowest id first', async () => {
@@ -170,5 +202,94 @@ describe('venue network screen API', () => {
     expect(limited.status).toBe(429)
     expect(limited.headers.get('retry-after')).toBeTruthy()
     expect((await read(otherAdmin)).status).toBe(200)
+  })
+
+  describe('flask feed', () => {
+    type FlaskBody = {
+      serverNow: string
+      total: number
+      ideas: { id: string; createdAt: string; participant: { fullName: string; initials: string; photo: unknown } }[]
+    }
+    const makeScreen = async () => {
+      const person = await register()
+      await prisma.user.update({ where: { id: person.id }, data: { role: 'screen' } })
+      return person
+    }
+    const addIdeas = (authorId: string, count: number, from = 0) =>
+      prisma.idea.createMany({
+        data: Array.from({ length: count }, (_, n) => ({
+          authorId,
+          title: `СекретТема${from + n}`,
+          direction: 'СекретНаправление',
+          problem: 'СекретПроблема',
+          description: 'СекретОписание',
+          expectedResult: 'СекретРезультат',
+          createdAt: new Date(Date.UTC(2026, 9, 28, 10, 0, from + n)),
+        })),
+      })
+
+    test('screen and admin read it; participant 403, anonymous 401', async () => {
+      const participant = await register()
+      const admin = await makeStaff('admin')
+      const screen = await makeScreen()
+      expect((await app.request('/api/admin/flask')).status).toBe(401)
+      expect((await get('/api/admin/flask', participant.accessToken)).status).toBe(403)
+      expect((await get('/api/admin/flask', admin.accessToken)).status).toBe(200)
+      expect((await get('/api/admin/flask', screen.accessToken)).status).toBe(200)
+    })
+
+    test('an idea shows who and when and never its text or an email', async () => {
+      const screen = await makeScreen()
+      const ivan = await register({ firstName: 'Иван', lastName: 'Кремнев' })
+      await addIdeas(ivan.id, 1)
+
+      const text = await (await get('/api/admin/flask', screen.accessToken)).text()
+      const body = JSON.parse(text) as FlaskBody
+      expect(body.total).toBe(1)
+      expect(Number.isNaN(Date.parse(body.serverNow))).toBe(false)
+      expect(body.ideas).toHaveLength(1)
+      expect(body.ideas[0]!.createdAt).toBe('2026-10-28T10:00:00.000Z')
+      expect(body.ideas[0]!.participant).toEqual({ fullName: 'Иван Кремнев', initials: 'ИК', photo: null })
+      expect(text).not.toContain('Секрет')
+      expect(text).not.toContain('@example.com')
+    })
+
+    test('the latest 40 come oldest first and total counts all', async () => {
+      const screen = await makeScreen()
+      const author = await register()
+      await addIdeas(author.id, 45)
+
+      const body = (await (await get('/api/admin/flask', screen.accessToken)).json()) as FlaskBody
+      expect(body.total).toBe(45)
+      expect(body.ideas.map((idea) => idea.createdAt)).toEqual(
+        Array.from({ length: 40 }, (_, n) => new Date(Date.UTC(2026, 9, 28, 10, 0, 5 + n)).toISOString()),
+      )
+    })
+
+    test('a photo appears only when the guest-list row matches the account', async () => {
+      const screen = await makeScreen()
+      const listed = await register()
+      const stranger = await register()
+      for (const [user, lastName] of [[listed, undefined], [stranger, 'Другой']] as const) {
+        const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+        await prisma.plannedParticipant.create({
+          data: {
+            email: row.email,
+            firstName: row.firstName,
+            lastName: lastName ?? row.lastName,
+            department: 'СИБУР',
+            city: 'Москва',
+            photoObjectKey: `planned-photos/2026/10/${user.id}`,
+            photoContentType: 'image/png',
+            photoByteSize: 100,
+          },
+        })
+      }
+      await addIdeas(listed.id, 1, 0)
+      await addIdeas(stranger.id, 1, 1)
+
+      const body = (await (await get('/api/admin/flask', screen.accessToken)).json()) as FlaskBody
+      expect(body.ideas.map((idea) => idea.participant.photo !== null)).toEqual([true, false])
+    })
   })
 })

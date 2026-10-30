@@ -65,6 +65,7 @@ export class UsersService {
       email: user.email,
       displayName: user.displayName,
       role: user.role,
+      emailVerified: user.emailVerifiedAt !== null,
       createdAt: user.createdAt.toISOString(),
     }
   }

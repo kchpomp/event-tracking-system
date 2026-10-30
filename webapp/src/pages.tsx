@@ -15,15 +15,19 @@ import { AdminDashboard, AdminSettings, AdminUsers } from '@/features/admin'
 import {
   AuthPageShell,
   clearPasswordResetTokenHash,
+  EmailVerificationCard,
   ForgotPasswordForm,
   LoginForm,
   RegisterForm,
   readPasswordResetToken,
   ResetPasswordForm,
   useAuth,
+  VerifyEmail,
 } from '@/features/auth'
 import {
+  AdminSchedule,
   AdminStations,
+  BadgePage,
   DiffusionPage,
   DiffusionScanPage,
   EventDashboard,
@@ -33,16 +37,21 @@ import {
   IdeasPage,
   PlannedOverview,
   PlannedParticipantsPage,
+  HostessBadgePage,
   PolymerPage,
   ProfilePage,
   RegistrationClosed,
+  SchedulePage,
+  SchedulePopup,
   StationPage,
   StationScanPage,
   useRegistrationReferenceQuery,
   useRegistrationStatusQuery,
 } from '@/features/event'
 import { homePathForRole, safeReturnPath } from '@/features/navigation'
+import { FlaskScreen } from '@/features/flask'
 import { NetworkScreen } from '@/features/network'
+import { ScreenControls, ScreenMenu } from '@/features/screen'
 
 export function HomePage() {
   const auth = useAuth()
@@ -122,12 +131,22 @@ export function ForgotPasswordPage() {
 
 export function ResetPasswordPage() {
   const auth = useAuth()
-  const token = usePasswordResetToken()
+  const token = useLinkToken()
   if (auth.isBootstrapping) return <SessionLoadingSection />
 
   return (
     <AuthPageShell>
       <ResetPasswordForm token={token} />
+    </AuthPageShell>
+  )
+}
+
+/** The emailed verification link; works signed in or not. */
+export function VerifyEmailPage() {
+  const token = useLinkToken()
+  return (
+    <AuthPageShell>
+      <VerifyEmail key={token} token={token} />
     </AuthPageShell>
   )
 }
@@ -161,9 +180,22 @@ export function UserPolymerPage() {
   return <PolymerPage />
 }
 
+export function UserBadgePage() {
+  return <BadgePage />
+}
+
+export function UserSchedulePage() {
+  return <SchedulePage />
+}
+
 export function UserProfilePage() {
   const user = useWorkspaceUser('user')
-  return <ProfilePage user={user} />
+  return (
+    <div className="grid gap-6">
+      <EmailVerificationCard user={user} />
+      <ProfilePage user={user} />
+    </div>
+  )
 }
 
 export function HostessHomeRoutePage() {
@@ -172,6 +204,10 @@ export function HostessHomeRoutePage() {
 
 export function HostessScanRoutePage() {
   return <HostessScanPage />
+}
+
+export function HostessBadgeRoutePage() {
+  return <HostessBadgePage />
 }
 
 export function HostessParticipantRoutePage() {
@@ -183,6 +219,10 @@ export function HostessParticipantRoutePage() {
 
 export function AdminStationsPage() {
   return <AdminStations />
+}
+
+export function AdminSchedulePage() {
+  return <AdminSchedule />
 }
 
 export function AdminDashboardPage() {
@@ -207,6 +247,14 @@ export function AdminNetworkPage() {
   return <NetworkScreen />
 }
 
+export function AdminFlaskPage() {
+  return <FlaskScreen />
+}
+
+export function ScreenFlaskPage() {
+  return <FlaskScreen />
+}
+
 export function UserWorkspaceLayout() {
   return <WorkspaceRoute role="user" />
 }
@@ -221,7 +269,20 @@ export function HostessWorkspaceLayout() {
 
 /** Administrator pages for the venue display: full screen, without the workspace sidebar. */
 export function AdminScreenLayout() {
-  return <VenueScreenRoute />
+  return <VenueScreenRoute role="admin" />
+}
+
+/** The venue display account: the visualization alone, with a small sign-out in the corner. */
+export function ScreenWorkspaceLayout() {
+  return <VenueScreenRoute role="screen" />
+}
+
+export function ScreenPage() {
+  return <ScreenMenu onLogout={useAuth().logout} />
+}
+
+export function ScreenNetworkPage() {
+  return <NetworkScreen />
 }
 
 export function NotFoundPage() {
@@ -258,6 +319,7 @@ function WorkspaceRoute({ role }: { role: UserRole }) {
     return (
       <ParticipantShell onLogout={auth.logout}>
         <Outlet />
+        <SchedulePopup />
       </ParticipantShell>
     )
   }
@@ -265,6 +327,7 @@ function WorkspaceRoute({ role }: { role: UserRole }) {
     return (
       <ParticipantShell home="/hostess" onLogout={auth.logout} showProfile={false}>
         <Outlet />
+        <SchedulePopup />
       </ParticipantShell>
     )
   }
@@ -281,14 +344,14 @@ function WorkspaceRoute({ role }: { role: UserRole }) {
  * stays mounted when the session is lost, so the display keeps its last picture (the screen
  * marks it) instead of jumping to the sign-in form; signing in again in any tab resumes it.
  */
-function VenueScreenRoute() {
+function VenueScreenRoute({ role }: { role: 'admin' | 'screen' }) {
   const auth = useAuth()
   const location = useLocation()
-  const isAdmin = auth.user?.role === 'admin'
+  const allowed = auth.user?.role === role
   const [shown, setShown] = useState(false)
-  if (isAdmin && !shown) setShown(true)
+  if (allowed && !shown) setShown(true)
 
-  if (shown && (isAdmin || !auth.user)) return <Outlet />
+  if (shown && (allowed || !auth.user)) return <ScreenFrame logout={role === 'screen' ? auth.logout : null} role={role} />
   if (auth.isBootstrapping) return <SessionLoadingSection />
   if (auth.sessionError && !auth.user) {
     return <SessionErrorSection retry={auth.retrySession} />
@@ -297,8 +360,24 @@ function VenueScreenRoute() {
     const returnTo = `${location.pathname}${location.searchStr}`
     return <HrefRedirect href={`/login?returnTo=${encodeURIComponent(returnTo)}`} />
   }
-  if (!isAdmin) return <HrefRedirect href={homePathForRole(auth.user.role)} />
-  return <Outlet />
+  if (!allowed) return <HrefRedirect href={homePathForRole(auth.user.role)} />
+  return <ScreenFrame logout={role === 'screen' ? auth.logout : null} role={role} />
+}
+
+function ScreenFrame({ role, logout }: { role: 'admin' | 'screen'; logout: (() => Promise<void>) | null }) {
+  const { pathname } = useLocation()
+  // The display account's menu has its own buttons; every visualization gets small ones on hover.
+  return (
+    <>
+      <Outlet />
+      {pathname !== '/screen' && (
+        <ScreenControls
+          back={role === 'screen' ? { to: '/screen', label: 'К выбору экрана' } : { to: '/admin', label: 'В админку' }}
+          onLogout={logout}
+        />
+      )}
+    </>
+  )
 }
 
 function GuestAuthPage({
@@ -325,7 +404,8 @@ function GuestAuthPage({
   return children
 }
 
-function usePasswordResetToken() {
+/** The `#token=` of an emailed link, read once and then removed from the address bar. */
+function useLinkToken() {
   const [token, setToken] = useState(() => {
     if (typeof window === 'undefined') return ''
     return readPasswordResetToken(window.location)

@@ -5,6 +5,7 @@ import {
   degreeTier,
   freshKeys,
   mergeSnapshot,
+  mergePhotos,
   nextFreshExpiry,
   nodeRadius,
   SCREEN_HEIGHT,
@@ -20,7 +21,7 @@ function sequence(values = [0.1, 0.7, 0.4, 0.9, 0.2, 0.6, 0.3, 0.8, 0.5]) {
 }
 const at = (now: number) => ({ now, radius, random: sequence() })
 
-const node = (id: string, initials = 'АБ') => ({ id, initials })
+const node = (id: string, initials = 'АБ') => ({ id, initials, photo: null })
 const snapshot = (ids: string[], edges: Array<[string, string]> = []): NetworkResponse => ({
   nodes: ids.map((id) => node(id)),
   edges: edges.map(([a, b]) => ({ a, b })),
@@ -116,4 +117,24 @@ test('circles shrink as the room fills, within readable bounds', () => {
   expect(nodeRadius(200)).toBeGreaterThanOrEqual(28)
   expect(nodeRadius(5000)).toBeGreaterThanOrEqual(16)
   expect(nodeRadius(0)).toBeLessThanOrEqual(44)
+})
+
+test('a photo link is kept while it is fresh, so the picture is not fetched again on every poll', () => {
+  const link = (url: string, expiresAt: number) => ({ url, expiresAt: new Date(expiresAt).toISOString() })
+  const now = 1_000_000
+  const held = mergePhotos(new Map(), [{ id: 'a', photo: link('/1', now + 600_000) }, { id: 'b', photo: null }], now)
+  expect([...held.keys()]).toEqual(['a'])
+
+  const next = mergePhotos(
+    held,
+    [{ id: 'a', photo: link('/2', now + 604_000) }, { id: 'c', photo: link('/3', now + 604_000) }],
+    now + 4_000,
+  )
+  expect(next.get('a')?.url).toBe('/1')
+  expect(next.get('c')?.url).toBe('/3')
+
+  // Close to expiry the newest link wins; a person who lost the photo falls back to initials.
+  const late = mergePhotos(next, [{ id: 'a', photo: link('/4', now + 1_200_000) }, { id: 'c', photo: null }], now + 560_000)
+  expect(late.get('a')?.url).toBe('/4')
+  expect(late.has('c')).toBe(false)
 })

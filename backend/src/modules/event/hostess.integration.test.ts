@@ -59,7 +59,7 @@ function api(method: string, path: string, accessToken: string, body?: unknown) 
 /** The role is read from the database on every request, so promoting after sign-up is enough. */
 async function makeStaff(role: 'hostess' | 'admin') {
   const person = await register({ firstName: role === 'admin' ? 'Админ' : 'Хостес' })
-  await prisma.user.update({ where: { id: person.id }, data: { role } })
+  await prisma.user.update({ where: { id: person.id }, data: { role, emailVerifiedAt: new Date() } })
   return person
 }
 
@@ -114,7 +114,7 @@ describe('hostess desk API', () => {
     expect((await award(participant, participant.id, station.id)).status).toBe(403)
   })
 
-  test('giving the hostess role removes the person points, and leaves the ideas and the progress of others', async () => {
+  test('giving a person any staff role removes their points and visits, and leaves the ideas and the progress of others', async () => {
     const admin = await makeStaff('admin')
     const olga = await register({ firstName: 'Ольга', lastName: 'Хостесова' })
     const other = await register({ firstName: 'Олег', lastName: 'Иванов' })
@@ -130,6 +130,7 @@ describe('hostess desk API', () => {
     expect(await totalPoints(olga.id)).toBeGreaterThan(0)
     const otherPoints = await totalPoints(other.id)
 
+    await prisma.user.update({ where: { id: olga.id }, data: { emailVerifiedAt: new Date() } })
     const promoted = await api('PATCH', `/api/admin/users/${olga.id}/role`, admin.accessToken, {
       role: 'hostess',
     })
@@ -142,12 +143,22 @@ describe('hostess desk API', () => {
     expect(await prisma.connection.count()).toBe(1)
     expect(await prisma.idea.count({ where: { authorId: olga.id } })).toBe(1)
 
-    // Any other role change leaves the ledger alone.
-    const participant = await register({ firstName: 'Павел', lastName: 'Смирнов' })
-    await scan(participant, (await stationNamed('Воркшоп 2')).qrToken)
-    const before = await totalPoints(participant.id)
-    await api('PATCH', `/api/admin/users/${participant.id}/role`, admin.accessToken, { role: 'admin' })
-    expect(await totalPoints(participant.id)).toBe(before)
+    // Admin and screen clear the same way; a move to `user` deletes nothing.
+    for (const role of ['admin', 'screen'] as const) {
+      const person = await register({ firstName: 'Павел', lastName: role })
+      await scan(person, (await stationNamed('Воркшоп 2')).qrToken)
+      expect(await totalPoints(person.id)).toBeGreaterThan(0)
+      await prisma.user.update({ where: { id: person.id }, data: { emailVerifiedAt: new Date() } })
+      await api('PATCH', `/api/admin/users/${person.id}/role`, admin.accessToken, { role })
+      expect(await totalPoints(person.id)).toBe(0)
+      expect(await prisma.stationVisit.count({ where: { participantId: person.id } })).toBe(0)
+    }
+    const staff = await makeStaff('hostess')
+    await prisma.activityLog.create({
+      data: { participantId: staff.id, actionType: 'idea', pointsAwarded: 2, refId: crypto.randomUUID() },
+    })
+    await api('PATCH', `/api/admin/users/${staff.id}/role`, admin.accessToken, { role: 'user' })
+    expect(await totalPoints(staff.id)).toBe(2)
   })
 
   test('search matches every word, only participants, and shows their points', async () => {
@@ -322,6 +333,7 @@ describe('hostess desk API', () => {
     const setRole = (id: string, role: string) =>
       api('PATCH', `/api/admin/users/${id}/role`, admin.accessToken, { role })
 
+    await prisma.user.update({ where: { id: anna.id }, data: { emailVerifiedAt: new Date() } })
     const promoted = await setRole(anna.id, 'hostess')
     expect(promoted.status).toBe(200)
     expect(((await promoted.json()) as { user: { role: string } }).user.role).toBe('hostess')

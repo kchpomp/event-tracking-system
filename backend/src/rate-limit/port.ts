@@ -26,6 +26,10 @@ export type RateLimitPolicy =
   | 'notifications'
   | 'admin-users-read'
   | 'admin-network-read'
+  /** Failed password sign-ins per hashed address, written by the auth module itself. */
+  | 'login-failures'
+  | 'idea-write'
+  | 'connection-write'
 
 export type RateLimitConsumption = {
   /** Requests seen for the key in the current window, this one included. */

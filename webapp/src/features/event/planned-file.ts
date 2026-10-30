@@ -2,8 +2,9 @@
  * Reading and writing the expected-guest lists as spreadsheet files, with no library: a CSV is text,
  * and an .xlsx is a zip of XML that the browser can already inflate (`DecompressionStream`).
  *
- * Reading turns a file into the same text the paste box takes, one person per line with the cells
- * joined by a tab, so `parsePlannedLines` is the only place that decides what a line means.
+ * Reading turns a file into the same text the paste box takes, one row per line with the cells
+ * joined by a tab, so `parsePlannedTable` (after `parseCsv`) is the only place that decides what a
+ * row means.
  */
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024
@@ -195,11 +196,16 @@ export async function readXlsx(bytes: Uint8Array): Promise<string[][]> {
 
 // ---- file <-> paste text ----
 
-/** A header row (no address in it) is dropped; every other row becomes one tab-joined line. */
+/** One table row as a line of tab-separated cells; a cell with a tab, a quote or a break is quoted. */
 export function rowsToText(rows: string[][]): string {
-  const lines = rows.map((row) => row.map((cell) => cell.trim()).filter(Boolean).join('\t')).filter(Boolean)
-  if (lines.length > 0 && !lines[0]!.includes('@')) lines.shift()
-  return lines.join('\n')
+  const cell = (value: string) => (/[\t"\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value)
+  return rows
+    .map((row) => {
+      const cells = row.map((value) => value.trim())
+      while (cells.length > 0 && cells.at(-1) === '') cells.pop()
+      return cells.map(cell).join('\t')
+    })
+    .join('\n')
 }
 
 export async function spreadsheetToText(file: File): Promise<string> {
@@ -212,15 +218,29 @@ export async function spreadsheetToText(file: File): Promise<string> {
 
 /**
  * The people of a list as a CSV that Russian Excel opens correctly: UTF-8 with a BOM, «;» between
- * columns. A value that starts like a formula gets a leading apostrophe, so opening the file never
- * runs anything.
+ * columns, the same five columns the import reads. A value that starts like a formula gets a
+ * leading apostrophe, so opening the file never runs anything.
  */
-export function plannedCsv(items: ReadonlyArray<{ email: string; fullName: string | null }>): string {
-  const cell = (value: string) => {
-    const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
+export function plannedCsv(
+  items: ReadonlyArray<{
+    email: string
+    firstName: string | null
+    lastName: string | null
+    department: string | null
+    city: string | null
+  }>,
+): string {
+  const cell = (value: string | null) => {
+    const text = value ?? ''
+    const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text
     return /[";\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe
   }
-  const lines = ['Email;ФИО', ...items.map((item) => `${cell(item.email)};${cell(item.fullName ?? '')}`)]
+  const lines = [
+    'Почта;Имя;Фамилия;Подразделение;Город',
+    ...items.map((item) =>
+      [item.email, item.firstName, item.lastName, item.department, item.city].map(cell).join(';'),
+    ),
+  ]
   return `\uFEFF${lines.join('\r\n')}\r\n`
 }
 

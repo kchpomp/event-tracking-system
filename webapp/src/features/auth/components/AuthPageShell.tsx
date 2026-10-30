@@ -28,9 +28,10 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
         <div className="flex flex-1 items-center justify-center px-6 py-4 md:px-10">
           <div className="w-full max-w-sm">{children}</div>
         </div>
-        <Typography className="px-6 md:px-10" tone="muted" variant="bodyXs">
+        <Typography className="px-6 text-center md:px-10" tone="muted" variant="bodyXs">
           <a
             className="underline underline-offset-4"
+            data-testid="privacy-policy-link"
             href={PRIVACY_POLICY_URL}
             rel="noreferrer"
             target="_blank"

@@ -6,7 +6,7 @@ import { UploadsFailure } from '../domain/errors'
  * Each failure maps to a status and a code the client can act on: retry the transfer, start a
  * new upload, or pick a different file. A single generic conflict would leave the UI guessing.
  */
-export function toUploadsAppError(error: unknown) {
+function toUploadsAppError(error: unknown) {
   // The storage layer rejects a request the contract let through - most plausibly when
   // PRIVATE_STORAGE_UPLOAD_MAX_BYTES is configured below the contract's own limit. That is the
   // caller asking for something invalid, so it must not surface as a 500. Only this kind:

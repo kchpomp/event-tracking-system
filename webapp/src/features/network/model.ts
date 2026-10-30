@@ -5,9 +5,9 @@ import { DIFFUSION_GOAL, type NetworkResponse } from '@event-tracking-system/con
 export const SCREEN_WIDTH = 1920
 export const SCREEN_HEIGHT = 1080
 /** How long a new circle or line keeps its accent. */
-export const FRESH_MS = 2500
+const FRESH_MS = 2500
 /** At most this many circles (and as many lines) carry the accent at once, e.g. after a break. */
-export const FRESH_MAX = 6
+const FRESH_MAX = 6
 
 export type ScreenNode = {
   id: string
@@ -20,6 +20,30 @@ export type ScreenNode = {
   y: number
   vx: number
   vy: number
+}
+
+type PhotoLink = { url: string; expiresAt: string }
+
+/** Links are signed per poll; a held one is replaced only when it is about to expire. */
+const PHOTO_REFRESH_MARGIN_MS = 60_000
+
+/**
+ * The photo link to show for each person. A fresh link is kept across polls: a new URL for the
+ * same picture would make the browser fetch it again. Whoever has no photo in the snapshot is dropped.
+ */
+export function mergePhotos(
+  held: ReadonlyMap<string, PhotoLink>,
+  nodes: ReadonlyArray<{ id: string; photo: PhotoLink | null }>,
+  now: number,
+): Map<string, PhotoLink> {
+  const next = new Map<string, PhotoLink>()
+  for (const { id, photo } of nodes) {
+    if (!photo) continue
+    const current = held.get(id)
+    const keep = current && Date.parse(current.expiresAt) - now > PHOTO_REFRESH_MARGIN_MS
+    next.set(id, keep ? current : photo)
+  }
+  return next
 }
 
 export type ScreenEdge = {
@@ -47,7 +71,7 @@ export function nodeRadius(count: number) {
 }
 
 /** The gap between a newcomer and the person they are linked to. */
-export const neighbourDistance = (radius: number) => 2 * radius + 16
+const neighbourDistance = (radius: number) => 2 * radius + 16
 
 type MergeContext = {
   now: number

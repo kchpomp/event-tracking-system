@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card'
 import { Typography } from '@/components/typography'
 
-export type SectionMetric = {
+type SectionMetric = {
   description?: string
   icon?: IconSvgElement
   label: string

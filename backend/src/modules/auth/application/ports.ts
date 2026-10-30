@@ -1,5 +1,4 @@
 import type {
-  PasswordResetRequestResponse,
   RegisterPayload,
   SocialAuthProvider,
 } from '@event-tracking-system/contracts'
@@ -91,6 +90,26 @@ export type AuthRepository = {
   }): Promise<boolean>
   invalidatePasswordResetToken(input: { tokenHash: string; now: Date }): Promise<void>
   hasActivePasswordResetToken(input: { tokenHash: string; now: Date }): Promise<boolean>
+  /** Queues the verification email for this account; requests inside one cooldown collapse. */
+  queueEmailVerification(input: { userId: string; now: Date }): Promise<void>
+  /**
+   * Mints a verification token unless the account is gone, already verified, or got a token
+   * within the cooldown. Returns the address to send to, or null when there is nothing to send.
+   */
+  createEmailVerificationToken(input: {
+    userId: string
+    tokenHash: string
+    expiresAt: Date
+    now: Date
+    createdAfter: Date
+  }): Promise<string | null>
+  invalidateEmailVerificationToken(input: { tokenHash: string; now: Date }): Promise<void>
+  /** Uses an unexpired, unused token once and marks its owner verified. False otherwise. */
+  confirmEmailVerification(input: { tokenHash: string; now: Date }): Promise<boolean>
+  /** Failed sign-ins for one hashed address in one clock-aligned window. */
+  countLoginFailures(input: LoginFailureWindow): Promise<number>
+  recordLoginFailure(input: LoginFailureWindow): Promise<void>
+  clearLoginFailures(input: { key: string }): Promise<void>
   completePasswordReset(input: {
     tokenHash: string
     passwordHash: string
@@ -102,6 +121,12 @@ export type AuthRepository = {
      */
     queueNotice(email: string, enqueue: (task: QueuedTask) => Promise<void>): Promise<void>
   }): Promise<{ email: string } | null>
+}
+
+export type LoginFailureWindow = {
+  key: string
+  windowStart: Date
+  expiresAt: Date
 }
 
 export type AccessTokens = {
@@ -126,6 +151,10 @@ export type PasswordResetNotifier = {
     signal: AbortSignal,
   ): Promise<void>
   sendPasswordChanged(input: { email: string }, signal: AbortSignal): Promise<void>
+  sendEmailVerification(
+    input: { email: string; token: string; expiresAt: Date },
+    signal: AbortSignal,
+  ): Promise<void>
   /**
    * True when a send failed in a way no retry can fix, so compensation has to happen now.
    *
@@ -159,16 +188,21 @@ export type PasswordResetTaskQueue = {
  */
 export const passwordResetCooldownSeconds = 60
 
+export const emailVerificationTokenTtlHours = 24
+
+/**
+ * After this many failed password sign-ins for one address inside one window, sign-in for that
+ * address answers 429 until the window ends, even with the right password.
+ */
+export const loginFailureLimit = 10
+export const loginFailureWindowSeconds = 15 * 60
+
 /** What the application asks for; the infrastructure decides which client writes it. */
 export type QueuedTask = {
   type: string
   dedupeKey: string
   payload: unknown
 }
-
-export const passwordResetAccepted = {
-  accepted: true,
-} satisfies PasswordResetRequestResponse
 
 export type RefreshTokens = {
   create(): string

@@ -139,6 +139,7 @@ describe('social sign-in API integration', () => {
         email: 'social-race-target@example.com',
         googleSubject: 'social-race-subject',
         passwordHash: null,
+        emailVerifiedAt: new Date(),
       },
     })
     const sessionCreateGate = gateNextSessionCreate()

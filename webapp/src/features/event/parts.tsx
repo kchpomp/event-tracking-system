@@ -5,11 +5,13 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import type { EventProfile } from '@event-tracking-system/contracts'
 import { Link } from '@tanstack/react-router'
-import { Fragment, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Typography } from '@/components/typography'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -22,7 +24,55 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { fullName, initialsOf } from './model'
 import type { Result } from './use-result-dialog'
+
+const AVATAR_PX = { default: 32, lg: 40, xl: 64 } as const
+
+/**
+ * A person's photo (their own or the guest-list one), else their initials. The initials also show
+ * while the photo loads and when its link fails. The photo is lazy, with a fixed size and the full
+ * name as its alt text.
+ */
+export function PersonAvatar({
+  firstName,
+  lastName,
+  photo,
+  size = 'lg',
+  testId = 'person-avatar',
+}: {
+  firstName: string | null
+  lastName: string | null
+  photo: { url: string } | null
+  size?: keyof typeof AVATAR_PX
+  testId?: string
+}) {
+  return (
+    <Avatar data-testid={testId} size={size}>
+      {photo && (
+        <AvatarImage
+          alt={fullName({ firstName, lastName })}
+          height={AVATAR_PX[size]}
+          loading="lazy"
+          src={photo.url}
+          width={AVATAR_PX[size]}
+        />
+      )}
+      <AvatarFallback>{initialsOf({ firstName, lastName })}</AvatarFallback>
+    </Avatar>
+  )
+}
+
+/** The signed-in participant's own avatar. */
+export function ProfileAvatar({
+  profile,
+  size = 'xl',
+}: {
+  profile: Pick<EventProfile, 'firstName' | 'lastName' | 'photo'>
+  size?: 'lg' | 'xl'
+}) {
+  return <PersonAvatar {...profile} size={size} testId="profile-avatar" />
+}
 
 export function Brand() {
   return (
@@ -181,5 +231,51 @@ export function ResultDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** «Показать мой QR»: the participant's own code, made on demand; a second tap hides it. */
+export function MyQr({ hint, token }: { hint: string; token: string }) {
+  const [qr, setQr] = useState<{ src: string } | { error: true } | null>(null)
+  const [pending, setPending] = useState(false)
+
+  async function toggle() {
+    if (qr) {
+      setQr(null)
+      return
+    }
+    setPending(true)
+    try {
+      // Loaded on demand: the QR generator is not needed anywhere else.
+      const { default: QRCode } = await import('qrcode')
+      setQr({ src: await QRCode.toDataURL(token, { width: 280, margin: 2 }) })
+    } catch {
+      setQr({ error: true })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <>
+      <Button disabled={pending} onClick={() => void toggle()} size="lg" type="button" variant="secondary">
+        {pending ? 'Создаём QR…' : 'Показать мой QR'}
+      </Button>
+      {qr && 'src' in qr && (
+        <Card>
+          <CardContent className="grid justify-items-center gap-3">
+            <img alt="Мой QR-код" className="size-64 rounded-lg bg-white" data-testid="my-qr" src={qr.src} />
+            <Typography align="center" tone="muted" variant="bodySm">
+              {hint}
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
+      {qr && 'error' in qr && (
+        <Alert variant="destructive">
+          <AlertDescription>Не удалось создать QR-код. Попробуйте ещё раз.</AlertDescription>
+        </Alert>
+      )}
+    </>
   )
 }

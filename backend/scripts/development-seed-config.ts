@@ -54,9 +54,9 @@ function parseDemoFlag(value: string | undefined) {
   return value !== undefined && ['1', 'true', 'yes'].includes(value.trim().toLowerCase())
 }
 
-function parseCredentials(
+export function parseCredentials(
   source: Record<string, string | undefined>,
-  prefix: 'DEV_SEED_ADMIN' | 'DEV_SEED_USER',
+  prefix: string,
 ): DevelopmentSeedCredentials {
   const emailKey = `${prefix}_EMAIL`
   const passwordKey = `${prefix}_PASSWORD`

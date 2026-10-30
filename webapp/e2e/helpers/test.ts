@@ -1,8 +1,25 @@
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
 import { expect as playwrightExpect, type Locator, type Page } from '@playwright/test'
 
 export { expect, test } from '@playwright/test'
 
 export const e2ePassword = 'password123'
+
+/**
+ * Staff roles need a verified address, and a spec cannot read the verification mail, so it marks the
+ * address verified in the test database, as clicking the link would.
+ */
+export function markEmailVerified(email: string) {
+  execFileSync('bun', ['scripts/verify-email.ts', email], {
+    cwd: fileURLToPath(new URL('../../../backend', import.meta.url)),
+    env: process.env,
+    stdio: 'inherit',
+    // An npm-installed `bun` is a `.cmd` shim on Windows, which only a shell can start.
+    shell: process.platform === 'win32',
+  })
+}
 
 export function uniqueEmail(prefix = 'web-e2e') {
   const timestamp = new Date().toISOString().replace(/[^0-9]/g, '')

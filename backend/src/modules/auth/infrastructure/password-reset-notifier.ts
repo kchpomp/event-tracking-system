@@ -54,6 +54,23 @@ export function createPasswordResetNotifier(
         signal,
       )
     },
+    async sendEmailVerification({ email, expiresAt, token }, signal) {
+      const verifyUrl = new URL('/verify-email', webappOrigin)
+      verifyUrl.hash = new URLSearchParams({ token }).toString()
+      await send(
+        {
+          to: email,
+          subject: 'Подтверждение почты',
+          text: [
+            'Чтобы подтвердить адрес электронной почты, перейдите по ссылке:',
+            verifyUrl.toString(),
+            `Ссылка действует до ${expiresAt.toISOString()} (UTC).`,
+            'Если вы не запрашивали подтверждение, просто проигнорируйте это письмо.',
+          ].join('\n\n'),
+        },
+        signal,
+      )
+    },
     async sendPasswordChanged({ email }, signal) {
       await send(
         {

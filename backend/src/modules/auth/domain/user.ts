@@ -6,6 +6,7 @@ export type AuthUserRecord = {
   passwordHash: string | null
   displayName: string | null
   role: UserRole
+  emailVerifiedAt: Date | null
   createdAt: Date
 }
 
@@ -19,6 +20,7 @@ export function toUserDto(user: AuthUserRecord): UserDto {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    emailVerified: user.emailVerifiedAt !== null,
     createdAt: user.createdAt.toISOString(),
   }
 }

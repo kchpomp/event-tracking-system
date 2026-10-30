@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
-import { expect, expectCentredContent, logIn, signUp, test, uniqueEmail } from '../helpers/test'
+import { expect, expectCentredContent, logIn, markEmailVerified, signUp, test, uniqueEmail } from '../helpers/test'
 
 // Hostesses work from a phone, so the whole journey runs at phone width; the screenshots are for
 // a visual review in e2e/.artifacts/hostess.
@@ -28,6 +28,7 @@ test('an administrator makes a hostess, who finds a participant, awards a statio
   // The future hostess registers as everyone does.
   await signUp(page, hostessEmail, { firstName: 'Ольга', lastName: 'Хостесова' })
   await expect(page).toHaveURL(/\/app$/)
+  markEmailVerified(hostessEmail)
 
   // An administrator gives her the role on the users page.
   const adminContext = await browser.newContext()

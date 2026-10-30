@@ -24,7 +24,6 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { ApiRequestError } from '@/platform/api'
 import { authErrorMessage } from '../auth-errors'
 import { CONSENT_TEXT } from '../consent-text'
-import { PRIVACY_POLICY_URL } from '../legal-links'
 import { useAuth } from '../use-auth'
 import { ConsentDialog } from './ConsentDialog'
 import { FormAlert } from './form-errors'
@@ -280,22 +279,6 @@ export function RegisterForm({ cities, companies, returnTo }: RegisterFormProps)
               Я даю согласие на обработку персональных данных
             </Button>
           </div>
-
-          <Typography tone="muted" variant="bodyXs">
-            Как СИБУР обрабатывает персональные данные, описано в{' '}
-            <a
-              className="underline underline-offset-4"
-              data-testid="privacy-policy-link"
-              href={PRIVACY_POLICY_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <Typography as="span" variant="bodyXs">
-                Политике в отношении обработки персональных данных (PDF)
-              </Typography>
-            </a>
-            .
-          </Typography>
 
           <FormAlert message={formError} title="Не удалось зарегистрироваться" />
 

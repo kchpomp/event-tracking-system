@@ -9,6 +9,7 @@ const user = {
   passwordHash: 'password-hash',
   displayName: null,
   role: 'user' as const,
+  emailVerifiedAt: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
 }
 
@@ -49,7 +50,13 @@ function createService({
     },
     sessionAbsoluteTtlDays: 90,
     ...overrides,
-    repository: repository as AuthRepository,
+    // The failure counter is on every login path; a test that observes it overrides these.
+    repository: {
+      countLoginFailures: async () => 0,
+      recordLoginFailure: async () => undefined,
+      clearLoginFailures: async () => undefined,
+      ...repository,
+    } as AuthRepository,
   })
 }
 
@@ -57,6 +64,7 @@ function notifier(overrides: Partial<PasswordResetNotifier> = {}): PasswordReset
   return {
     configured: true,
     isPermanentFailure: () => false,
+    sendEmailVerification: async () => undefined,
     sendPasswordChanged: async () => undefined,
     sendPasswordReset: async () => undefined,
     ...overrides,
@@ -343,4 +351,71 @@ test('social auth rejects a provider token that carries no email for a new subje
   await expect(service.socialAuth('apple', socialPayload, {})).rejects.toMatchObject({
     kind: 'provider_email_required',
   })
+})
+
+test('ten failed sign-ins lock the address until the window ends, even with the right password', async () => {
+  const counts = new Map<string, number>()
+  const failureRepository = (found: typeof user | null): Partial<AuthRepository> => ({
+    countLoginFailures: async ({ key }) => counts.get(key) ?? 0,
+    recordLoginFailure: async ({ key }) => void counts.set(key, (counts.get(key) ?? 0) + 1),
+    clearLoginFailures: async ({ key }) => void counts.delete(key),
+    findUserByEmail: async () => found,
+    createSession: async () => ({ user, session: { id: 'session-1' } }),
+  })
+  const wrong = createService({
+    passwords: { hash: async () => 'hash', verify: async () => false },
+    repository: failureRepository(user),
+  })
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await expect(wrong.login({ email: user.email, password: 'wrong-pass' }, {}))
+      .rejects.toMatchObject({ kind: 'invalid_credentials' })
+  }
+  const right = createService({ repository: failureRepository(user) })
+  // `now` is a window boundary, so the lock lasts the whole 15 minutes.
+  await expect(right.login({ email: user.email, password: 'password123' }, {}))
+    .rejects.toMatchObject({ kind: 'login_locked', retryAfterSeconds: 900 })
+
+  // An unknown address is counted the same way.
+  const absent = createService({ repository: failureRepository(null) })
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await absent.login({ email: 'nobody@example.com', password: 'wrong-pass' }, {}).catch(() => {})
+  }
+  await expect(absent.login({ email: 'nobody@example.com', password: 'wrong-pass' }, {}))
+    .rejects.toMatchObject({ kind: 'login_locked' })
+})
+
+test('a successful sign-in clears the failure count', async () => {
+  const cleared: string[] = []
+  const service = createService({
+    repository: {
+      countLoginFailures: async () => 9,
+      clearLoginFailures: async ({ key }) => void cleared.push(key),
+      findUserByEmail: async () => user,
+      createSession: async () => ({ user, session: { id: 'session-1' } }),
+    },
+  })
+  await service.login({ email: user.email, password: 'password123' }, {})
+  expect(cleared).toEqual([`hash:${user.email}`])
+})
+
+test('a verification email that fails on the last attempt retires its token', async () => {
+  const invalidated: string[] = []
+  const service = createService({
+    passwordResetNotifier: notifier({
+      sendEmailVerification: async () => {
+        throw new Error('provider down')
+      },
+    }),
+    repository: {
+      createEmailVerificationToken: async () => user.email,
+      invalidateEmailVerificationToken: async ({ tokenHash }) => void invalidated.push(tokenHash),
+    },
+  })
+  const deliverVerification = (finalAttempt: boolean) =>
+    service.deliverEmailVerification({ userId: user.id }, { finalAttempt, now, signal })
+
+  await expect(deliverVerification(false)).rejects.toThrow('provider down')
+  expect(invalidated).toEqual([])
+  await expect(deliverVerification(true)).rejects.toThrow('provider down')
+  expect(invalidated).toEqual([`hash:${rawToken}`])
 })

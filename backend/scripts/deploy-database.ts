@@ -195,9 +195,8 @@ export async function grantRuntimeDatabaseAccess(
           `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ${role}`,
         ]
 
-  // PUBLIC is inherited by every login, so harden its current and default ACLs for both providers.
-  // DigitalOcean additionally needs explicit DML grants because its Terraform provider cannot
-  // express object privileges. Keep the preflight and every ACL change atomic so a failed
+  // PUBLIC is inherited by every login, so harden its current and default ACLs.
+  // Keep the preflight and every ACL change atomic so a failed
   // deployment cannot strand the active runtime after its old grants were revoked.
   await db.$transaction(
     async (transaction) => {

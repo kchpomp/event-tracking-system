@@ -1,3 +1,4 @@
+import type { UserRole } from '@event-tracking-system/contracts'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 
 import { sessionQueryKeys, useAuth } from '@/features/auth'
@@ -5,9 +6,9 @@ import type { AuthenticatedTransport } from '@/platform/api'
 import { getNetwork } from './api'
 
 /** A scan reaches the screen within about five seconds. */
-export const NETWORK_POLL_MS = 4_000
+const NETWORK_POLL_MS = 4_000
 /** While the server cannot be reached, ask less often: the refresh and the venue share budgets. */
-export const NETWORK_RETRY_MS = 15_000
+const NETWORK_RETRY_MS = 15_000
 
 // Under ['session', ...]: a session change removes it. The screen keeps its own copy of the
 // picture, so the circles stay on the display while the session is being restored.
@@ -15,7 +16,7 @@ const networkQueryKeys = {
   snapshot: () => [...sessionQueryKeys.all, 'network'] as const,
 }
 
-export function networkQueryOptions(transport: AuthenticatedTransport) {
+function networkQueryOptions(transport: AuthenticatedTransport) {
   return queryOptions({
     queryKey: networkQueryKeys.snapshot(),
     queryFn: ({ signal }) => getNetwork(transport, { signal }),
@@ -28,11 +29,16 @@ export function networkQueryOptions(transport: AuthenticatedTransport) {
   })
 }
 
-/** Polls only while an administrator is signed in. */
+/** Administrators and screen accounts may read the network; the endpoint is the same for both. */
+export function isScreenViewer(role: UserRole | undefined) {
+  return role === 'admin' || role === 'screen'
+}
+
+/** Polls only while such a user is signed in. */
 export function useNetworkQuery() {
   const auth = useAuth()
   return useQuery({
     ...networkQueryOptions(auth.transport),
-    enabled: auth.user?.role === 'admin',
+    enabled: isScreenViewer(auth.user?.role),
   })
 }

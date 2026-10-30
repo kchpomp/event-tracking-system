@@ -274,6 +274,11 @@ describe('event participation API', () => {
       await connect(a, other.qr)
     }
     expect(await progress(a)).toMatchObject({ connectionsCount: 4, totalPoints: 3 })
+    // A fifth is accepted too; the ledger keeps exactly three connection rows with points.
+    await connect(a, (await register({ cityId: CITY_IDS[3] })).qr)
+    expect(await progress(a)).toMatchObject({ connectionsCount: 5, totalPoints: 3 })
+    const rows = await prisma.activityLog.findMany({ where: { participantId: a.id, actionType: 'connection' } })
+    expect(rows.filter((row) => row.pointsAwarded === 1)).toHaveLength(3)
   })
 
   test('self, same city and company, and unknown participant codes are refused with their own codes', async () => {
@@ -305,15 +310,35 @@ describe('event participation API', () => {
       description: 'Описание',
       expectedResult: 'Эффект',
     })
-    for (let n = 1; n <= 6; n += 1) {
+    for (let n = 1; n <= 7; n += 1) {
       const response = await api('POST', '/api/event/ideas', person.accessToken, idea(n))
       expect(response.status).toBe(201)
       expect(await response.json()).toEqual({ ideasCount: n })
     }
-    expect(await progress(person)).toMatchObject({ ideasCount: 6, totalPoints: 5 })
+    expect(await progress(person)).toMatchObject({ ideasCount: 7, totalPoints: 5 })
+    expect(await prisma.idea.count({ where: { authorId: person.id } })).toBe(7)
 
-    const blank = await api('POST', '/api/event/ideas', person.accessToken, { ...idea(7), title: '   ' })
+    const blank = await api('POST', '/api/event/ideas', person.accessToken, { ...idea(8), title: '   ' })
     expect(blank.status).toBe(400)
+  })
+
+  test('ideas are limited to 10 requests a minute per account, never by their total number', async () => {
+    const person = await register()
+    const other = await register()
+    const send = (who: Person) =>
+      api('POST', '/api/event/ideas', who.accessToken, {
+        title: 'Идея',
+        direction: 'Цифровизация',
+        problem: 'Проблема',
+        description: 'Описание',
+        expectedResult: 'Эффект',
+      })
+    for (let n = 0; n < 10; n += 1) expect((await send(person)).status).toBe(201)
+    const limited = await send(person)
+    expect(limited.status).toBe(429)
+    expect(limited.headers.get('Retry-After')).toBeString()
+    expect((await send(other)).status).toBe(201)
+    expect(await prisma.idea.count({ where: { authorId: person.id } })).toBe(10)
   })
 
   test('the leaderboard lists the top 10 plus the caller with distinct places, and administrators never appear', async () => {

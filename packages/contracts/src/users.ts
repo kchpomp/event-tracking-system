@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { emailSchema, userRoleSchema, userSchema } from './auth'
+import { emailSchema, userRoleSchema, userSchema, type UserRole } from './auth'
 
 export const updateProfileRequestSchema = z
   .object({
@@ -42,6 +42,7 @@ export const adminUserSummarySchema = z
     email: emailSchema,
     displayName: z.string().nullable(),
     role: userRoleSchema,
+    emailVerified: z.boolean(),
     createdAt: z.string().datetime(),
   })
   .strict()
@@ -62,6 +63,11 @@ export const adminDashboardResponseSchema = z
     totalAdmins: z.number().int().nonnegative(),
   })
   .strict()
+
+/** Staff roles the server grants only to a verified email (409 EMAIL_NOT_VERIFIED otherwise). */
+export function roleRequiresVerifiedEmail(role: UserRole) {
+  return role === 'admin' || role === 'hostess'
+}
 
 export const updateUserRoleRequestSchema = z
   .object({

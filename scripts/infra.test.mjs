@@ -6,20 +6,13 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
-  activeDeploymentCommitProblems,
   backendEnvironment,
   bootstrapStateMode,
   bootstrapTemporaryAccess,
-  digitalOceanCliEnvironment,
-  digitalOceanRuntimeStateProblems,
-  digitalOceanSpacesKeyProblems,
-  digitalOceanTeamIdentityProblems,
   digestFromRepoDigests,
   dockerfileBaseImages,
   discardDisposableSecrets,
   executePromotionPipeline,
-  githubRepositoryFromRemoteUrl,
-  immutableReleaseBranch,
   nonImportableResourceProblem,
   importReleaseInputs,
   parseArguments,
@@ -79,28 +72,19 @@ describe('Terraform configuration helpers', () => {
     })
   })
 
-  test('renders credential-free backend configuration for both providers', () => {
-    const digitalocean = renderBackendConfig('digitalocean', {
-      bucket: 'product-state',
-      key: 'production/terraform.tfstate',
-      region: 'fra1',
-    })
+  test('renders credential-free backend configuration', () => {
     const yandex = renderBackendConfig('yandex', {
       bucket: 'product-state',
       key: 'production/terraform.tfstate',
       region: 'ru-central1',
     })
 
-    expect(digitalocean).toContain('https://fra1.digitaloceanspaces.com')
-    expect(digitalocean).toContain('region = "us-east-1"')
-    expect(digitalocean).toContain('skip_s3_checksum')
     expect(yandex).toContain('https://storage.yandexcloud.net')
     expect(yandex).toContain('region = "ru-central1"')
     expect(yandex).toContain('skip_s3_checksum')
-    expect(digitalocean.match(/skip_credentials_validation/g)).toHaveLength(1)
     expect(yandex.match(/skip_credentials_validation/g)).toHaveLength(1)
-    expect(`${digitalocean}\n${yandex}`).not.toContain('secret')
-    expect(`${digitalocean}\n${yandex}`).not.toContain('access_key')
+    expect(yandex).not.toContain('secret')
+    expect(yandex).not.toContain('access_key')
   })
 
   test('keeps foundation state compatible while isolating release roots', () => {
@@ -400,14 +384,6 @@ describe('Terraform configuration helpers', () => {
         env,
       }),
     ).toEqual({ requested: false, problem: null })
-    expect(
-      bootstrapTemporaryAccess({
-        provider: 'digitalocean',
-        tfvars: { bootstrap_folder_storage_access: true },
-        stateMode: 'remote',
-        env: { TF_VAR_bootstrap_folder_storage_access: 'true' },
-      }),
-    ).toEqual({ requested: false, problem: null })
 
     const recovery = bootstrapTemporaryAccess({
       provider: 'yandex',
@@ -462,7 +438,7 @@ describe('Terraform configuration helpers', () => {
     const prepare = () =>
       prepareStateRecoveryAccess(
         {
-          provider: 'digitalocean',
+          provider: 'yandex',
           outputs,
           paths: { roots: { foundation: '/foundation' } },
           baseEnvironment: { KEEP_ME: 'yes' },
@@ -535,7 +511,7 @@ describe('Terraform configuration helpers', () => {
 
     prepareBootstrapBackend(
       {
-        provider: 'digitalocean',
+        provider: 'yandex',
         paths: { bootstrapRoot: '/bootstrap', productionRoot: '/production' },
         stateMode: 'migrate',
         dryRun: false,
@@ -599,7 +575,7 @@ describe('Terraform configuration helpers', () => {
     expect(() =>
       prepareBootstrapBackend(
         {
-          provider: 'digitalocean',
+          provider: 'yandex',
           paths: { bootstrapRoot: '/bootstrap', productionRoot: '/production' },
           stateMode: 'remote',
           dryRun: false,
@@ -651,145 +627,6 @@ describe('Terraform configuration helpers', () => {
 })
 
 describe('release safety', () => {
-  test('forces doctl to use the same token and default context as Terraform', () => {
-    expect(
-      digitalOceanCliEnvironment({
-        DIGITALOCEAN_TOKEN: 'terraform-token',
-        DIGITALOCEAN_ACCESS_TOKEN: 'stale-doctl-token',
-        DIGITALOCEAN_CONTEXT: 'another-team',
-        KEEP_ME: 'yes',
-      }),
-    ).toEqual({
-      DIGITALOCEAN_TOKEN: 'terraform-token',
-      DIGITALOCEAN_ACCESS_TOKEN: 'terraform-token',
-      DIGITALOCEAN_CONTEXT: 'default',
-      KEEP_ME: 'yes',
-    })
-    expect(() => digitalOceanCliEnvironment({})).toThrow(
-      'DIGITALOCEAN_TOKEN',
-    )
-  })
-
-  test('requires the account token to see the exact Spaces administration key', () => {
-    expect(
-      digitalOceanSpacesKeyProblems(
-        JSON.stringify({ access_key: 'spaces-key-id' }),
-        'spaces-key-id',
-      ),
-    ).toEqual([])
-    expect(
-      digitalOceanSpacesKeyProblems(
-        JSON.stringify({ access_key: 'key-from-another-team' }),
-        'spaces-key-id',
-      ),
-    ).toEqual(['the returned Spaces key does not match SPACES_ACCESS_KEY_ID'])
-    expect(
-      digitalOceanSpacesKeyProblems('{"unexpected":true}', 'spaces-key-id'),
-    ).toEqual(['the DigitalOcean response contains no Spaces access key'])
-  })
-
-  test('pins DigitalOcean mutations to the immutable expected team UUID', () => {
-    expect(
-      digitalOceanTeamIdentityProblems(
-        JSON.stringify({ team: { uuid: 'team-uuid', name: 'Production' } }),
-        'team-uuid',
-      ),
-    ).toEqual([])
-    expect(
-      digitalOceanTeamIdentityProblems(
-        JSON.stringify({ team: { uuid: 'other-team', name: 'Production' } }),
-        'team-uuid',
-      ),
-    ).toEqual([
-      'DigitalOcean token belongs to team UUID other-team, expected team-uuid',
-    ])
-  })
-
-  test('fails closed when the DigitalOcean API app exists without runtime state', () => {
-    const projectSlug = 'example-product'
-    const deployedApps = JSON.stringify([
-      { id: 'webapp-app-id', spec: { name: 'example-product-prod-webapp' } },
-      { id: 'api-app-id', spec: { name: 'example-product-prod-api' } },
-      { id: 'other-app-id', spec: { name: 'other-product-prod-api' } },
-    ])
-    const problem =
-      'DigitalOcean runtime state has no API App ID, but the deployed API app still exists: example-product-prod-api (api-app-id). Recover or import the runtime state before the database firewall falls back to the VPC range.'
-
-    // Runtime state present: the provider is never asked.
-    expect(
-      digitalOceanRuntimeStateProblems(
-        { apiAppId: 'api-app-id', projectSlug },
-        {
-          listApps: () => {
-            throw new Error('doctl must not run while the runtime state is present')
-          },
-        },
-      ),
-    ).toEqual([])
-
-    // Runtime state missing, no API app yet: the first release.
-    for (const raw of [
-      '[]',
-      'null',
-      JSON.stringify({ apps: [] }),
-      JSON.stringify([
-        { id: 'webapp-app-id', spec: { name: 'example-product-prod-webapp' } },
-        { id: 'other-app-id', spec: { name: 'other-product-prod-api' } },
-      ]),
-    ]) {
-      expect(
-        digitalOceanRuntimeStateProblems(
-          { apiAppId: undefined, projectSlug },
-          { listApps: () => raw },
-        ),
-      ).toEqual([])
-    }
-
-    // Runtime state missing, API app still deployed: the firewall would silently widen.
-    const calls = []
-    expect(
-      digitalOceanRuntimeStateProblems(
-        { apiAppId: null, projectSlug },
-        {
-          listApps: (...args) => {
-            calls.push(args)
-            return deployedApps
-          },
-        },
-      ),
-    ).toEqual([problem])
-    expect(calls).toEqual([[]])
-    expect(
-      digitalOceanRuntimeStateProblems(
-        { apiAppId: '', projectSlug },
-        {
-          listApps: () =>
-            JSON.stringify({
-              apps: [{ id: 'api-app-id', spec: { name: 'example-product-prod-api' } }],
-            }),
-        },
-      ),
-    ).toEqual([problem])
-
-    // An unreadable provider answer never counts as "no app".
-    expect(() =>
-      digitalOceanRuntimeStateProblems(
-        { apiAppId: null, projectSlug },
-        { listApps: () => 'not json' },
-      ),
-    ).toThrow(
-      'Could not verify DigitalOcean runtime state because doctl returned invalid app JSON',
-    )
-    expect(() =>
-      digitalOceanRuntimeStateProblems(
-        { apiAppId: null, projectSlug },
-        { listApps: () => JSON.stringify({ apps: 'nope' }) },
-      ),
-    ).toThrow(
-      'Could not verify DigitalOcean runtime state because doctl returned no app list',
-    )
-  })
-
   test('holds one production lease until the complete mutation settles', async () => {
     const events = []
     await expect(
@@ -887,24 +724,7 @@ describe('release safety', () => {
     ).toBe(false)
   })
 
-  test('normalizes supported GitHub remote URLs to the App Platform repository form', () => {
-    expect(
-      githubRepositoryFromRemoteUrl('git@github.com:Owner/Repository.git'),
-    ).toBe('owner/repository')
-    expect(
-      githubRepositoryFromRemoteUrl('https://github.com/Owner/Repository.git'),
-    ).toBe('owner/repository')
-    expect(
-      githubRepositoryFromRemoteUrl(
-        'ssh://git@github.com/Owner/Repository.git',
-      ),
-    ).toBe('owner/repository')
-    expect(
-      githubRepositoryFromRemoteUrl('git@gitlab.com:owner/repository.git'),
-    ).toBeNull()
-  })
-
-  test('refuses a dirty, detached, unpushed, wrong-ref, or wrong-repository release source', () => {
+  test('refuses a dirty, detached, unpushed, or wrong-ref release source', () => {
     expect(
       releaseGitProblems({
         currentBranch: 'master',
@@ -912,11 +732,9 @@ describe('release safety', () => {
         upstreamRef: 'origin/other',
         headCommit: 'local-commit',
         upstreamCommit: 'remote-commit',
-        configuredGithubRepo: 'owner/product',
-        upstreamGithubRepo: 'someone/else',
         dirtyLines: [' M backend/src/index.ts'],
       }),
-    ).toHaveLength(5)
+    ).toHaveLength(4)
 
     expect(
       releaseGitProblems({
@@ -925,8 +743,6 @@ describe('release safety', () => {
         upstreamRef: 'origin/master',
         headCommit: 'same-commit',
         upstreamCommit: 'same-commit',
-        configuredGithubRepo: 'owner/product',
-        upstreamGithubRepo: 'owner/product',
         dirtyLines: [],
       }),
     ).toEqual([])
@@ -939,8 +755,6 @@ describe('release safety', () => {
         headCommit: 'new-commit',
         upstreamCommit: 'new-commit',
         expectedCommit: 'captured-commit',
-        configuredGithubRepo: 'owner/product',
-        upstreamGithubRepo: 'owner/product',
         dirtyLines: [],
       }),
     ).toEqual([
@@ -955,8 +769,6 @@ describe('release safety', () => {
         headCommit: 'captured-commit',
         upstreamCommit: 'newer-upstream-commit',
         expectedCommit: 'captured-commit',
-        configuredGithubRepo: 'owner/product',
-        upstreamGithubRepo: 'owner/product',
         dirtyLines: [],
       }),
     ).toEqual([])
@@ -968,14 +780,10 @@ describe('release safety', () => {
         upstreamRef: 'origin/feature',
         headCommit: 'same-commit',
         upstreamCommit: 'same-commit',
-        configuredGithubRepo: undefined,
-        upstreamGithubRepo: 'owner/product',
-        githubRepositoryRequired: true,
         dirtyLines: [],
       }),
     ).toEqual([
       'Terraform foundation state does not identify the configured release branch; run bun run infra:apply for the selected provider',
-      'Terraform foundation state does not identify the configured GitHub repository; run bun run infra:apply for digitalocean',
     ])
   })
 
@@ -998,18 +806,18 @@ describe('release safety', () => {
   test('allows creates and updates, but requires exact opt-in for ordinary deletes', () => {
     const plan = {
       resource_changes: [
-        { address: 'digitalocean_app.api[0]', change: { actions: ['update'] } },
+        { address: 'yandex_cm_certificate.api', change: { actions: ['update'] } },
         {
-          address: 'digitalocean_app.website[0]',
+          address: 'yandex_cm_certificate.website',
           change: { actions: ['delete'] },
         },
       ],
     }
 
     expect(planSafetyProblems(plan, [])).toEqual([
-      'digitalocean_app.website[0] would be deleted; pass --allow-destroy=digitalocean_app.website[0] only after reviewing that exact resource',
+      'yandex_cm_certificate.website would be deleted; pass --allow-destroy=yandex_cm_certificate.website only after reviewing that exact resource',
     ])
-    expect(planSafetyProblems(plan, ['digitalocean_app.website[0]'])).toEqual(
+    expect(planSafetyProblems(plan, ['yandex_cm_certificate.website'])).toEqual(
       [],
     )
   })
@@ -1031,10 +839,6 @@ describe('release safety', () => {
           change: { actions: ['delete', 'create'] },
         },
         {
-          address: 'digitalocean_spaces_key.media',
-          change: { actions: ['delete', 'create'] },
-        },
-        {
           address:
             'yandex_iam_service_account_static_access_key.media',
           change: { actions: ['delete', 'create'] },
@@ -1051,11 +855,10 @@ describe('release safety', () => {
       'yandex_mdb_postgresql_cluster.production',
       'yandex_storage_bucket.media',
       'yandex_iam_service_account_static_access_key.terraform_state',
-      'digitalocean_spaces_key.media',
       'yandex_iam_service_account_static_access_key.media',
       'yandex_iam_service_account_static_access_key.postbox[0]',
     ])
-    expect(problems).toHaveLength(6)
+    expect(problems).toHaveLength(5)
     expect(problems.every((problem) => problem.includes('protected'))).toBe(
       true,
     )
@@ -1084,28 +887,7 @@ describe('release safety', () => {
     ])
   })
 
-  test('executes provider phases in migration-gated order', async () => {
-    const digitaloceanEvents = []
-    await executePromotionPipeline('digitalocean', {
-      deployRuntime: async () => {
-        digitaloceanEvents.push('runtime-with-pre-deploy-migration')
-        return { api_app_id: 'app-id' }
-      },
-      tightenFoundation: async () =>
-        digitaloceanEvents.push('tighten-firewall'),
-      deployStatic: async () => {
-        digitaloceanEvents.push('static')
-        return { release_revision: 'commit' }
-      },
-      verify: async () => digitaloceanEvents.push('verify'),
-    })
-    expect(digitaloceanEvents).toEqual([
-      'runtime-with-pre-deploy-migration',
-      'tighten-firewall',
-      'static',
-      'verify',
-    ])
-
+  test('executes phases in migration-gated order', async () => {
     const yandexEvents = []
     await expect(
       executePromotionPipeline('yandex', {
@@ -1157,14 +939,12 @@ describe('release safety', () => {
 
     await expect(
       executePromotionPipeline(
-        'digitalocean',
+        'yandex',
         {
-          deployRuntime: async () => {
-            events.push('runtime')
+          deployMigration: async () => {
+            events.push('migration')
             held = false
           },
-          tightenFoundation: async () => events.push('tighten'),
-          deployStatic: async () => events.push('static'),
           verify: async () => events.push('verify'),
         },
         () => {
@@ -1173,7 +953,7 @@ describe('release safety', () => {
         },
       ),
     ).rejects.toThrow('production mutation lease was lost')
-    expect(events).toEqual(['assert-held', 'runtime', 'assert-held'])
+    expect(events).toEqual(['assert-held', 'migration', 'assert-held'])
   })
 
   test('observes a lease process exit after a synchronous phase', async () => {
@@ -1184,10 +964,10 @@ describe('release safety', () => {
     try {
       await expect(
         executePromotionPipeline(
-          'digitalocean',
+          'yandex',
           {
-            deployRuntime: async () => {
-              events.push('runtime')
+            deployMigration: async () => {
+              events.push('migration')
               leaseChild = spawn(process.execPath, ['-e', 'process.exit(7)'], {
                 stdio: 'ignore',
               })
@@ -1201,8 +981,6 @@ describe('release safety', () => {
                 150,
               )
             },
-            tightenFoundation: async () => events.push('tighten'),
-            deployStatic: async () => events.push('static'),
             verify: async () => events.push('verify'),
           },
           async () => {
@@ -1221,67 +999,11 @@ describe('release safety', () => {
       }
     }
 
-    expect(events).toEqual(['assert-held', 'runtime', 'assert-held'])
+    expect(events).toEqual(['assert-held', 'migration', 'assert-held'])
   })
 
-  test('pins DigitalOcean static source to one immutable commit branch', () => {
-    const commit = '0123456789abcdef0123456789abcdef01234567'
-    expect(immutableReleaseBranch(commit)).toBe(`infra-release/${commit}`)
-    expect(() => immutableReleaseBranch('short')).toThrow('40-character')
-
-    expect(
-      activeDeploymentCommitProblems(
-        [
-          {
-            phase: 'ACTIVE',
-            static_sites: [{ name: 'webapp', source_commit_hash: commit }],
-          },
-        ],
-        commit,
-        'webapp',
-      ),
-    ).toEqual([])
-    expect(
-      activeDeploymentCommitProblems(
-        {
-          deployments: [
-            {
-              phase: 'ACTIVE',
-              static_sites: [
-                { name: 'website', source_commit_hash: 'wrong-commit' },
-              ],
-            },
-          ],
-        },
-        commit,
-        'website',
-      ),
-    ).toEqual([`website deployed wrong-commit, expected ${commit}`])
-  })
-
-  test('requires adoption inputs that materialize conditional release roots', () => {
+  test('requires adoption inputs that materialize release roots', () => {
     const digest = `sha256:${'a'.repeat(64)}`
-    const commit = '0123456789abcdef0123456789abcdef01234567'
-    expect(
-      importReleaseInputs('digitalocean', 'runtime', {
-        runtimeImageDigest: digest,
-      }),
-    ).toMatchObject({ runtime_image_digest: digest })
-    expect(
-      importReleaseInputs('digitalocean', 'static', {
-        releaseRevision: commit,
-        sourceBranch: `infra-release/${commit}`,
-      }),
-    ).toEqual({
-      release_revision: commit,
-      source_branch: `infra-release/${commit}`,
-    })
-    expect(() =>
-      importReleaseInputs('digitalocean', 'static', {
-        releaseRevision: commit,
-        sourceBranch: `infra-release/${'f'.repeat(40)}`,
-      }),
-    ).toThrow('must identify the same commit')
     expect(
       importReleaseInputs('yandex', 'migration', {
         runtimeImageDigest: digest,
@@ -1293,12 +1015,6 @@ describe('release safety', () => {
   })
 
   test('rejects provider access keys that cannot be imported or recover secrets', () => {
-    expect(
-      nonImportableResourceProblem(
-        'digitalocean',
-        'digitalocean_spaces_key.media',
-      ),
-    ).toContain('create a new Terraform-owned key')
     expect(
       nonImportableResourceProblem(
         'yandex',
@@ -1313,25 +1029,21 @@ describe('release safety', () => {
     ).toBeNull()
   })
 
-  test('parses explicit import roots and adoption values', () => {
-    const commit = '0123456789abcdef0123456789abcdef01234567'
+  test('parses explicit import roots', () => {
     expect(
       parseArguments([
         'import',
-        'digitalocean',
-        'static',
-        'digitalocean_app.webapp',
-        'app-id',
-        `--release-revision=${commit}`,
-        `--source-branch=infra-release/${commit}`,
+        'yandex',
+        'migration',
+        'yandex_storage_bucket.media',
+        'bucket-id',
+        `--runtime-image-digest=sha256:${'a'.repeat(64)}`,
       ]),
     ).toMatchObject({
-      provider: 'digitalocean',
-      rootName: 'static',
-      resourceAddress: 'digitalocean_app.webapp',
-      resourceId: 'app-id',
-      releaseRevision: commit,
-      sourceBranch: `infra-release/${commit}`,
+      provider: 'yandex',
+      rootName: 'migration',
+      resourceAddress: 'yandex_storage_bucket.media',
+      resourceId: 'bucket-id',
     })
   })
 
@@ -1342,7 +1054,7 @@ describe('release safety', () => {
     expect(
       parseArguments([
         'bootstrap',
-        'digitalocean',
+        'yandex',
         '--recover-state-bucket=existing-state',
         '--recover-state-region=fra1',
       ]),
@@ -1408,8 +1120,6 @@ describe('release safety', () => {
         HOME: '/home/builder',
         TF_VAR_database_blue_password: 'blue-database-secret',
         TF_VAR_database_green_password: 'green-database-secret',
-        DIGITALOCEAN_TOKEN: 'do-secret',
-        SPACES_SECRET_ACCESS_KEY: 'spaces-secret',
         AWS_SECRET_ACCESS_KEY: 'aws-secret',
         YC_TOKEN: 'yc-secret',
         ADMIN_SEED_PASSWORD: 'seed-secret',

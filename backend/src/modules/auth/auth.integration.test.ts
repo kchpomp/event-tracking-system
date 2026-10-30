@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
 
@@ -30,6 +30,7 @@ describe('auth API integration', () => {
     await prisma.pushToken.deleteMany()
     await prisma.authSession.deleteMany()
     await prisma.user.deleteMany()
+    await prisma.rateLimitBucket.deleteMany()
   })
 
   afterAll(async () => {
@@ -422,6 +423,128 @@ describe('auth API integration', () => {
     expect(previousRefresh.status).toBe(401)
     expect(previousPassword.status).toBe(401)
     expect(newPassword.status).toBe(200)
+  })
+
+  test('verifies an email with a single-use link sent through the outbox', async () => {
+    const messages: EmailMessage[] = []
+    const emailDelivery: EmailDelivery = {
+      driver: 'console',
+      configured: true,
+      send: async (message) => void messages.push(message),
+    }
+    const emailApp = createApp({ emailDelivery, env, prisma })
+    const drain = () =>
+      drainTaskOutbox({ emailDelivery, env, prisma } as unknown as BackendRuntime, { now: new Date() })
+    const post = (path: string, body: unknown, accessToken?: string) =>
+      emailApp.request(path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(body),
+      })
+    const me = async (accessToken: string) =>
+      (await (await emailApp.request('/api/auth/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })).json()).user
+    const registered = await (await post('/api/auth/token/register', {
+      firstName: 'Анна', lastName: 'Петрова', companyId: COMPANY_ID, cityId: CITY_ID, consent: true,
+      email: 'verify@example.com',
+      password: 'password123',
+    })).json()
+    expect(registered.user.emailVerified).toBe(false)
+
+    expect((await post('/api/auth/email-verification/request', {})).status).toBe(401)
+    const requests = await Promise.all([
+      post('/api/auth/email-verification/request', {}, registered.accessToken),
+      post('/api/auth/email-verification/request', {}, registered.accessToken),
+    ])
+    expect(requests.map(({ status }) => status)).toEqual([202, 202])
+    // A burst collapses into one task, and a retry of it cannot mint a second link.
+    expect(await drain()).toMatchObject({ done: 1, terminalFailed: 0, transientFailed: 0 })
+    expect(messages).toHaveLength(1)
+    expect(messages[0]!.to).toBe('verify@example.com')
+    const link = new URL(messages[0]!.text.split('\n\n').find((part) => part.startsWith('http'))!)
+    expect(link.pathname).toBe('/verify-email')
+    const token = new URLSearchParams(link.hash.slice(1)).get('token')!
+    expect(token).toHaveLength(43)
+    expect(await prisma.emailVerificationToken.findUnique({ where: { tokenHash: token } })).toBeNull()
+
+    const confirmations = await Promise.all([
+      post('/api/auth/email-verification/confirm', { token }),
+      post('/api/auth/email-verification/confirm', { token }),
+    ])
+    expect(confirmations.map(({ status }) => status).sort()).toEqual([204, 400])
+    expect((await me(registered.accessToken)).emailVerified).toBe(true)
+
+    const reused = await post('/api/auth/email-verification/confirm', { token })
+    expect(reused.status).toBe(400)
+    expect((await reused.json()).error.code).toBe('AUTH_EMAIL_VERIFICATION_INVALID')
+    const unknown = await post('/api/auth/email-verification/confirm', { token: 'x'.repeat(43) })
+    expect((await unknown.json()).error.code).toBe('AUTH_EMAIL_VERIFICATION_INVALID')
+
+    // A verified address has nothing to request.
+    await prisma.taskOutbox.deleteMany()
+    expect((await post('/api/auth/email-verification/request', {}, registered.accessToken)).status).toBe(202)
+    expect(await prisma.taskOutbox.count()).toBe(0)
+  })
+
+  test('an expired verification link is refused and verifies nothing', async () => {
+    const session = await registerForMeGuard('expired-verify@example.com')
+    const token = 'e'.repeat(43)
+    await prisma.emailVerificationToken.create({
+      data: {
+        userId: session.userId,
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+        expiresAt: new Date(Date.now() - 1000),
+      },
+    })
+    const confirm = await app.request('/api/auth/email-verification/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+    expect(confirm.status).toBe(400)
+    expect((await confirm.json()).error.code).toBe('AUTH_EMAIL_VERIFICATION_INVALID')
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: session.userId } })
+    expect(user.emailVerifiedAt).toBeNull()
+  })
+
+  test('ten failed sign-ins lock an address, known or not, until the window passes', async () => {
+    // Its own app, so the per-address ingress budget is not shared with other tests.
+    const lockApp = createApp({ env, prisma })
+    const login = (email: string, password: string) =>
+      lockApp.request('/api/auth/token/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+    await registerForMeGuard('locked@example.com')
+
+    for (const email of ['locked@example.com', 'nobody@example.com']) {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        expect((await login(email, 'wrong-password')).status).toBe(401)
+      }
+      const locked = await login(email, email === 'nobody@example.com' ? 'wrong-password' : 'password123')
+      expect(locked.status).toBe(429)
+      expect(Number(locked.headers.get('Retry-After'))).toBeGreaterThan(0)
+      expect((await locked.json()).error.code).toBe('AUTH_LOGIN_LOCKED')
+    }
+
+    // Password reset is not part of the lock.
+    const reset = await lockApp.request('/api/auth/password-reset/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'locked@example.com' }),
+    })
+    expect(reset.status).toBe(202)
+
+    // The window passing is the row expiring; then the right password works and clears the count.
+    await prisma.rateLimitBucket.deleteMany({ where: { policy: 'login-failures' } })
+    for (let attempt = 0; attempt < 9; attempt += 1) await login('locked@example.com', 'wrong-password')
+    expect((await login('locked@example.com', 'password123')).status).toBe(200)
+    expect(await prisma.rateLimitBucket.count({ where: { policy: 'login-failures' } })).toBe(0)
   })
 
   test('a flood of unknown addresses cannot starve a real reset', async () => {
@@ -941,6 +1064,34 @@ describe('auth API integration', () => {
 
     expect(activeMe.status).toBe(200)
     expect(activeRefresh.status).toBe(200)
+  })
+
+  test('one account signs in on two devices and logging out on one keeps the other', async () => {
+    const json = { 'Content-Type': 'application/json' }
+    const credentials = { email: 'screen@example.com', password: 'password123' }
+    const register = await app.request('/api/auth/token/register', {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify({ firstName: 'Экран', lastName: 'Зал', companyId: COMPANY_ID, cityId: CITY_ID, consent: true, ...credentials, displayName: 'Screen' }),
+    })
+    expect(register.status).toBe(201)
+
+    const signIn = async () => {
+      const response = await app.request('/api/auth/token/login', { method: 'POST', headers: json, body: JSON.stringify(credentials) })
+      expect(response.status).toBe(200)
+      return response.json()
+    }
+    const me = (accessToken: string) => app.request('/api/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } })
+
+    const first = await signIn()
+    const second = await signIn()
+    expect((await me(first.accessToken)).status).toBe(200)
+    expect((await me(second.accessToken)).status).toBe(200)
+
+    const logout = await app.request('/api/auth/token/logout', { method: 'POST', headers: json, body: JSON.stringify({ refreshToken: first.refreshToken }) })
+    expect(logout.status).toBe(204)
+    expect((await me(first.accessToken)).status).toBe(401)
+    expect((await me(second.accessToken)).status).toBe(200)
   })
 
   test('rejects duplicate email and invalid login', async () => {

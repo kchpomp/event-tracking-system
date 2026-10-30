@@ -220,6 +220,8 @@ describe('push notification API and outbox', () => {
       data: { role: 'admin' },
     })
     const target = await registerUser('push-role-registration-target@example.com')
+    // Staff roles need a verified email.
+    await prisma.user.update({ where: { id: target.userId }, data: { emailVerifiedAt: new Date() } })
     const installationId = randomUUID()
     const expoPushToken = 'ExponentPushToken[role-registration-race]'
     let markSessionChecked: () => void = () => undefined
@@ -1359,11 +1361,14 @@ describe('push notification API and outbox', () => {
       data: { role: 'admin' },
     })
     const target = await registerUser('push-role-send-target@example.com')
+    // Staff roles need a verified email.
+    await prisma.user.update({ where: { id: target.userId }, data: { emailVerifiedAt: new Date() } })
     const independentTarget = await prisma.user.create({
       data: {
         email: 'push-role-independent-target@example.com',
         passwordHash: null,
         role: 'user',
+        emailVerifiedAt: new Date(),
       },
       select: { id: true },
     })

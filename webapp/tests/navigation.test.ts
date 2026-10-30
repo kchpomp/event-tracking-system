@@ -31,6 +31,20 @@ test('cross-role destinations resolve to the current role home', () => {
   expect(resolveRoleDestination('hostess', '/app')).toBe('/hostess')
   expect(resolveRoleDestination('hostess', '/admin/users')).toBe('/hostess')
   expect(resolveRoleDestination('user', '/hostess')).toBe('/app')
+  expect(resolveRoleDestination('screen', '/screen')).toBe('/screen')
+  for (const path of ['/app', '/admin', '/admin/network', '/hostess']) {
+    expect(resolveRoleDestination('screen', path)).toBe('/screen')
+  }
+  for (const role of ['user', 'admin', 'hostess'] as const) {
+    expect(resolveRoleDestination(role, '/screen')).toBe(homePathForRole(role))
+  }
+  expect(navigationItemsForRole('screen')).toEqual([])
+  expect(workspaceRoutesByRole.screen).toEqual(['/screen', '/screen/network', '/screen/flask'])
+  expect(resolveRoleDestination('screen', '/screen/flask')).toBe('/screen/flask')
+  expect(resolveRoleDestination('screen', '/admin/flask')).toBe('/screen')
+  expect(resolveRoleDestination('admin', '/admin/flask')).toBe('/admin/flask')
+  expect(resolveRoleDestination('admin', '/screen/flask')).toBe('/admin')
+  expect(resolveRoleDestination('user', '/screen/flask')).toBe('/app')
 })
 
 test('workspace route table matches the routes registered under each workspace layout', () => {
@@ -41,9 +55,10 @@ test('workspace route table matches the routes registered under each workspace l
     '/adminScreen': 'admin',
     '/adminWorkspace': 'admin',
     '/hostessWorkspace': 'hostess',
+    '/screenWorkspace': 'screen',
     '/userWorkspace': 'user',
   }
-  const registered: Record<UserRole, string[]> = { admin: [], hostess: [], user: [] }
+  const registered: Record<UserRole, string[]> = { admin: [], hostess: [], screen: [], user: [] }
 
   for (const route of Object.values(router.routesById)) {
     if (typeof route.path !== 'string') continue
@@ -56,6 +71,7 @@ test('workspace route table matches the routes registered under each workspace l
   expect(registered.user.toSorted()).toEqual([...workspaceRoutesByRole.user].toSorted())
   expect(registered.admin.toSorted()).toEqual([...workspaceRoutesByRole.admin].toSorted())
   expect(registered.hostess.toSorted()).toEqual([...workspaceRoutesByRole.hostess].toSorted())
+  expect(registered.screen.toSorted()).toEqual([...workspaceRoutesByRole.screen].toSorted())
 })
 
 test('workspace route table uses only route shapes the return-path matcher understands', () => {

@@ -3,7 +3,7 @@ import type {
   AdminUsersQuery,
   UserRole,
 } from '@event-tracking-system/contracts'
-import { ADMIN_USERS_MAX_PAGE } from '@event-tracking-system/contracts'
+import { ADMIN_USERS_MAX_PAGE, roleRequiresVerifiedEmail } from '@event-tracking-system/contracts'
 
 import {
   acquireParticipantScoringLock,
@@ -26,6 +26,7 @@ const userSummarySelect = {
   email: true,
   displayName: true,
   role: true,
+  emailVerifiedAt: true,
   createdAt: true,
 } as const
 
@@ -105,6 +106,12 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
         if (target.role === input.role) {
           return toAdminUserSummary(target)
         }
+        if (roleRequiresVerifiedEmail(input.role) && !target.emailVerifiedAt) {
+          throw new UsersFailure(
+            'email_not_verified',
+            'Only a user with a verified email can be given this role',
+          )
+        }
         if (target.id === actor.id && input.role !== 'admin') {
           throw new UsersFailure('role_conflict', 'You cannot remove your own administrator role')
         }
@@ -121,7 +128,7 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
           data: { role: input.role },
           select: userSummarySelect,
         })
-        if (input.role === 'hostess') {
+        if (input.role !== 'user') {
           // Staff do not play. They are already left out of the ranking by role; their points and
           // visit marks are removed too, so no total of theirs can be mistaken for a participant's
           // when winners are picked. Taken under the participant's scoring lock, so a scan in flight
@@ -153,6 +160,7 @@ function toAdminUserSummary(user: {
   email: string
   displayName: string | null
   role: UserRole
+  emailVerifiedAt: Date | null
   createdAt: Date
 }): AdminUserSummary {
   return {
@@ -160,6 +168,7 @@ function toAdminUserSummary(user: {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    emailVerified: user.emailVerifiedAt !== null,
     createdAt: user.createdAt.toISOString(),
   }
 }

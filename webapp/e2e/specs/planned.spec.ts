@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 
 import { e2eAdminEmail, e2eAdminPassword } from '../env'
-import { expect, expectCentredContent, logIn, signUp, test, uniqueEmail } from '../helpers/test'
+import { expect, expectCentredContent, logIn, markEmailVerified, signUp, test, uniqueEmail } from '../helpers/test'
 
 test('an administrator loads participants and hostesses apart and sees who has signed up in each', async ({
   browser,
@@ -28,7 +28,7 @@ test('an administrator loads participants and hostesses apart and sees who has s
   // Participants: pasted lines.
   await page
     .getByTestId('planned-input-participant')
-    .fill(`${present}; Павел Смирнов\n${absent}; Дмитрий Ждунов`)
+    .fill(`почта;имя;фамилия;подразделение;город\n${present};Павел;Смирнов;Цех;Тюмень\n${absent};Дмитрий;Ждунов;Цех;Тюмень`)
   await page.getByTestId('planned-import-participant').click()
   await expect(page.getByTestId('planned-result-participant')).toContainText('Добавлено: 2')
 
@@ -43,7 +43,7 @@ test('an administrator loads participants and hostesses apart and sees who has s
   await page.getByTestId('planned-file-hostess').setInputFiles({
     name: 'hostesses.csv',
     mimeType: 'text/csv',
-    buffer: Buffer.from(`\uFEFFEmail;ФИО\r\n${hostessAbsent};Вера Помощникова\r\n`, 'utf-8'),
+    buffer: Buffer.from(`\uFEFFПочта;Имя;Фамилия;Подразделение;Город\r\n${hostessAbsent};Вера;Помощникова;Штаб;Тюмень\r\n`, 'utf-8'),
   })
   await expect(page.getByTestId('planned-input-hostess')).toHaveValue(new RegExp(hostessAbsent))
   await page.getByTestId('planned-import-hostess').click()
@@ -65,8 +65,8 @@ test('an administrator loads participants and hostesses apart and sees who has s
   ])
   expect(download.suggestedFilename()).toBe('hostesses-not-registered.csv')
   const csv = readFileSync((await download.path())!, 'utf-8')
-  expect(csv).toContain('Email;ФИО')
-  expect(csv).toContain(`${hostessAbsent};Вера Помощникова`)
+  expect(csv).toContain('Почта;Имя;Фамилия;Подразделение;Город')
+  expect(csv).toContain(`${hostessAbsent};Вера;Помощникова;Штаб;Тюмень`)
   expect(csv).not.toContain('Дмитрий')
 
   // Tidy up: the planned lists are shared by every spec.
@@ -94,7 +94,7 @@ test('a listed hostess registers without a workplace and is given the role with 
   await expect(page).toHaveURL(/\/admin$/)
   await page.goto('/admin/participants')
   await page.getByTestId('planned-tab-hostess').click()
-  await page.getByTestId('planned-input-hostess').fill(`${email}; Хостесова Ольга`)
+  await page.getByTestId('planned-input-hostess').fill(`почта;имя;фамилия;подразделение;город\n${email};Ольга;Хостесова;Штаб;Тюмень`)
   await page.getByTestId('planned-import-hostess').click()
   await expect(page.getByTestId('planned-result-hostess')).toContainText('Добавлено: 1')
 
@@ -113,6 +113,9 @@ test('a listed hostess registers without a workplace and is given the role with 
     await guestContext.close()
   }
 
+  // A staff role needs a verified address.
+  markEmailVerified(email)
+
   // She is in the queue, and one confirmed click gives her the role.
   await page.reload()
   await page.getByTestId('planned-tab-hostess').click()
@@ -129,6 +132,6 @@ test('a listed hostess registers without a workplace and is given the role with 
 
   // Tidy up.
   await page.getByTestId('planned-filter-hostess-all').click()
-  await page.getByRole('button', { name: 'Убрать из списка: Хостесова Ольга' }).click()
-  await expect(page.getByRole('button', { name: 'Убрать из списка: Хостесова Ольга' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Убрать из списка: Ольга Хостесова' }).click()
+  await expect(page.getByRole('button', { name: 'Убрать из списка: Ольга Хостесова' })).toHaveCount(0)
 })

@@ -56,6 +56,8 @@ export function createAuthModule({
     requireAdmin: createRequireRole('admin'),
     // Staff desk: hostesses, and administrators as the superset of every staff role.
     requireHostess: createRequireRole('hostess', 'admin'),
+    // The venue network visualization: an event screen, or an administrator.
+    requireNetworkViewer: createRequireRole('screen', 'admin'),
     requireParticipant: createRequireRole('user'),
     routes: createAuthRoutes({ env, requireAuth, service }),
   }
@@ -79,6 +81,7 @@ export function createAuthTasks(runtime: BackendRuntime) {
   return {
     deliverPasswordChanged: service.deliverPasswordChanged.bind(service),
     deliverPasswordReset: service.deliverPasswordReset.bind(service),
+    deliverEmailVerification: service.deliverEmailVerification.bind(service),
   }
 }
 

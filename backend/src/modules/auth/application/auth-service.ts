@@ -1,4 +1,5 @@
 import type {
+  EmailVerificationConfirmRequest,
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,
@@ -11,17 +12,20 @@ import { AuthFailure } from '../domain/errors'
 import { sessionExpiresAt, type SessionMetadata } from '../domain/session'
 import type { AuthUserRecord, AuthenticatedPrincipal } from '../domain/user'
 import { toUserDto, userDtoFromPrincipal } from '../domain/user'
-import type {
-  AccessTokens,
-  AuthRepository,
-  Clock,
-  LogoutCleanup,
-  PasswordResetNotifier,
-  PasswordResetTaskQueue,
-  PasswordResetTokens,
-  Passwords,
-  RefreshTokens,
-  SocialIdentities,
+import {
+  emailVerificationTokenTtlHours,
+  loginFailureLimit,
+  loginFailureWindowSeconds,
+  type AccessTokens,
+  type AuthRepository,
+  type Clock,
+  type LogoutCleanup,
+  type PasswordResetNotifier,
+  type PasswordResetTaskQueue,
+  type PasswordResetTokens,
+  type Passwords,
+  type RefreshTokens,
+  type SocialIdentities,
 } from './ports'
 
 type AuthServiceDependencies = {
@@ -91,14 +95,30 @@ export class AuthService {
   }
 
   async login(input: LoginRequest, metadata: SessionMetadata) {
-    const user = await this.dependencies.repository.findUserByEmail(input.email)
+    const { repository } = this.dependencies
+    const failures = this.loginFailureWindow(input.email)
+    // Checked before the account is looked up, and counted the same way for an unknown address,
+    // so neither the lock nor its absence says whether an account exists.
+    if (await repository.countLoginFailures(failures) >= loginFailureLimit) {
+      const retryAfterMs = failures.expiresAt.getTime() - this.dependencies.clock.now().getTime()
+      throw new AuthFailure(
+        'login_locked',
+        'Too many failed sign-in attempts for this account',
+        Math.max(1, Math.ceil(retryAfterMs / 1000)),
+      )
+    }
+
+    const user = await repository.findUserByEmail(input.email)
     if (!user?.passwordHash) {
       await this.spendAbsentUserPasswordWork(input.password)
+      await repository.recordLoginFailure(failures)
       throw new AuthFailure('invalid_credentials', 'Invalid email or password')
     }
     if (!(await this.dependencies.passwords.verify(input.password, user.passwordHash))) {
+      await repository.recordLoginFailure(failures)
       throw new AuthFailure('invalid_credentials', 'Invalid email or password')
     }
+    await repository.clearLoginFailures(failures)
 
     return this.issueSession(user, metadata, async (currentUser) =>
       Boolean(
@@ -109,6 +129,22 @@ export class AuthService {
         )
       ),
     )
+  }
+
+  /**
+   * The failure counter for one address: keyed by its hash, in a clock-aligned window.
+   * ponytail: fixed window, so up to 2x the limit can land around a boundary; a sliding window
+   * if that ever matters.
+   */
+  private loginFailureWindow(email: string) {
+    const windowMs = loginFailureWindowSeconds * 1000
+    const windowStart = Math.floor(this.dependencies.clock.now().getTime() / windowMs) * windowMs
+    return {
+      // The same SHA-256 the reset tokens use; the address itself is never stored here.
+      key: this.dependencies.passwordResetTokens.hash(email.trim().toLowerCase()),
+      windowStart: new Date(windowStart),
+      expiresAt: new Date(windowStart + windowMs),
+    }
   }
 
   async socialAuth(
@@ -257,6 +293,62 @@ export class AuthService {
       throw new AuthFailure(
         'password_reset_invalid',
         'Password reset link is invalid or expired',
+      )
+    }
+  }
+
+  /** Queues the verification email. Nothing to do for a verified address or without a provider. */
+  async requestEmailVerification(principal: AuthenticatedPrincipal) {
+    if (principal.emailVerified || !this.dependencies.passwordResetNotifier.configured) {
+      return { accepted: true as const }
+    }
+    await this.dependencies.repository.queueEmailVerification({
+      userId: principal.id,
+      now: this.dependencies.clock.now(),
+    })
+    return { accepted: true as const }
+  }
+
+  /** The outbox half: mint a token and send the link. Retries follow `deliverPasswordReset`. */
+  async deliverEmailVerification(
+    input: { userId: string },
+    { finalAttempt, now, signal }: { finalAttempt: boolean; now: Date; signal: AbortSignal },
+  ): Promise<'done' | 'skipped'> {
+    const { passwordResetNotifier, passwordResetTokens, repository } = this.dependencies
+    const token = passwordResetTokens.create()
+    const tokenHash = passwordResetTokens.hash(token)
+    const expiresAt = new Date(now.getTime() + emailVerificationTokenTtlHours * 60 * 60 * 1000)
+    const email = await repository.createEmailVerificationToken({
+      userId: input.userId,
+      tokenHash,
+      expiresAt,
+      now,
+      createdAfter: new Date(
+        now.getTime() - this.dependencies.passwordResetCooldownSeconds * 1000,
+      ),
+    })
+    if (!email) return 'skipped'
+
+    try {
+      await passwordResetNotifier.sendEmailVerification({ email, token, expiresAt }, signal)
+    } catch (error) {
+      if (finalAttempt || passwordResetNotifier.isPermanentFailure(error)) {
+        await repository.invalidateEmailVerificationToken({ tokenHash, now })
+      }
+      throw error
+    }
+    return 'done'
+  }
+
+  async confirmEmailVerification(input: EmailVerificationConfirmRequest) {
+    const confirmed = await this.dependencies.repository.confirmEmailVerification({
+      tokenHash: this.dependencies.passwordResetTokens.hash(input.token),
+      now: this.dependencies.clock.now(),
+    })
+    if (!confirmed) {
+      throw new AuthFailure(
+        'email_verification_invalid',
+        'Email verification link is invalid or expired',
       )
     }
   }

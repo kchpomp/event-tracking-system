@@ -20,15 +20,18 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { eventErrorMessage } from './errors'
-import { downloadCsv, plannedCsv, spreadsheetToText } from './planned-file'
+import { eventErrorMessage, importErrorMessage } from './errors'
+import { PlannedPhotoUpload } from './PlannedPhotoUpload'
+import { downloadCsv, parseCsv, plannedCsv, spreadsheetToText } from './planned-file'
 import {
   filterPlanned,
   hostessesWithoutRole,
   KIND_TEXT,
   ofKind,
-  parsePlannedLines,
+  parsePlannedTable,
+  PLANNED_FORMAT,
   plannedLabel,
+  plannedName,
   plannedStatus,
   readyForHostessRole,
   type PlannedFilter,
@@ -202,8 +205,8 @@ function HostessRoleQueue({ items }: { items: readonly PlannedParticipant[] }) {
                     {item.email}
                   </Typography>
                   <Typography tone="muted" variant="bodyXs">
-                    {item.fullName
-                      ? `В списке: ${item.fullName}. В аккаунте: ${item.accountName ?? 'имя не указано'}.`
+                    {plannedName(item)
+                      ? `В списке: ${plannedName(item)}. В аккаунте: ${item.accountName ?? 'имя не указано'}.`
                       : `В списке нет имени. В аккаунте: ${item.accountName ?? 'имя не указано'}.`}
                   </Typography>
                 </li>
@@ -274,7 +277,7 @@ function PlannedRows({
               <Typography truncate variant="bodySmMedium">
                 {plannedLabel(item)}
               </Typography>
-              {item.fullName && (
+              {plannedName(item) && (
                 <Typography truncate tone="muted" variant="bodyXs">
                   {item.email}
                 </Typography>
@@ -283,6 +286,9 @@ function PlannedRows({
             <div className="flex shrink-0 items-center gap-3">
               <Typography as="span" tone={status.done ? 'primary' : 'muted'} variant="bodyXs">
                 {status.text}
+              </Typography>
+              <Typography as="span" data-testid="has-photo" tone="muted" variant="bodyXs">
+                {item.hasPhoto ? 'Есть фото' : 'Нет фото'}
               </Typography>
               {onRemove && (
                 <Button
@@ -326,7 +332,7 @@ function PlannedKindPanel({
   const [result, setResult] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
 
-  const parsed = parsePlannedLines(text)
+  const parsed = parsePlannedTable(parseCsv(text))
   const own = ofKind(items, kind)
   const shown = filterPlanned(own, filter)
   const missing = own.filter((item) => !item.registered).length
@@ -357,11 +363,12 @@ function PlannedKindPanel({
           <Typography as="h2" variant="h6">
             Загрузить список: {KIND_TEXT[kind].plural.toLowerCase()}
           </Typography>
-          <Typography tone="muted" variant="bodySm">
-            Файл Excel (.xlsx) или CSV: адрес электронной почты в любом столбце, имя в соседнем.
-            Заголовок в первой строке не нужен, но не помешает. Можно и вставить строки вручную.
-            Повторная загрузка добавляет новых и дополняет имена, ничего не удаляя. Если адрес уже в
-            другом списке, человек перейдёт в этот.
+          <Typography data-testid={`planned-format-${kind}`} tone="muted" variant="bodySm">
+            Файл Excel (.xlsx) или CSV. Формат списка: {PLANNED_FORMAT}. В первой строке названия
+            колонок (порядок любой, лишних колонок быть не должно), в остальных строках по человеку,
+            все пять ячеек заполнены. Можно и вставить строки вручную. Повторная загрузка добавляет
+            новых и обновляет данные, ничего не удаляя. Если адрес уже в другом списке, человек
+            перейдёт в этот.
           </Typography>
           <Input
             accept=".xlsx,.csv,.txt,text/csv"
@@ -382,17 +389,14 @@ function PlannedKindPanel({
             aria-label={`Список: ${KIND_TEXT[kind].plural.toLowerCase()}`}
             data-testid={`planned-input-${kind}`}
             onChange={(event) => setText(event.target.value)}
-            placeholder={'anna@example.com; Анна Петрова\noleg@example.com; Олег Иванов'}
+            placeholder={'почта;имя;фамилия;подразделение;город\nanna@example.com;Анна;Петрова;Цех 1;Тюмень'}
             rows={5}
             value={text}
           />
-          {parsed.invalid.length > 0 && (
-            <Alert variant="destructive">
-              <AlertTitle>В этих строках нет адреса электронной почты</AlertTitle>
-              <AlertDescription>
-                {parsed.invalid.slice(0, 5).join('; ')}
-                {parsed.invalid.length > 5 ? ` и ещё ${parsed.invalid.length - 5}` : ''}
-              </AlertDescription>
+          {parsed.error && (
+            <Alert data-testid={`planned-format-error-${kind}`} variant="destructive">
+              <AlertTitle>Список не загружен: неверный формат</AlertTitle>
+              <AlertDescription>{parsed.error}</AlertDescription>
             </Alert>
           )}
           {parsed.truncated && (
@@ -402,7 +406,7 @@ function PlannedKindPanel({
           )}
           {importer.isError && (
             <Typography role="alert" tone="destructive" variant="bodyXs">
-              {eventErrorMessage(importer.error)}
+              {importErrorMessage(importer.error)}
             </Typography>
           )}
           {result && (
@@ -422,6 +426,8 @@ function PlannedKindPanel({
           </div>
         </CardContent>
       </Card>
+
+      <PlannedPhotoUpload items={own} />
 
       {kind === 'hostess' && <HostessRoleQueue items={items} />}
 

@@ -398,7 +398,7 @@ async function enforcePushTokenCap(
   }
 }
 
-export async function unregisterPushToken(
+async function unregisterPushToken(
   prisma: DbClient,
   userId: string,
   sessionId: string,
@@ -569,7 +569,7 @@ function hasInstallationAuthority(
   return expected.length === candidate.length && timingSafeEqual(expected, candidate)
 }
 
-export async function hasActivePushToken(
+async function hasActivePushToken(
   prisma: DbClient,
   userId: string,
   now = new Date(),

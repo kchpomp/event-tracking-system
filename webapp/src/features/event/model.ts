@@ -2,6 +2,9 @@ import {
   DIFFUSION_GOAL,
   IDEA_GOAL,
   POLYMER_GROUP,
+  TEAM_AWARD_MAX_POINTS,
+  TEAM_AWARD_MIN_POINTS,
+  type HostessTeamAwardResponse,
   type StationSummary,
 } from '@event-tracking-system/contracts'
 
@@ -119,7 +122,46 @@ export function fullName(profile: { firstName: string | null; lastName: string |
   return [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Участник'
 }
 
+/** First letters of the first and last name; «?» when there is neither. */
+export function initialsOf(person: { firstName: string | null; lastName: string | null }) {
+  const letters = [person.firstName, person.lastName].map((part) => part?.trim()[0]?.toUpperCase() ?? '').join('')
+  return letters || '?'
+}
+
 /** These stations are entered through the global scan button, so their pages have none. */
 export function hasOwnScanButton(name: string) {
   return !/^(точка соединения|люди формулы будущего|воркшоп)/i.test(name)
+}
+
+const PEOPLE_WORD = { one: 'участник', few: 'участника', many: 'участников', other: 'участников', zero: 'участников', two: 'участника' }
+const PEOPLE_DATIVE = { one: 'участнику', few: 'участникам', many: 'участникам', other: 'участникам', zero: 'участникам', two: 'участникам' }
+
+/** "1 участник", "2 участника", "5 участников". */
+export function membersWord(count: number) {
+  return `${count} ${PEOPLE_WORD[POINTS_PLURAL.select(count)]}`
+}
+
+/** The points of a team award as typed: a whole number from 1 to 50, else null. */
+export function parseTeamPoints(text: string) {
+  const value = text.trim()
+  if (!/^\d{1,3}$/.test(value)) return null
+  const points = Number(value)
+  return points >= TEAM_AWARD_MIN_POINTS && points <= TEAM_AWARD_MAX_POINTS ? points : null
+}
+
+/** What the hostess is told after a team award. `awarded` is 0 when the same award was already made. */
+export function teamAwardResult(result: Pick<HostessTeamAwardResponse, 'awarded' | 'points' | 'memberCount'>) {
+  if (result.awarded === 0) {
+    return {
+      variant: 'warning' as const,
+      title: 'Уже начислено',
+      message: 'Эти баллы команде уже начислены. Повторно они не добавлены.',
+    }
+  }
+  const people = PEOPLE_DATIVE[POINTS_PLURAL.select(result.awarded)]
+  return {
+    variant: 'success' as const,
+    title: `Начислено ${result.awarded} ${people}`,
+    message: `Каждому: ${pointsWord(result.points)}. Участников в команде: ${result.memberCount}.`,
+  }
 }

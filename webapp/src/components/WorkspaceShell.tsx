@@ -1,6 +1,8 @@
 import {
+  Calendar03Icon,
   DashboardSquare01Icon,
   Home01Icon,
+  Idea01Icon,
   QrCodeIcon,
   Settings01Icon,
   Share08Icon,
@@ -27,8 +29,10 @@ const iconsByPath = {
   '/admin/participants': UserListIcon,
   '/admin/users': UserGroupIcon,
   '/admin/stations': QrCodeIcon,
+  '/admin/schedule': Calendar03Icon,
   '/admin/settings': Settings01Icon,
   '/admin/network': Share08Icon,
+  '/admin/flask': Idea01Icon,
 } as const
 
 function getSidebarDefaultOpen() {

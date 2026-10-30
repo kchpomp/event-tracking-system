@@ -50,6 +50,7 @@ import { formatDate } from '@/platform/intl'
 import {
   adminUsersPagination,
   adminUsersViewState,
+  roleBlockedByUnverifiedEmail,
   roleLabel,
   roleMutationFeedback,
 } from './model'
@@ -236,6 +237,7 @@ function UserTable({
                 <Typography variant="caption" tone="muted">
                   {user.email}
                 </Typography>
+                <EmailVerifiedNote user={user} />
               </div>
             </TableCell>
             <TableCell>
@@ -288,6 +290,7 @@ function UserList({
                   <Typography variant="caption" tone="muted" wrap="break">
                     {user.email}
                   </Typography>
+                  <EmailVerifiedNote user={user} />
                 </dd>
               </div>
               <div className="min-w-0">
@@ -358,14 +361,43 @@ function RoleSelect({
         </SelectItem>
         <SelectItem
           data-testid="role-option-hostess"
-          disabled={user.id === currentUser.id && user.role === 'admin'}
+          disabled={
+            (user.id === currentUser.id && user.role === 'admin') ||
+            roleBlockedByUnverifiedEmail(user, 'hostess')
+          }
           value="hostess"
         >
-          Хостес
+          Хостес{roleBlockedByUnverifiedEmail(user, 'hostess') && unverifiedSuffix}
         </SelectItem>
-        <SelectItem data-testid="role-option-admin" value="admin">Администратор</SelectItem>
+        <SelectItem
+          data-testid="role-option-screen"
+          disabled={user.id === currentUser.id && user.role === 'admin'}
+          value="screen"
+        >
+          Экран
+        </SelectItem>
+        <SelectItem
+          data-testid="role-option-admin"
+          disabled={roleBlockedByUnverifiedEmail(user, 'admin')}
+          value="admin"
+        >
+          Администратор{roleBlockedByUnverifiedEmail(user, 'admin') && unverifiedSuffix}
+        </SelectItem>
       </SelectContent>
     </Select>
+  )
+}
+
+const unverifiedSuffix = ' — нужна подтверждённая почта'
+
+/** Hostess and admin need a verified email; the note says why those roles are unavailable. */
+function EmailVerifiedNote({ user }: { user: AdminUserSummary }) {
+  return (
+    <Typography data-testid="user-email-verified" tone="muted" variant="caption">
+      {user.emailVerified
+        ? 'Почта подтверждена'
+        : 'Почта не подтверждена: роли хостес и администратора недоступны'}
+    </Typography>
   )
 }
 

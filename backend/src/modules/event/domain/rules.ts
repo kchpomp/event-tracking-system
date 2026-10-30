@@ -93,3 +93,26 @@ export function listedNameMatches(
   const covers = (name: string) => name !== '' && nameWords(name).every((word) => words.has(word))
   return covers(first) && covers(last)
 }
+
+export const BADGE_MIN_ACTIVITIES = 3
+export const BADGE_POINTS = 1
+
+type LedgerRow = { actionType: string; refId: string }
+export type CompletedActivity = { kind: 'station_scan' | 'polymer' | 'connection' | 'idea'; refId: string }
+
+/**
+ * What counts towards the badge, from the ledger only: each regular station on its own, the whole
+ * Polymer game once (its `polymer` row), «Диффузия» once and «Колба идей» once.
+ */
+export function completedActivities(rows: LedgerRow[]): CompletedActivity[] {
+  const seen = new Set<string>()
+  const result: CompletedActivity[] = []
+  for (const { actionType, refId } of rows) {
+    if (actionType !== 'station_scan' && actionType !== 'polymer' && actionType !== 'connection' && actionType !== 'idea') continue
+    const key = actionType === 'station_scan' ? `${actionType}:${refId}` : actionType
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push({ kind: actionType, refId })
+  }
+  return result
+}

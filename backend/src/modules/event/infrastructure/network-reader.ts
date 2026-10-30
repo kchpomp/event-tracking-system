@@ -1,6 +1,7 @@
 import type { DbClient } from '../../../db'
 import type { NetworkReader } from '../application/ports'
-import { participantInitials } from '../domain/rules'
+import { FLASK_IDEAS_MAX } from '@event-tracking-system/contracts'
+import { participantFullName, participantInitials } from '../domain/rules'
 
 /**
  * The venue network screen's snapshot: every participant and every connection between two
@@ -14,6 +15,31 @@ import { participantInitials } from '../domain/rules'
  */
 export function createPrismaNetworkReader(db: DbClient): NetworkReader {
   return {
+    async flask() {
+      const [total, latest] = await db.$transaction(
+        [
+          db.idea.count(),
+          db.idea.findMany({
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: FLASK_IDEAS_MAX,
+            select: {
+              id: true,
+              createdAt: true,
+              author: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+            },
+          }),
+        ],
+        { isolationLevel: 'RepeatableRead' },
+      )
+      return {
+        total,
+        ideas: latest.reverse().map(({ id, createdAt, author }) => ({
+          id,
+          createdAt,
+          author: { id: author.id, fullName: participantFullName(author), initials: participantInitials(author) },
+        })),
+      }
+    },
     async network() {
       const [users, connections] = await db.$transaction(
         [

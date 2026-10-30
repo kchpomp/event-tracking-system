@@ -8,7 +8,7 @@ const statusByCode = {
   IAP_WEBHOOK_IN_PROGRESS: 503,
 } as const satisfies Record<BillingFailureCode, 400 | 403 | 503>
 
-export function toBillingAppError(error: unknown) {
+function toBillingAppError(error: unknown) {
   if (!(error instanceof BillingFailure)) return error
   return new AppError(statusByCode[error.code], error.code, error.message, error.details)
 }

@@ -42,3 +42,8 @@ export function createUploadsModule(options: CreateUploadsModuleOptions) {
 
 export { AvatarsService } from './application/avatars-service'
 export type { AvatarRepository } from './application/ports'
+export {
+  detectImageFormat,
+  imageFormatMatchesDeclaredType,
+  imageSignatureByteLength,
+} from './domain/image-format'

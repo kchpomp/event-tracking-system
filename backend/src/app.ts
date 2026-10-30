@@ -96,6 +96,16 @@ export function createApp({
     store: rateLimitStore('admin-network-read'),
     windowSeconds: env.ADMIN_NETWORK_READ_RATE_LIMIT_WINDOW_SECONDS,
   })
+  // Ideas have no cap per account (the product rule), but a bot could still fill the venue flask:
+  // a request budget per participant. Scans are cheaper to repeat, so their budget is wider.
+  const participantWriteLimit = (policy: 'idea-write' | 'connection-write', max: number) =>
+    createFixedWindowRateLimit<AuthHttpEnv>({
+      errorMessage: 'Too many requests',
+      key: (c) => c.var.user.id,
+      max,
+      store: rateLimitStore(policy),
+      windowSeconds: 60,
+    })
   const users = createUsersModule({
     adminUsersReadRateLimit,
     db: prisma,
@@ -104,11 +114,16 @@ export function createApp({
   })
   const event = createEventModule({
     adminNetworkReadRateLimit,
+    backgroundTasks,
+    connectionRateLimit: participantWriteLimit('connection-write', 30),
+    ideaRateLimit: participantWriteLimit('idea-write', 10),
     db: prisma,
     requireAdmin: auth.requireAdmin,
     requireAuth: auth.requireAuth,
     requireHostess: auth.requireHostess,
+    requireNetworkViewer: auth.requireNetworkViewer,
     requireParticipant: auth.requireParticipant,
+    storage: storage.storage,
   })
   const uploads = createUploadsModule({
     backgroundTasks,
@@ -209,11 +224,25 @@ export function createApp({
     // '/api/iap/*',
     // '/api/webhooks/*',
   ]
+  // The guest list import is the one body larger than the account limit: PLANNED_IMPORT_MAX rows of
+  // five short columns are about 300 KB, so it gets 1 MiB while every other route keeps the small one.
+  const [accountBodyLimit, accountRateLimit] = createIngressSecurity({
+    ...publicWriteSecurity,
+    store: rateLimitStore('account'),
+  })
+  const [plannedImportBodyLimit] = createIngressSecurity({
+    ...publicWriteSecurity,
+    bodyLimitBytes: 1024 * 1024,
+  })
   app.use(
     '/api/*',
     except(
       routesWithOwnBudget,
-      ...createIngressSecurity({ ...publicWriteSecurity, store: rateLimitStore('account') }),
+      (c, next) =>
+        c.req.method === 'POST' && /^\/api\/admin\/planned-participants\/?$/.test(c.req.path)
+          ? plannedImportBodyLimit(c, next)
+          : accountBodyLimit(c, next),
+      accountRateLimit,
     ),
   )
   app.get('/', (c) => {
@@ -254,6 +283,8 @@ export function createApp({
   app.route('/api/registration', event.registrationRoutes)
   app.route('/api/auth', auth.routes)
   app.route('/api/users', users.userRoutes)
+  // Before the admin routes: those guard every /api/admin path with requireAdmin, and the screen role reads this one path.
+  app.route('/api/admin', event.networkRoutes)
   app.route('/api/admin', users.adminRoutes)
   app.route('/api/admin', event.adminRoutes)
   app.route('/api/event', event.participantRoutes)

@@ -1,4 +1,4 @@
-import { ArrowRight01Icon, QrCodeScanIcon, Tick02Icon } from '@hugeicons/core-free-icons'
+import { ArrowRight01Icon, Award01Icon, QrCodeScanIcon, Tick02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -39,6 +39,7 @@ import { eventErrorMessage } from './errors'
 import { pointsWord, stationLabel, tokenFrom } from './model'
 import { ActivityHead, LoadErrorState, LoadingState, ResultDialog, StatCard } from './parts'
 import { QrScanner } from './QrScanner'
+import { TeamAward } from './TeamAward'
 import {
   useAwardStationMutation,
   useHostessParticipantQuery,
@@ -86,6 +87,13 @@ export function HostessHomePage() {
         </Link>
       </Button>
 
+      <Button asChild size="lg" variant="secondary">
+        <Link data-testid="hostess-badge" to="/hostess/badge">
+          <HugeiconsIcon aria-hidden icon={Award01Icon} strokeWidth={2} />
+          Выдать значок
+        </Link>
+      </Button>
+
       <section className="grid gap-3">
         <Typography as="h2" variant="h6">
           Найти участника
@@ -102,6 +110,8 @@ export function HostessHomePage() {
         </Field>
         <SearchResults q={q} search={search} />
       </section>
+
+      <TeamAward />
 
       <SignupQr />
     </div>

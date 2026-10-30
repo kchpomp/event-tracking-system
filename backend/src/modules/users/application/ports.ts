@@ -11,6 +11,7 @@ export type UserRecord = {
   email: string
   displayName: string | null
   role: UserRole
+  emailVerifiedAt: Date | null
   createdAt: Date
 }
 

@@ -16,6 +16,16 @@ export function toAuthAppError(error: unknown) {
     return new AppError(400, 'AUTH_PASSWORD_RESET_INVALID', error.message)
   }
 
+  if (error.kind === 'email_verification_invalid') {
+    return new AppError(400, 'AUTH_EMAIL_VERIFICATION_INVALID', error.message)
+  }
+
+  if (error.kind === 'login_locked') {
+    return new AppError(429, 'AUTH_LOGIN_LOCKED', error.message, undefined, {
+      'Retry-After': String(error.retryAfterSeconds ?? 1),
+    })
+  }
+
   if (error.kind === 'social_email_already_exists') {
     return new AppError(409, 'AUTH_EMAIL_ALREADY_EXISTS', error.message)
   }

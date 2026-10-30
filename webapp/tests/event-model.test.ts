@@ -1,14 +1,24 @@
 import { expect, test } from 'bun:test'
 import type { StationSummary } from '@event-tracking-system/contracts'
 
-import { eventErrorMessage, GENERIC_ERROR, OFFLINE_ERROR } from '../src/features/event/errors'
+import {
+  eventErrorMessage,
+  GENERIC_ERROR,
+  importErrorMessage,
+  OFFLINE_ERROR,
+  teamAwardErrorMessage,
+} from '../src/features/event/errors'
 import {
   activityProgress,
   diffusionScan,
   fullName,
   hasOwnScanButton,
+  initialsOf,
+  membersWord,
+  parseTeamPoints,
   pointsLabel,
   pointsWord,
+  teamAwardResult,
   toStationCards,
   tokenFrom,
 } from '../src/features/event/model'
@@ -104,4 +114,36 @@ test('the participant scan stays available after the goal of three, and the page
   expect([0, 2, 3, 7].map((count) => diffusionScan(count).label.length > 0)).toEqual([true, true, true, true])
   expect(atGoal!.label).not.toBe(before!.label)
   expect(after!.label).toBe(atGoal!.label)
+})
+
+test('team points are a whole number from 1 to 50', () => {
+  expect(['1', ' 50 ', '7'].map(parseTeamPoints)).toEqual([1, 50, 7])
+  expect(['', '0', '51', '-3', '2.5', '1e1', 'abc', '0007x'].map(parseTeamPoints)).toEqual(Array(8).fill(null))
+})
+
+test('a team award says how many got points, or that it was already made', () => {
+  expect(teamAwardResult({ awarded: 5, points: 10, memberCount: 5 })).toMatchObject({
+    variant: 'success',
+    title: 'Начислено 5 участникам',
+  })
+  expect(teamAwardResult({ awarded: 1, points: 1, memberCount: 3 }).title).toBe('Начислено 1 участнику')
+  expect(teamAwardResult({ awarded: 0, points: 10, memberCount: 5 })).toMatchObject({
+    variant: 'warning',
+    title: 'Уже начислено',
+  })
+  expect([1, 2, 5, 21].map(membersWord)).toEqual(['1 участник', '2 участника', '5 участников', '21 участник'])
+})
+
+test('initials come from the first and last name, else a question mark', () => {
+  expect(initialsOf({ firstName: ' анна', lastName: 'Петрова' })).toBe('АП')
+  expect(initialsOf({ firstName: null, lastName: 'Петрова' })).toBe('П')
+  expect(initialsOf({ firstName: null, lastName: ' ' })).toBe('?')
+})
+
+test('team and import refusals have their own sentences', () => {
+  expect(teamAwardErrorMessage(new ApiRequestError(404, 'NOT_FOUND', 'x'))).toContain('Такой команды нет')
+  expect(teamAwardErrorMessage(new ApiRequestError(409, 'EVENT_TEAM_EMPTY', 'x'))).toContain('нет участников')
+  expect(teamAwardErrorMessage(new ApiRequestError(403, 'FORBIDDEN', 'x'))).toContain('хостес')
+  expect(importErrorMessage(new ApiRequestError(400, 'VALIDATION_ERROR', 'Строка 2: пусто'))).toBe('Строка 2: пусто')
+  expect(importErrorMessage(new ApiRequestError(500, 'INTERNAL_ERROR', 'boom'))).toBe(GENERIC_ERROR)
 })

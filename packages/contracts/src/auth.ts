@@ -15,7 +15,7 @@ export const passwordSchema = z
   .min(8, 'Пароль должен содержать не менее 8 символов')
   .max(128, 'Пароль должен содержать не более 128 символов')
 
-export const userRoleSchema = z.enum(['user', 'admin', 'hostess'])
+export const userRoleSchema = z.enum(['user', 'admin', 'hostess', 'screen'])
 
 // The user contract deliberately carries no subscription: billing is an optional capability,
 // and clients that need it read `GET /api/iap/entitlement` through their billing feature.
@@ -24,6 +24,8 @@ export const userSchema = z.object({
   email: emailSchema,
   displayName: z.string().nullable(),
   role: userRoleSchema,
+  /** Whether the person proved they own the address; an administrator can make only such people staff. */
+  emailVerified: z.boolean(),
   createdAt: z.string().datetime(),
 })
 
@@ -73,6 +75,12 @@ export const passwordResetRequestResponseSchema = z.object({
 export const passwordResetConfirmRequestSchema = z.object({
   token: z.string().trim().min(43).max(256),
   password: passwordSchema,
+})
+
+export const emailVerificationRequestResponseSchema = passwordResetRequestResponseSchema
+
+export const emailVerificationConfirmRequestSchema = z.object({
+  token: z.string().trim().min(43).max(256),
 })
 
 export const cookieRefreshRequestSchema = z.object({}).strict().optional().default({})
@@ -127,6 +135,8 @@ export type SocialAuthPayload = z.output<typeof socialAuthRequestSchema>
 export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>
 export type PasswordResetRequestResponse = z.infer<typeof passwordResetRequestResponseSchema>
 export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmRequestSchema>
+export type EmailVerificationRequestResponse = z.infer<typeof emailVerificationRequestResponseSchema>
+export type EmailVerificationConfirmRequest = z.infer<typeof emailVerificationConfirmRequestSchema>
 export type CookieRefreshRequest = z.infer<typeof cookieRefreshRequestSchema>
 export type CookieLogoutRequest = z.infer<typeof cookieLogoutRequestSchema>
 export type TokenRefreshRequest = z.infer<typeof tokenRefreshRequestSchema>

@@ -97,8 +97,8 @@ const envSchema = z.object({
   WEBHOOK_RATE_LIMIT_MAX: optionalPositiveIntegerSchema,
   WEBHOOK_RATE_LIMIT_WINDOW_SECONDS: optionalPositiveIntegerSchema,
   // Where the auth and admin limiters count. `memory` is one process's own table and the whole
-  // truth while one API instance serves every request: DigitalOcean's launch profile, an own
-  // server, local development. `database` counts in PostgreSQL through one upsert per limited
+  // truth while one API instance serves every request: an own server, local
+  // development. `database` counts in PostgreSQL through one upsert per limited
   // request, so any number of instances share one budget; Terraform sets it for Yandex Serverless
   // Containers, which scale out per concurrent request. See docs/DEPLOYMENT.md.
   RATE_LIMIT_STORE: z.enum(['memory', 'database']).default('memory'),

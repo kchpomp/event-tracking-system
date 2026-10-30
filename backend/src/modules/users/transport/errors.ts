@@ -7,6 +7,9 @@ export function toUsersAppError(error: unknown) {
   if (error.kind === 'forbidden') {
     return new AppError(403, 'FORBIDDEN', error.message)
   }
+  if (error.kind === 'email_not_verified') {
+    return new AppError(409, 'EMAIL_NOT_VERIFIED', error.message)
+  }
   if (error.kind === 'not_found') {
     return new AppError(404, 'NOT_FOUND', error.message)
   }
