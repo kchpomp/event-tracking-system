@@ -82,16 +82,6 @@ describe('loadEnv', () => {
     expect(() => loadEnv(parseEnvExample())).not.toThrow()
   })
 
-  test('splits the Google sign-in client ID list', () => {
-    const env = loadEnv({
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
-      JWT_SECRET: '12345678901234567890123456789012',
-      GOOGLE_AUTH_CLIENT_IDS: 'ios-client-id, web-client-id',
-    })
-
-    expect(env.GOOGLE_AUTH_CLIENT_IDS).toEqual(['ios-client-id', 'web-client-id'])
-  })
-
   test('rejects known weak JWT secrets in production-like runtimes', () => {
     expect(() =>
       loadEnv({
@@ -195,101 +185,6 @@ describe('loadEnv', () => {
         CORS_ORIGINS: 'http://web.example.com',
       }),
     ).toThrow('CORS_ORIGINS')
-  })
-
-  test('requires complete App Store IAP verification config when enabled', () => {
-    const baseEnv = {
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
-      JWT_SECRET: '12345678901234567890123456789012',
-    }
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        APPLE_IAP_BUNDLE_ID: 'com.example.app',
-      }),
-    ).toThrow('APPLE_IAP_ISSUER_ID')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        APPLE_IAP_BUNDLE_ID: 'com.example.app',
-        APPLE_IAP_ENVIRONMENT: 'Production',
-        APPLE_IAP_ISSUER_ID: 'issuer-id',
-        APPLE_IAP_KEY_ID: 'key-id',
-        APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
-      }),
-    ).toThrow('APPLE_IAP_APP_APPLE_ID')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        APPLE_IAP_BUNDLE_ID: 'com.example.app',
-        APPLE_IAP_ISSUER_ID: 'issuer-id',
-        APPLE_IAP_KEY_ID: 'key-id',
-        APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
-      }),
-    ).toThrow('APPLE_IAP_PRODUCT_IDS')
-
-    const env = loadEnv({
-      ...baseEnv,
-      APPLE_IAP_BUNDLE_ID: 'com.example.app',
-      APPLE_IAP_ISSUER_ID: 'issuer-id',
-      APPLE_IAP_KEY_ID: 'key-id',
-      APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
-      APPLE_IAP_PRODUCT_IDS: 'premium_monthly, premium_yearly',
-    })
-
-    expect(env.APPLE_IAP_PRODUCT_IDS).toEqual(['premium_monthly', 'premium_yearly'])
-  })
-
-  test('requires complete Google Play IAP verification config when enabled', () => {
-    const baseEnv = {
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/event_tracking_system',
-      JWT_SECRET: '12345678901234567890123456789012',
-    }
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-      }),
-    ).toThrow('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-      }),
-    ).toThrow('GOOGLE_PLAY_PACKAGE_NAME')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-      }),
-    ).toThrow('GOOGLE_PLAY_PRODUCT_IDS')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-        GOOGLE_PLAY_PRODUCT_IDS: 'premium',
-      }),
-    ).toThrow('GOOGLE_PLAY_BASE_PLAN_IDS')
-
-    const env = loadEnv({
-      ...baseEnv,
-      GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-      GOOGLE_PLAY_PRODUCT_IDS: 'premium',
-      GOOGLE_PLAY_BASE_PLAN_IDS: 'monthly, yearly',
-    })
-
-    expect(env.GOOGLE_PLAY_PRODUCT_IDS).toEqual(['premium'])
-    expect(env.GOOGLE_PLAY_BASE_PLAN_IDS).toEqual(['monthly', 'yearly'])
   })
 
   test('requires WEBAPP_ORIGIN to be an HTTP origin and HTTPS in production', () => {

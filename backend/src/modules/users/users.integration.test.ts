@@ -313,6 +313,84 @@ describe('users and admin API integration', () => {
     expect(await prisma.user.count({ where: { role: 'admin' } })).toBe(1)
   })
 
+  test('an administrator deletes an account with everything it owns, but never their own', async () => {
+    const admin = await register('admin-delete@example.com')
+    await prisma.user.update({ where: { id: admin.user.id }, data: { role: 'admin' } })
+    const target = await register('gone@example.com')
+    const bystander = await register('stays@example.com')
+    await prisma.userAvatar.create({
+      data: {
+        userId: target.user.id,
+        state: 'ready',
+        objectKey: 'avatars/test/gone.jpg',
+        contentType: 'image/jpeg',
+        byteSize: 1000,
+        expiresAt: new Date(Date.now() + 60_000),
+        readyAt: new Date(),
+      },
+    })
+    await createOutstandingPasswordResetToken(target.user.id, 'd'.repeat(43))
+    const deleteUser = (accessToken: string, userId: string) =>
+      app.request(`/api/admin/users/${userId}`, { method: 'DELETE', headers: authenticatedHeaders(accessToken) })
+
+    // A regular user cannot, an unknown account is not found, and an administrator cannot delete themselves.
+    expect((await deleteUser(bystander.accessToken, target.user.id)).status).toBe(403)
+    expect((await deleteUser(admin.accessToken, '00000000-0000-4000-8000-000000000000')).status).toBe(404)
+    expect((await deleteUser(admin.accessToken, admin.user.id)).status).toBe(409)
+    expect(await prisma.user.count()).toBe(3)
+
+    const deleted = await deleteUser(admin.accessToken, target.user.id)
+    expect(deleted.status).toBe(200)
+    expect(await deleted.json()).toEqual({ deleted: true })
+
+    expect(await prisma.user.findUnique({ where: { id: target.user.id } })).toBeNull()
+    expect(await prisma.authSession.count({ where: { userId: target.user.id } })).toBe(0)
+    expect(await prisma.userAvatar.count({ where: { userId: target.user.id } })).toBe(0)
+    expect(await prisma.passwordResetToken.count({ where: { userId: target.user.id } })).toBe(0)
+    expect(await prisma.user.count()).toBe(2)
+
+    // The deleted account can no longer use its token, and its address can register again.
+    const stale = await app.request('/api/users/me', {
+      method: 'PATCH',
+      headers: authenticatedJsonHeaders(target.accessToken),
+      body: JSON.stringify({ displayName: 'Ghost' }),
+    })
+    expect(stale.status).toBe(401)
+    await register('gone@example.com')
+  })
+
+  test('an administrator sends the verification email to an unverified account, and to nobody else', async () => {
+    await prisma.taskOutbox.deleteMany({ where: { type: 'auth:email-verification' } })
+    const admin = await register('admin-verify@example.com')
+    await prisma.user.update({ where: { id: admin.user.id }, data: { role: 'admin' } })
+    const target = await register('future-hostess@example.com')
+    const bystander = await register('bystander@example.com')
+    const send = (accessToken: string, userId: string) =>
+      app.request(`/api/admin/users/${userId}/email-verification`, {
+        method: 'POST',
+        headers: authenticatedHeaders(accessToken),
+      })
+    const queued = () => prisma.taskOutbox.findMany({ where: { type: 'auth:email-verification' } })
+
+    // A regular user cannot, and an unknown account is not found.
+    expect((await send(bystander.accessToken, target.user.id)).status).toBe(403)
+    expect((await send(admin.accessToken, '00000000-0000-4000-8000-000000000000')).status).toBe(404)
+    expect(await queued()).toHaveLength(0)
+
+    // The administrator queues the email for the unverified account.
+    const accepted = await send(admin.accessToken, target.user.id)
+    expect(accepted.status).toBe(202)
+    expect(await accepted.json()).toEqual({ accepted: true })
+    const tasks = await queued()
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]?.payload).toEqual({ userId: target.user.id })
+
+    // A verified account has nothing to confirm: accepted, and nothing new is queued.
+    await verifyEmail(bystander.user.id)
+    expect((await send(admin.accessToken, bystander.user.id)).status).toBe(202)
+    expect(await queued()).toHaveLength(1)
+  })
+
   test('keeps queued role transitions from blocking unrelated target logins', async () => {
     const actor = await register('queue-actor@example.com')
     await prisma.user.update({
@@ -636,8 +714,6 @@ describe('users and admin API integration', () => {
       expect(body.user.role).toBe(role)
     }
 
-    // Uncomment with the billing tables (docs/IAP.md): the demo seed must grant no entitlement.
-    // expect(await prisma.subscriptionEntitlement.count()).toBe(0)
   })
 
   test('replaces development user credentials and revokes stale authentication state', async () => {

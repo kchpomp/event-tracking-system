@@ -4,6 +4,8 @@ import {
   adminUsersQuerySchema,
   adminUsersResponseSchema,
   apiErrorSchema,
+  deleteUserResponseSchema,
+  emailVerificationRequestResponseSchema,
   updateProfileRequestSchema,
   updateProfileResponseSchema,
   updateUserRoleRequestSchema,
@@ -111,6 +113,47 @@ const updateRoleRoute = createRoute({
   },
 })
 
+const requestEmailVerificationRoute = createRoute({
+  method: 'post',
+  path: '/users/{userId}/email-verification',
+  security: bearerSecurity,
+  request: {
+    params: adminUserParamsSchema,
+  },
+  responses: {
+    ...ingressErrorResponses,
+    202: {
+      content: { 'application/json': { schema: emailVerificationRequestResponseSchema } },
+      description: 'Verification email queued, or nothing to do for a verified address',
+    },
+    400: { content: errorContent, description: 'Invalid user id' },
+    401: { content: errorContent, description: 'Authentication required' },
+    403: { content: errorContent, description: 'Administrator access required' },
+    404: { content: errorContent, description: 'User not found' },
+  },
+})
+
+const deleteUserRoute = createRoute({
+  method: 'delete',
+  path: '/users/{userId}',
+  security: bearerSecurity,
+  request: {
+    params: adminUserParamsSchema,
+  },
+  responses: {
+    ...ingressErrorResponses,
+    200: {
+      content: { 'application/json': { schema: deleteUserResponseSchema } },
+      description: 'The account and everything it owned are deleted',
+    },
+    400: { content: errorContent, description: 'Invalid user id' },
+    401: { content: errorContent, description: 'Authentication required' },
+    403: { content: errorContent, description: 'Administrator access required' },
+    404: { content: errorContent, description: 'User not found' },
+    409: { content: errorContent, description: 'An administrator cannot delete their own account' },
+  },
+})
+
 type CreateUsersRoutesOptions = {
   adminUsersReadRateLimit: MiddlewareHandler<AuthHttpEnv>
   requireAdmin: MiddlewareHandler<AuthHttpEnv>
@@ -150,6 +193,15 @@ export function createUsersRoutes({
         c.req.valid('json'),
       ),
     )
+    return c.json(result, 200)
+  })
+
+  adminRoutes.openapi(requestEmailVerificationRoute, async (c) => {
+    const result = await executeUsers(() => service.requestEmailVerification(c.req.valid('param').userId))
+    return c.json(result, 202)
+  })
+  adminRoutes.openapi(deleteUserRoute, async (c) => {
+    const result = await executeUsers(() => service.deleteUser(c.var.user, c.req.valid('param').userId))
     return c.json(result, 200)
   })
 

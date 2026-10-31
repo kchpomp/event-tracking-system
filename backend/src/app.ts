@@ -15,12 +15,6 @@ import { errorResponse, handleError, validationErrorHook } from './http/errors'
 import { createReadinessProbe } from './http/readiness'
 import { createFixedWindowRateLimit, createIngressSecurity } from './http/security'
 import { createAuthModule, type AuthHttpEnv } from './modules/auth'
-// Subscriptions are turned off; see docs/IAP.md before uncommenting.
-// import {
-//   createBillingModule,
-//   type AppStoreSubscriptionVerifier,
-//   type GooglePlaySubscriptionVerifier,
-// } from './modules/billing'
 import { createEventModule } from './modules/event'
 import { createNotificationsModule } from './modules/notifications'
 import { createUploadsModule } from './modules/uploads'
@@ -37,9 +31,6 @@ type CreateAppOptions = {
   backgroundTasks?: TaskDeferrer
   emailDelivery?: EmailDelivery
   env: AppEnv
-  // Uncomment together with the billing module:
-  // appStoreIapVerifier?: AppStoreSubscriptionVerifier
-  // googlePlayIapVerifier?: GooglePlaySubscriptionVerifier
   prisma: DbClient
   /**
    * Storage is never absent: the filesystem driver always works. Injectable so tests can point
@@ -48,26 +39,14 @@ type CreateAppOptions = {
   privateStorage?: PrivateStorageRuntime
 }
 
-// Defaults for the App Store webhook ingress; uncomment with the billing routes.
-// const defaultWebhookBodyLimitBytes = 256 * 1024
-// const defaultWebhookRateLimitMax = 600
-// const defaultWebhookRateLimitWindowSeconds = 60
 
 export function createApp({
-  // appStoreIapVerifier,
   backgroundTasks = createBackgroundTasks(),
   emailDelivery = disabledEmailDelivery,
   env,
-  // googlePlayIapVerifier,
   prisma,
   privateStorage,
 }: CreateAppOptions) {
-  // const billing = createBillingModule({
-  //   appStoreVerifier: appStoreIapVerifier,
-  //   db: prisma,
-  //   env,
-  //   googlePlayVerifier: googlePlayIapVerifier,
-  // })
   const storage = privateStorage ?? createPrivateStorage(env)
   const notifications = createNotificationsModule({ db: prisma, env })
   const auth = createAuthModule({
@@ -108,9 +87,11 @@ export function createApp({
     })
   const users = createUsersModule({
     adminUsersReadRateLimit,
+    backgroundTasks,
     db: prisma,
     requireAdmin: auth.requireAdmin,
     requireAuth: auth.requireAuth,
+    storage: storage.storage,
   })
   const event = createEventModule({
     adminNetworkReadRateLimit,
@@ -193,36 +174,12 @@ export function createApp({
     app.use('/api/event/*', middleware)
     app.use('/api/hostess/*', middleware)
   }
-  // Ingress budget for the subscription routes, uncomment together with them. Without a `store`
-  // they count in process memory whatever RATE_LIMIT_STORE says; add their policies to
-  // RateLimitPolicy (rate-limit/port.ts) and pass `store: rateLimitStore(...)` when enabling.
-  // for (const middleware of createIngressSecurity({
-  //   ...publicWriteSecurity,
-  //   bodyLimitBytes: env.IAP_BODY_LIMIT_BYTES,
-  //   rateLimitMax: env.IAP_RATE_LIMIT_MAX,
-  //   rateLimitWindowSeconds: env.IAP_RATE_LIMIT_WINDOW_SECONDS,
-  // })) {
-  //   app.use('/api/iap/*', middleware)
-  // }
-  // // The only webhook producer today is the App Store, so this group goes with billing.
-  // for (const middleware of createIngressSecurity({
-  //   ...publicWriteSecurity,
-  //   bodyLimitBytes: env.WEBHOOK_BODY_LIMIT_BYTES ?? defaultWebhookBodyLimitBytes,
-  //   rateLimitMax: env.WEBHOOK_RATE_LIMIT_MAX ?? defaultWebhookRateLimitMax,
-  //   rateLimitWindowSeconds:
-  //     env.WEBHOOK_RATE_LIMIT_WINDOW_SECONDS ?? defaultWebhookRateLimitWindowSeconds,
-  // })) {
-  //   app.use('/api/webhooks/*', middleware)
-  // }
   // Every other API route shares the account budget, so a new route is limited without an edit.
   const routesWithOwnBudget = [
     '/api/auth/*',
     '/api/event/*',
     '/api/hostess/*',
     '/api/notifications/*',
-    // Uncomment together with the subscription budgets above:
-    // '/api/iap/*',
-    // '/api/webhooks/*',
   ]
   // The guest list import is the one body larger than the account limit: PLANNED_IMPORT_MAX rows of
   // five short columns are about 300 KB, so it gets 1 MiB while every other route keeps the small one.
@@ -289,10 +246,8 @@ export function createApp({
   app.route('/api/admin', event.adminRoutes)
   app.route('/api/event', event.participantRoutes)
   app.route('/api/hostess', event.hostessRoutes)
-  // app.route('/api/iap', billing.createRoutes(auth.authenticateAccessToken))
   app.route('/api/notifications', notifications.createRoutes(auth.authenticateAccessToken))
   app.route('/api/uploads', uploads.routes)
-  // app.route('/api/webhooks', billing.webhookRoutes)
 
   // Only the filesystem driver needs the backend to serve the URLs it signs. With an S3 driver
   // the browser uploads straight to the bucket and there is nothing to mount here.

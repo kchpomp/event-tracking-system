@@ -72,49 +72,7 @@ export function createPrismaAuthRepository(db: DbClient): AuthRepository {
       }
     },
 
-    findUserByProviderSubject(provider, subject) {
-      return provider === 'apple'
-        ? db.user.findUnique({ where: { appleSubject: subject } })
-        : db.user.findUnique({ where: { googleSubject: subject } })
-    },
 
-    async createSocialUser(input) {
-      try {
-        return {
-          created: true,
-          user: await db.user.create({
-            data: {
-              displayName: input.displayName,
-              email: input.email,
-              passwordHash: null,
-              role: 'user',
-              ...(input.provider === 'apple'
-                ? { appleSubject: input.subject }
-                : { googleSubject: input.subject }),
-            },
-          }),
-        }
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) throw error
-
-        const existing =
-          input.provider === 'apple'
-            ? await db.user.findUnique({ where: { appleSubject: input.subject } })
-            : await db.user.findUnique({ where: { googleSubject: input.subject } })
-        if (existing) return { created: false, user: existing }
-
-        if (isProviderSubjectUniqueConstraint(error)) {
-          throw new AuthFailure(
-            'provider_account_already_linked',
-            `${input.provider === 'apple' ? 'Apple' : 'Google'} account is already linked`,
-          )
-        }
-        throw new AuthFailure(
-          'social_email_already_exists',
-          'An account with this email already exists',
-        )
-      }
-    },
 
     createSession(input) {
       return db.$transaction(async (tx) => {
@@ -488,17 +446,3 @@ function isUniqueConstraintError(
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
 }
 
-function isProviderSubjectUniqueConstraint(error: Prisma.PrismaClientKnownRequestError) {
-  const target = error.meta?.target
-  const fields = Array.isArray(target) ? target : typeof target === 'string' ? [target] : []
-  return fields.some((field) =>
-    [
-      'appleSubject',
-      'googleSubject',
-      'apple_subject',
-      'google_subject',
-      'users_apple_subject_key',
-      'users_google_subject_key',
-    ].includes(String(field)),
-  )
-}

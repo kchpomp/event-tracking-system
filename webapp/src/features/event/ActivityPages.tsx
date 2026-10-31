@@ -101,7 +101,7 @@ export function StationPage({ stationId }: { stationId: string }) {
       <ActivityHead icon={<StationIcon name={station.name} />} title={station.name} />
       <StatCard
         label="Баллы за станцию"
-        side={station.visited ? <Badge>Посещено</Badge> : null}
+        side={station.visited ? <Badge>Пройдено</Badge> : null}
         value={`${station.points}`}
       />
       <CopyCard headline={copy.headline} paragraphs={copy.paragraphs} />

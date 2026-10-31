@@ -16,19 +16,18 @@ This guide covers test runners, test databases, focused commands, and E2E setup.
 - Backend unit: other `*.test.ts` and `*.test.mjs` in `backend/src` and `backend/scripts`; `bun run test:backend:unit`.
 - Backend integration: `*.integration.test.ts`, the real app through HTTP with real PostgreSQL; `bun run test:backend:integration`.
 - Repository scripts: `scripts/*.test.mjs`; `bun run test:infra`.
-- Client unit: `webapp/tests`, `website/tests`, `mobile/tests`; `bun run test:webapp`, `bun run test:website`, `bun run test:mobile`.
+- Client unit: `webapp/tests`, `website/tests`; `bun run test:webapp`, `bun run test:website`.
 - Build contracts: `website/build-contracts`; `bun run test:build-contracts`.
 - E2E: Playwright specs in `webapp/e2e/specs`; `bun run e2e:webapp`.
-- Mobile E2E: a Maestro flow on an Expo development build; `bun run e2e:mobile`. See [Mobile E2E](#mobile-e2e).
 
-Tests of a capability that ships switched off are parked. A backend suite parks itself with `@parked-test` in its opening comment, and every backend runner skips it until the line is removed. This applies to the suites in `backend/src/modules/billing/`. Mobile uses no marker: `test:mobile` skips `mobile/tests/parked/`, so move a file out of it to run it. [IAP](IAP.md) lists what to restore when you turn subscriptions on.
+Tests of a capability that ships switched off are parked. A backend suite parks itself with `@parked-test` in its opening comment, and every backend runner skips it until the line is removed. No suite is parked now.
 
 ## Focused commands
 
 ```bash
 bun run test:backend:unit -- src/modules/auth/password-reset-cooldown.test.ts -t "outbox retry"
 bun run test:backend:integration -- src/db.integration.test.ts -t "different jobs"
-bun test packages/contracts/src/users.test.ts -t "profile updates"   # also webapp/tests, website/tests, mobile/tests
+bun test packages/contracts/src/users.test.ts -t "profile updates"   # also webapp/tests, website/tests
 bun run --cwd webapp e2e -- auth.spec.ts -g "registers, restores"
 ```
 
@@ -78,7 +77,6 @@ See [STORAGE](STORAGE.md) and [EMAIL](EMAIL.md).
 
 `webapp/tests` covers client logic such as refresh and retry, `AuthProvider` state, form validation, and route tables. Test UI behavior through pure functions and hooks, not markup. When a test must mount a provider, use the real `react-dom/client` and React `act`, and reuse the root container and `window` doubles in `auth-provider.test.ts`.
 
-`mobile/tests` follows the same model for the Expo app. It replaces Expo and React Native modules with `mock.module` from `bun:test`.
 
 ## Build contracts
 
@@ -99,52 +97,6 @@ Specs find elements by `data-testid`. Reports and failure traces, screenshots, a
 
 Screenshot tour (`bun run screens`): see [UI](UI.md). It seeds ~40 fixed fixture users for realistic list, pagination, and empty-state screenshots; plain E2E specs and
 `bun run dev:seed` do not get them unless asked, see [COMMANDS](COMMANDS.md).
-
-## Mobile E2E
-
-`bun run e2e:mobile` runs the Maestro auth smoke, `mobile/.maestro/flows/auth-smoke.yaml`, through `mobile/scripts/e2e/run-maestro.mjs`. It checks registration, the signed-in screen, session restore after a restart, and sign-out. The runner neither installs the app nor starts Metro or the backend.
-
-Requirements:
-
-- Java 17+ and the Maestro CLI. `bun run --cwd mobile e2e:maestro:setup` installs the pinned version with the official installer; `MAESTRO_VERSION` overrides it. Then add `$HOME/.maestro/bin` to `PATH`. The runner requires 2.4.0 or later (`MAESTRO_MIN_VERSION`).
-- Xcode with the iOS Simulator, or Android Studio with an emulator.
-- An installed Expo development build with the ID `com.eventtrackingsystem.mobile`. Expo Go does not work. [mobile/README](../mobile/README.md) shows how to build one.
-- `EXPO_PUBLIC_E2E=1` for Metro and the runner. It turns off push registration and other integrations that disturb the flow.
-
-Create `backend/.env` from `backend/.env.example` first. Then run the test database with an API on it, Metro, and the flow, each in its own terminal from the repository root. LAN addresses work for simulators and devices. The database port must match `POSTGRES_TEST_PORT`; Compose defaults to 54330.
-
-```bash
-# 1: test database and API
-docker compose --env-file backend/.env up -d postgres_test
-export TEST_DATABASE_URL="postgresql://superuser:superpassword@localhost:54330/event_tracking_system_test?schema=public"
-DATABASE_URL="$TEST_DATABASE_URL" bun run --cwd backend prisma:deploy
-PORT=3000 DATABASE_URL="$TEST_DATABASE_URL" JWT_SECRET="mobile-e2e-secret-at-least-thirty-two-characters" \
-  CORS_ORIGINS="http://<LAN_IP>:8081,http://localhost:8081" COOKIE_SECURE=false bun run --cwd backend start:raw
-
-# 2: Metro for the installed development build
-cd mobile && EXPO_PUBLIC_E2E=1 EXPO_PUBLIC_API_URL="http://<LAN_IP>:3000" bunx expo start --dev-client --host lan --port 8081
-
-# 3: the flow
-EXPO_PUBLIC_E2E=1 MAESTRO_DEV_SERVER_URL=http://<LAN_IP>:8081 E2E_API_HEALTH_URL=http://<LAN_IP>:3000/health bun run e2e:mobile
-```
-
-The installed build must already reach the API through `EXPO_PUBLIC_API_URL`. `mobile/.maestro/.env.example` lists the runner options: device, app ID, dev-client scheme, test account, the `MAESTRO_SKIP_*` preflight switches, and `MAESTRO_DRY_RUN`.
-
-Selectors are `testID` values from `mobile/src/constants/testIds.ts`. Add stable IDs for a new flow. Before a product flow, check its data through the backend API, and fail with a clear setup error before the UI starts.
-
-Before you change a flow, its launch, or its selectors, run `bun run --cwd mobile e2e:maestro:audit`. It checks the runner and the active auth flow. It rejects `hideKeyboard`, coordinate taps, a missing dev-client `openLink`, a stale `.maestro/.env.example`, and a password typed without the visibility button.
-
-Dev client and Maestro pitfalls:
-
-- `launchApp` only clears state. The flow then opens `exp+<slug>://expo-development-client/?url=<metro-url>&disableOnboarding=1`; after `stopApp`, it opens the link again.
-- On iOS, `secureTextEntry` can drop typed text while Maestro reports success. Tap the visibility button first; each launch starts with the password hidden.
-- Dismiss the keyboard with `keyboardDismissMode="on-drag"`, a scroll, or a tap on static content, not `hideKeyboard`.
-- Keep tap targets near 44–48 pt. Small `Pressable` and checkbox targets miss taps.
-- Do not trust `checked: true` on a custom checkbox. Assert a visible or accessible state.
-- Before an important button, use `scrollUntilVisible` with `visibilityPercentage: 100` and `centerElement: true`.
-- After you remove starter routes, update the native tabs, web tabs, and string `href` values. Use object navigation for dynamic routes and query parameters, so Expo Router types check them.
-
-The template keeps no `ios` or `android` directory. A product that owns them can test a separately built iOS app instead. That path needs its own simulator bundle ID, a runner that builds and installs the app, `launchApp` with `clearState` and `clearKeychain`, separate ports, a typed seed, backend checks after the flow, and a simulator lock. It needs no Metro or dev client.
 
 ## Dependency audit
 

@@ -32,7 +32,6 @@
     "start:scheduler": "bun src/scheduler.ts"
   },
   "dependencies": {
-    "@apple/app-store-server-library": "^3.1.0",
     "@aws-sdk/client-s3": "^3.1141.0",
     "@aws-sdk/s3-request-presigner": "^3.1141.0",
     "@hono/zod-openapi": "^1.6.3",
@@ -42,7 +41,6 @@
     "@event-tracking-system/contracts": "workspace:*",
     "croner": "^10.0.1",
     "dotenv": "^18.0.4",
-    "google-auth-library": "^10.9.1",
     "hono": "^4.13.9",
     "jose": "^6.2.12",
     "prisma": "7.10.0",

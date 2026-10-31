@@ -36,6 +36,16 @@ export type UserRoleUpdater = {
   }): Promise<AdminUserSummary>
 }
 
+export type UserDeleter = {
+  /** Removes the account with everything that hangs on it; returns the stored photo keys to delete. */
+  deleteUser(input: { actorUserId: string; targetUserId: string }): Promise<{ avatarKeys: string[] }>
+}
+
+export type EmailVerificationRequester = {
+  /** Queues the verification email for an unverified account; nothing for a verified one. */
+  requestEmailVerification(input: { targetUserId: string; now: Date }): Promise<void>
+}
+
 export type Clock = {
   now(): Date
 }

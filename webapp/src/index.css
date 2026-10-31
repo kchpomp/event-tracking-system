@@ -137,6 +137,16 @@
     /* THEME_TOKENS_END */
 }
 
+/* Dialogs centre on the visible area (see platform/viewport): iOS 26 Safari can put a `top: 50%`
+   box at the top of the screen. Unlayered, so it wins over the utility classes of the dialog. The
+   variables are unset where `visualViewport` is missing, and then the usual 50% and 100dvh apply. */
+[data-slot='dialog-content'],
+[data-slot='alert-dialog-content'] {
+  top: var(--viewport-center, 50%);
+  max-height: calc(var(--viewport-height, 100dvh) - 2rem);
+  overflow-y: auto;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -3,7 +3,13 @@ import type { AdminUsersQuery, UserRole } from '@event-tracking-system/contracts
 
 import { useAuth } from '@/features/auth'
 import type { AuthenticatedTransport } from '@/platform/api'
-import { getAdminDashboard, getAdminUsers, updateAdminUserRole } from './api'
+import {
+  deleteAdminUser,
+  getAdminDashboard,
+  getAdminUsers,
+  requestAdminUserEmailVerification,
+  updateAdminUserRole,
+} from './api'
 
 const adminQueryKeys = {
   all: ['session', 'admin'] as const,
@@ -37,6 +43,29 @@ export function useAdminDashboardQuery() {
 export function useAdminUsersQuery(query: AdminUsersQuery) {
   const auth = useAuth()
   return useQuery(adminUsersQueryOptions(auth.transport, query))
+}
+
+/** Sends the confirmation email of one account; nothing on the page changes until they open it. */
+export function useRequestUserEmailVerificationMutation() {
+  const auth = useAuth()
+  return useMutation({
+    mutationFn: (userId: string) => requestAdminUserEmailVerification(auth.transport, userId),
+  })
+}
+
+/** Deletes an account; the dashboard counts and every users page refetch. */
+export function useDeleteAdminUserMutation() {
+  const auth = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: string) => deleteAdminUser(auth.transport, userId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboard() }),
+        queryClient.invalidateQueries({ queryKey: [...adminQueryKeys.all, 'users'] }),
+      ])
+    },
+  })
 }
 
 export function useUpdateAdminUserRoleMutation() {

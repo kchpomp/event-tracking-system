@@ -33,6 +33,15 @@ export function roleBlockedByUnverifiedEmail(
   return role !== user.role && !user.emailVerified && roleRequiresVerifiedEmail(role)
 }
 
+/** Why a deletion failed, in the administrator's words; the server's own text is English. */
+export function deleteFailureReason(error: Error) {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 404) return 'Этого пользователя уже нет. Обновите список.'
+    if (error.status === 409) return 'Нельзя удалить собственный аккаунт.'
+  }
+  return 'Не удалось удалить пользователя. Попробуйте ещё раз.'
+}
+
 type AdminUsersQueryState = {
   isError: boolean
   isPending: boolean

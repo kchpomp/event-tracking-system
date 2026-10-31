@@ -2,6 +2,7 @@ import type { UserDto } from '@event-tracking-system/contracts'
 
 import { Typography } from '@/components/typography'
 import { Card, CardContent } from '@/components/ui/card'
+import { AvatarUpload } from './AvatarUpload'
 import { ActivityHead, LoadErrorState, LoadingState, ProfileAvatar } from './parts'
 import { useEventMeQuery } from './queries'
 import { TeamSection } from './TeamSection'
@@ -29,6 +30,7 @@ export function ProfilePage({ user }: { user: Pick<UserDto, 'email'> }) {
       <Card>
         <CardContent className="grid gap-4">
           <ProfileAvatar profile={profile} />
+          <AvatarUpload />
           <dl className="grid gap-4">
             {rows.map(([key, label, value]) => (
               <div className="grid gap-1" key={key}>

@@ -20,7 +20,6 @@ import {
   hashRefreshToken,
   hashRefreshTokenFamily,
 } from './infrastructure/refresh-tokens'
-import { verifySocialIdentity } from './infrastructure/social-providers'
 import { createRequireAuth, createRequireRole, type AuthHttpEnv } from './transport/middleware'
 import { createAuthRoutes } from './transport/routes'
 import { executeAuth } from './transport/errors'
@@ -124,9 +123,6 @@ function buildAuthService({
     },
     passwordResetTasks: createPasswordResetTaskQueue(db, { pendingLimit: drainPassCapacity(env) }),
     repository: createPrismaAuthRepository(db),
-    socialIdentities: {
-      verify: (provider, idToken) => verifySocialIdentity(provider, idToken, env),
-    },
   })
 }
 

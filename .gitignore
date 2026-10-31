@@ -10,9 +10,6 @@ playwright-report/
 test-results/
 webapp/e2e/.artifacts/
 .playwright-mcp/
-mobile/.expo/
-mobile/.maestro/reports/
-mobile/expo-env.d.ts
 
 # Runtime and logs
 *.log
@@ -27,8 +24,6 @@ bun-debug.log*
 !backend/.env*.example
 !webapp/.env*.example
 !website/.env*.example
-!mobile/.env*.example
-!mobile/.maestro/.env*.example
 .envrc
 
 # Local credentials and secret material
@@ -42,14 +37,11 @@ bun-debug.log*
 *.pfx
 *.jks
 *.keystore
-*.mobileprovision
 *.asc
 *.gpg
 credentials*.json
 service-account*.json
 *ServiceAccount*.json
-google-services.json
-GoogleService-Info.plist
 backend/certs/
 .aws/
 .gcloud/

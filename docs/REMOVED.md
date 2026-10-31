@@ -25,10 +25,6 @@ To restore, ask for a DigitalOcean provider. It also needs the `infra/digitaloce
 
 Stale DigitalOcean mentions were reworded in `backend/.env.example`, `backend/src/env.ts`, `backend/scripts/deploy-database.ts`, `website/astro.config.mjs`.
 
-## `mobile/scripts/reset-project.js` (114 lines) and the `reset-project` script
-
-The one-off Expo template script. It moved the starter `app` code to `app-example` and created a blank `app`. Nothing referenced it. Restore by running `npx create-expo-app` and copying `scripts/reset-project.js` from the new project.
-
 ## `passwordResetAccepted` in `backend/src/modules/auth/application/ports.ts` (3 lines)
 
 A constant `{ accepted: true }` typed as `PasswordResetRequestResponse`. It had no users. The type import went with it.
@@ -48,3 +44,8 @@ The `export` keyword was removed where the symbol is used only in its own file. 
 - `LIQUID_FULL_AT` (`flask/model.ts`), `FLASK_POLL_MS`, `FLASK_RETRY_MS`, `flaskQueryOptions` (`flask/queries.ts`), `REMINDER_MS` (`event/schedule-model.ts`)
 
 Left exported on purpose: `toAuthAppError`, `toUsersAppError`, `toEventAppError`, `NEUTRAL_INITIALS` (other work in progress in those modules).
+
+
+## `mobile/` (the Expo app)
+
+The whole app was removed: the product runs in the phone browser through `webapp`. Restore it from git history before the commit that deleted `mobile/`.

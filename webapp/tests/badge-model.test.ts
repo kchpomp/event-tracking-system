@@ -50,7 +50,9 @@ test('only a false to true flip counts as just issued', () => {
 })
 
 test('participant status text', () => {
-  expect(badgeStatusText({ completed: 1, required: 3, eligible: false, issued: false })).toContain('ещё 2 из 3')
+  expect(badgeStatusText({ completed: 1, required: 3, eligible: false, issued: false })).toContain('ещё 2 активности')
+  expect(badgeStatusText({ completed: 0, required: 3, eligible: false, issued: false })).toContain('ещё 3 активности')
+  expect(badgeStatusText({ completed: 2, required: 3, eligible: false, issued: false })).toContain('ещё 1 активность')
   expect(badgeStatusText({ completed: 3, required: 3, eligible: true, issued: false })).toContain('Можно получить')
   expect(badgeStatusText({ completed: 3, required: 3, eligible: true, issued: true })).toBe('Значок получен')
 })

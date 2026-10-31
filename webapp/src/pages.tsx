@@ -15,7 +15,6 @@ import { AdminDashboard, AdminSettings, AdminUsers } from '@/features/admin'
 import {
   AuthPageShell,
   clearPasswordResetTokenHash,
-  EmailVerificationCard,
   ForgotPasswordForm,
   LoginForm,
   RegisterForm,
@@ -190,12 +189,7 @@ export function UserSchedulePage() {
 
 export function UserProfilePage() {
   const user = useWorkspaceUser('user')
-  return (
-    <div className="grid gap-6">
-      <EmailVerificationCard user={user} />
-      <ProfilePage user={user} />
-    </div>
-  )
+  return <ProfilePage user={user} />
 }
 
 export function HostessHomeRoutePage() {

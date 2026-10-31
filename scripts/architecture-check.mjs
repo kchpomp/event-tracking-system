@@ -9,10 +9,8 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const workspaceScope = JSON.parse(
   readFileSync(path.join(repositoryRoot, 'packages/contracts/package.json'), 'utf8'),
 ).name.split('/')[0]
-// Every client the workspace could have, kept only for the ones actually checked out. The
-// `mobile` app lives on its own branch: on this one its directory is absent, `clientNames` drops
-// it, and every client-scoped rule below simply has nothing to check there.
-const clientNames = ['webapp', 'website', 'mobile'].filter((name) =>
+// Every client the workspace could have, kept only for the ones actually checked out.
+const clientNames = ['webapp', 'website'].filter((name) =>
   existsSync(path.join(repositoryRoot, name, 'src')),
 )
 const workspaceAliasPattern = new RegExp(
@@ -291,7 +289,7 @@ function checkContracts(filePath, specifier, report) {
   if (!filePath.startsWith('packages/contracts/src/')) return
 
   const target = resolveRepositoryImport(filePath, specifier)
-  const forbiddenTarget = target && /^(backend|webapp|website|mobile)\//.test(target)
+  const forbiddenTarget = target && /^(backend|webapp|website)\//.test(target)
   const forbiddenPackage =
     isPackageImport(specifier) &&
     !packageAllowed(specifier, contractAllowedPackages, filePath)

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 
-import { chunk, emailFromFileName, fitSize, matchPhotoFiles, runPool } from '../src/features/event/planned-photos'
+import { chunk, emailFromFileName, matchPhotoFiles, runPool } from '../src/features/event/planned-photos'
 
 test('takes the email from the file name and rejects other formats', () => {
   expect(emailFromFileName('Anna@Example.RU.JPG')).toBe('anna@example.ru')
@@ -22,13 +22,6 @@ test('splits into batches of at most 50 by default', () => {
   const batches = chunk(Array.from({ length: 120 }, (_, index) => index))
   expect(batches.map((batch) => batch.length)).toEqual([50, 50, 20])
   expect(chunk([])).toEqual([])
-})
-
-test('fits the long side and never enlarges', () => {
-  expect(fitSize(4000, 3000)).toEqual({ width: 512, height: 384 })
-  expect(fitSize(3000, 4000)).toEqual({ width: 384, height: 512 })
-  expect(fitSize(300, 200)).toEqual({ width: 300, height: 200 })
-  expect(fitSize(10000, 1)).toEqual({ width: 512, height: 1 })
 })
 
 test('the pool never runs more than the limit at once', async () => {

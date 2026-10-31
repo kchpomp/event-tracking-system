@@ -4,7 +4,7 @@ This guide owns module boundaries, auth and sessions, Prisma rules, and infrastr
 
 ## Contracts first
 
-`packages/contracts` defines API requests, responses, and errors as Zod schemas. Start every endpoint there. Backend routes declare the schemas through `@hono/zod-openapi`, which also generates `GET /openapi.json`. After a change, check the backend route and service. Then check the feature API adapters, forms, and UI state in `webapp` and `mobile`.
+`packages/contracts` defines API requests, responses, and errors as Zod schemas. Start every endpoint there. Backend routes declare the schemas through `@hono/zod-openapi`, which also generates `GET /openapi.json`. After a change, check the backend route and service. Then check the feature API adapters, forms, and UI state in `webapp`.
 
 ## Backend modules
 
@@ -47,10 +47,10 @@ Each protected request verifies the JWT and loads the active session and user, s
 
 Route families:
 
-- `/api/auth/*` (browsers: `webapp` and Expo Web): the refresh token lives only in the HttpOnly cookie `event_tracking_system_refresh`, never in JSON. `COOKIE_SECURE=false` (local) sets `SameSite=Lax`. `COOKIE_SECURE=true` (production) sets `Secure; SameSite=None`, and register, login, refresh, and logout require an `Origin` from `CORS_ORIGINS`.
-- `/api/auth/token/*` (iOS and Android): no cookies. The refresh token travels in JSON and lives in `expo-secure-store`. The access token stays in memory.
+- `/api/auth/*` (browsers: `webapp`): the refresh token lives only in the HttpOnly cookie `event_tracking_system_refresh`, never in JSON. `COOKIE_SECURE=false` (local) sets `SameSite=Lax`. `COOKIE_SECURE=true` (production) sets `Secure; SameSite=None`, and register, login, refresh, and logout require an `Origin` from `CORS_ORIGINS`.
+- `/api/auth/token/*` (native clients; none ships): no cookies. The refresh token travels in JSON and lives in `expo-secure-store`. The access token stays in memory.
 - Access tokens travel as `Authorization: Bearer`. Never keep a browser refresh token in `localStorage`, `sessionStorage`, AsyncStorage, or other JavaScript-readable storage.
-- Browser clients change the cookie only under a Web Lock, so tabs change it one at a time. Without Web Locks (plain http on a LAN address, old browsers), `webapp` serializes the changes within its tab, and Expo Web fails before the request. Client rules: [webapp/README](../webapp/README.md), [mobile/README](../mobile/README.md).
+- Browser clients change the cookie only under a Web Lock, so tabs change it one at a time. Without Web Locks (plain http on a LAN address, old browsers), `webapp` serializes the changes within its tab. Client rules: [webapp/README](../webapp/README.md).
 
 Rotation:
 
@@ -72,13 +72,12 @@ Email verification:
 
 Roles:
 
-- `user | admin` lives in `users.role` and `UserDto`, never in the JWT. Registration and social sign-in create `user`; clients never choose a role. Only the role endpoint and the admin bootstraps (`db:deploy`, dev seed) grant `admin`.
+- `user | admin` lives in `users.role` and `UserDto`, never in the JWT. Registration creates `user`; clients never choose a role. Only the role endpoint and the admin bootstraps (`db:deploy`, dev seed) grant `admin`.
 - `PATCH /api/admin/users/{userId}/role` runs under a global lock. It refuses self-demotion and removal of the last admin, and `hostess` or `admin` for an unverified email (`409 EMAIL_NOT_VERIFIED`). The admin bootstraps create a verified admin. A real change revokes the target's sessions, push tokens, and unused reset tokens in one transaction.
 - `/api/admin/*` requires `admin` on the server and returns `403 FORBIDDEN` otherwise.
 
 Login, role changes, reset tokens, and bootstraps share a per-user advisory lock (`acquireUserAuthenticationAuthorityLock` in `backend/src/db.ts`). Under it, login re-reads the user and re-checks the password before it inserts the session, so an old password cannot open a session after a reset.
 
-Apple and Google sign-in ship switched off. They key an account on the provider subject and never link it to a password account by email. See [SOCIAL_AUTH](SOCIAL_AUTH.md).
 
 ### Push registrations
 
@@ -93,7 +92,7 @@ Installed apps update later than the backend, and a strict parser breaks on a ne
 
 ## Clients
 
-`webapp` (React CSR) owns the browser app after sign-in. `website` (Astro SSG) owns public SEO pages. `mobile` (Expo) is the iOS, Android, and Expo Web app on the same API and contracts. Their rules are in [webapp/README](../webapp/README.md), [website/README](../website/README.md), and [mobile/README](../mobile/README.md). Data, cart, checkout, and payment boundaries are in [WEB_SURFACES](WEB_SURFACES.md). App Store and Google Play subscriptions ship switched off; see [IAP](IAP.md).
+`webapp` (React CSR) owns the browser app after sign-in. `website` (Astro SSG) owns public SEO pages. Their rules are in [webapp/README](../webapp/README.md) and [website/README](../website/README.md). Data, cart, checkout, and payment boundaries are in [WEB_SURFACES](WEB_SURFACES.md).
 
 ## Prisma
 

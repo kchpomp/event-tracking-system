@@ -30,6 +30,38 @@ test('keeps participant and administrator workspaces separate', async ({ browser
   await adminContext.close()
 })
 
+test('an administrator deletes a participant, who is then signed out for good', async ({ browser, page }) => {
+  const userEmail = uniqueEmail('web-e2e-deleted-user')
+  await signUp(page, userEmail)
+  await expect(page).toHaveURL(/\/app$/)
+
+  const adminContext = await browser.newContext()
+  const adminPage = await adminContext.newPage()
+  await adminPage.goto('/login')
+  await logIn(adminPage, e2eAdminEmail, e2eAdminPassword)
+  await adminPage.getByTestId('nav-link-admin-users').click()
+  await adminPage.getByTestId('user-search-input').fill(userEmail)
+  await adminPage.getByTestId('user-search-submit').click()
+  await expect(adminPage.getByTestId('user-row')).toHaveCount(1)
+
+  // The administrator can send the confirmation email of an unverified account from the list.
+  await adminPage.getByTestId('user-verify-send').click()
+  await expect(adminPage.getByTestId('user-verify-sent')).toBeVisible()
+
+  await adminPage.getByTestId('user-delete').click()
+  await adminPage.getByTestId('user-delete-confirm').click()
+  await expect(adminPage.getByTestId('user-delete-success')).toBeVisible()
+  await expect(adminPage.getByTestId('user-directory-empty')).toBeVisible()
+
+  // The deleted account has nothing to restore, and its password no longer works.
+  await page.reload()
+  await expect(page.getByTestId('login-form')).toBeVisible()
+  await logIn(page, userEmail)
+  await expect(page).toHaveURL(/\/login/)
+
+  await adminContext.close()
+})
+
 test('promoting a user revokes the old session and opens the admin workspace after login', async ({
   browser,
   page,

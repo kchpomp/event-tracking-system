@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -51,26 +50,8 @@ describe('backendTestFiles', () => {
     expect(backendTestFiles(root).parked).toEqual([])
   })
 
-  test('switched-off capabilities are parked exactly while they are off, and nothing else is', () => {
-    // Discovery would otherwise run billing suites against a database with no billing tables, and
-    // social sign-in suites against an unmounted route. Each rule reads the switch itself rather
-    // than a fixed list, so it holds while the capability is off, switched on, or removed entirely
-    // (docs/IAP.md, docs/SOCIAL_AUTH.md).
-    const schemaPath = resolve(backendRoot, 'prisma/schema/billing.prisma')
-    const billingIsOff =
-      existsSync(schemaPath) && !/^\s*model\s/m.test(readFileSync(schemaPath, 'utf8'))
-    const authRoutes = readFileSync(resolve(backendRoot, 'src/modules/auth/transport/routes.ts'), 'utf8')
-    const socialSignInIsOff = !/^\s*routes\.openapi\(tokenSocialAuthRoute\b/m.test(authRoutes)
-
-    const switchedOff = all.filter(
-      (file) =>
-        (billingIsOff && file.startsWith('src/modules/billing/')) ||
-        (socialSignInIsOff && file === 'src/modules/auth/social-auth.integration.test.ts'),
-    )
-
-    // Which files, not how many: a stray `@parked-test` in an unrelated header would otherwise
-    // drop that suite from every runner with the run still exiting 0.
-    expect(parked).toEqual(switchedOff)
+  test('no suite is parked now that every switched-off capability is gone', () => {
+    expect(parked).toEqual([])
   })
 
   test('tests needing a service no runner starts stay out of the fast suite', () => {

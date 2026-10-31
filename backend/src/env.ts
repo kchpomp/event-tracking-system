@@ -32,17 +32,6 @@ const optionalPositiveIntegerSchema = z.preprocess((value) => {
   return trimmed === '' ? undefined : trimmed
 }, z.coerce.number().int().positive().optional())
 
-const commaSeparatedStringArraySchema = z
-  .string()
-  .optional()
-  .default('')
-  .transform((value) =>
-    value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
-  )
-
 const optionalHttpHeaderNameSchema = z.preprocess((value) => {
   if (typeof value !== 'string') return value
   const trimmed = value.trim()
@@ -90,12 +79,6 @@ const envSchema = z.object({
   // budget per administrator, so the phones behind the venue address never lock it out.
   ADMIN_NETWORK_READ_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   ADMIN_NETWORK_READ_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
-  IAP_BODY_LIMIT_BYTES: z.coerce.number().int().positive().max(1024 * 1024).default(64 * 1024),
-  IAP_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
-  IAP_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
-  WEBHOOK_BODY_LIMIT_BYTES: optionalPositiveIntegerSchema,
-  WEBHOOK_RATE_LIMIT_MAX: optionalPositiveIntegerSchema,
-  WEBHOOK_RATE_LIMIT_WINDOW_SECONDS: optionalPositiveIntegerSchema,
   // Where the auth and admin limiters count. `memory` is one process's own table and the whole
   // truth while one API instance serves every request: an own server, local
   // development. `database` counts in PostgreSQL through one upsert per limited
@@ -144,30 +127,6 @@ const envSchema = z.object({
   PRIVATE_STORAGE_UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
   PRIVATE_STORAGE_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(7 * 24 * 60 * 60).default(15 * 60),
   PRIVATE_STORAGE_DOWNLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(7 * 24 * 60 * 60).default(5 * 60),
-  APPLE_IAP_BUNDLE_ID: optionalStringSchema,
-  APPLE_IAP_APP_APPLE_ID: optionalPositiveIntegerSchema,
-  APPLE_IAP_ENVIRONMENT: z.enum(['Sandbox', 'Production']).default('Sandbox'),
-  APPLE_IAP_ISSUER_ID: optionalStringSchema,
-  APPLE_IAP_KEY_ID: optionalStringSchema,
-  APPLE_IAP_PRIVATE_KEY_BASE64: optionalStringSchema,
-  APPLE_IAP_ROOT_CERTS_DIR: optionalStringSchema,
-  APPLE_IAP_PRODUCT_IDS: commaSeparatedStringArraySchema,
-  GOOGLE_PLAY_PACKAGE_NAME: optionalStringSchema,
-  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: optionalStringSchema,
-  GOOGLE_PLAY_PRODUCT_IDS: commaSeparatedStringArraySchema,
-  GOOGLE_PLAY_BASE_PLAN_IDS: commaSeparatedStringArraySchema,
-  APPLE_AUTH_BUNDLE_ID: optionalStringSchema,
-  APPLE_AUTH_JWKS_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
-  GOOGLE_AUTH_CLIENT_IDS: z
-    .string()
-    .optional()
-    .default('')
-    .transform((value) =>
-      value
-        .split(',')
-        .map((clientId) => clientId.trim())
-        .filter(Boolean),
-    ),
   EXPO_PUSH_ACCESS_TOKEN: optionalStringSchema,
   ENABLE_TEST_PUSH: optionalBooleanStringSchema,
   PUSH_TOKEN_MAX_PER_USER: optionalPositiveIntegerSchema,
@@ -184,8 +143,6 @@ const envSchema = z.object({
   validateSessionTtls(env, ctx)
   validateTrustedProxy(env, ctx)
   validatePrivateStorageEnv(env, ctx)
-  validateAppleIapEnv(env, ctx)
-  validateGooglePlayIapEnv(env, ctx)
   validateEmailEnv(env, ctx)
 })
 
@@ -655,76 +612,4 @@ function validatePrivateStorageEnv(env: z.infer<typeof envSchema>, ctx: z.Refine
   }
 }
 
-function validateAppleIapEnv(env: z.infer<typeof envSchema>, ctx: z.RefinementCtx) {
-  const configuredKeys = [
-    'APPLE_IAP_BUNDLE_ID',
-    'APPLE_IAP_ISSUER_ID',
-    'APPLE_IAP_KEY_ID',
-    'APPLE_IAP_PRIVATE_KEY_BASE64',
-  ] as const
-  const isConfigured = configuredKeys.some((key) => env[key] !== undefined)
 
-  if (!isConfigured) return
-
-  for (const key of configuredKeys) {
-    if (env[key] === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [key],
-        message: `${key} is required when App Store IAP verification is configured`,
-      })
-    }
-  }
-
-  if (env.APPLE_IAP_PRODUCT_IDS.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['APPLE_IAP_PRODUCT_IDS'],
-      message: 'APPLE_IAP_PRODUCT_IDS must list every App Store subscription product ID when App Store IAP verification is configured',
-    })
-  }
-
-  if (env.APPLE_IAP_ENVIRONMENT === 'Production' && env.APPLE_IAP_APP_APPLE_ID === undefined) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['APPLE_IAP_APP_APPLE_ID'],
-      message: 'APPLE_IAP_APP_APPLE_ID is required for production App Store verification',
-    })
-  }
-}
-
-function validateGooglePlayIapEnv(env: z.infer<typeof envSchema>, ctx: z.RefinementCtx) {
-  const configuredKeys = [
-    'GOOGLE_PLAY_PACKAGE_NAME',
-    'GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64',
-  ] as const
-  const isConfigured = configuredKeys.some((key) => env[key] !== undefined)
-
-  if (!isConfigured) return
-
-  for (const key of configuredKeys) {
-    if (env[key] === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [key],
-        message: `${key} is required when Google Play IAP verification is configured`,
-      })
-    }
-  }
-
-  if (env.GOOGLE_PLAY_PRODUCT_IDS.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['GOOGLE_PLAY_PRODUCT_IDS'],
-      message: 'GOOGLE_PLAY_PRODUCT_IDS must list every Google Play subscription product ID when Google Play IAP verification is configured',
-    })
-  }
-
-  if (env.GOOGLE_PLAY_BASE_PLAN_IDS.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['GOOGLE_PLAY_BASE_PLAN_IDS'],
-      message: 'GOOGLE_PLAY_BASE_PLAN_IDS must list every accepted Google Play subscription base plan ID when Google Play IAP verification is configured',
-    })
-  }
-}

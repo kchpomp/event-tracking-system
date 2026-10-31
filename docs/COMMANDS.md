@@ -5,12 +5,12 @@ Root scripts from [package.json](../package.json). Run `bun run <script>` from t
 ## Develop and build
 
 - `dev`: all apps in parallel; the backend includes the scheduler.
-- `dev:backend|webapp|website|mobile`: one app.
+- `dev:backend|webapp|website`: one app.
 - `dev:backend:s3`: backend with local S3 (Docker).
 - `storage:local:start|status|stop|env`: local S3 container; `stop` keeps its volume ([STORAGE](STORAGE.md)).
 - `storybook:webapp|website`: catalogs on ports 6006 and 6007.
 - `storybook:build[:webapp|:website]`: static catalogs.
-- `build[:webapp|:website|:mobile|:backend]`: production builds; `mobile` exports its web build, and backend and contracts only type-check.
+- `build[:webapp|:website|:backend]`: production builds; backend and contracts only type-check.
 - `static:precompress`: `.br` and `.gz` copies of text assets in `webapp/dist` and `website/dist` for self-hosting ([DEPLOYMENT](DEPLOYMENT.md)).
 - `theme`: writes the theme tokens from `theme.json` into `webapp/src/index.css` and `website/src/styles/global.css` ([UI](UI.md)); `-- --check` only verifies.
 
@@ -21,23 +21,21 @@ Root scripts from [package.json](../package.json). Run `bun run <script>` from t
 - `check`: `template:check` → `architecture:check` → `typecheck` → `lint` → `test` → `test:build-contracts` → `audit` (Docker, package registry).
 - `template:check`: `CHECKLIST.md` and its registry, the `CLAUDE.md` import, the `AGENTS.md` word budget, Markdown links.
 - `architecture:check`: module and feature import boundaries.
-- `typecheck[:webapp|:website|:mobile|:backend]`: types, all or one.
-- `lint`: webapp ESLint, including UI rules, then mobile `expo lint`.
+- `typecheck[:webapp|:website|:backend]`: types, all or one.
+- `lint`: webapp ESLint, including UI rules.
 - `audit`: `bun audit`; fails on any advisory.
-- `test`: `test:infra`, `test:contracts`, `test:backend`, `test:webapp`, `test:website`, `test:mobile` (Docker).
+- `test`: `test:infra`, `test:contracts`, `test:backend`, `test:webapp`, `test:website`.
 - `test:infra`: tests of all repository scripts in `scripts/`; no cloud changes.
 - `test:contracts`: Zod contracts.
 - `test:backend`: `test:backend:unit`, then `test:backend:integration` (Docker).
-- `test:webapp|website|mobile`: client unit tests; no build.
+- `test:webapp|website`: client unit tests; no build.
 - `test:build-contracts`: builds `webapp` and `website`, then checks `website/dist`.
 - `test:storage:s3`: storage contract against local S3 (Docker).
 - `test:terraform`: every Terraform root; needs the Terraform CLI; not in `check`.
 - `smoke:backend:docker`: backend image against a test database (Docker).
 - `e2e:webapp`: Playwright journeys (Docker).
 - `e2e:webapp:s3`: avatar journey against local S3 (Docker).
-- `e2e:mobile`: Maestro auth smoke on an Expo development build; needs Metro and a backend ([TESTING](TESTING.md#mobile-e2e)). `bun run --cwd mobile e2e:maestro:audit` checks the flow rules.
 - `screens`: screenshot tour of webapp and website pages (Docker, [UI](UI.md)).
-- `mobile:template:check`: release gate of the `mobile` branch ([mobile/README](../mobile/README.md)).
 
 ## Database and jobs
 

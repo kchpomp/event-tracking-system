@@ -5,8 +5,11 @@ import { createRoot } from 'react-dom/client'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/features/auth'
+import { trackVisibleArea } from '@/platform/viewport'
 import App from './App'
 import './production.css'
+
+trackVisibleArea()
 
 const queryClient = new QueryClient({
   defaultOptions: {

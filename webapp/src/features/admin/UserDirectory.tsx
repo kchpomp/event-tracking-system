@@ -47,15 +47,19 @@ import {
 import { Typography } from '@/components/typography'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { formatDate } from '@/platform/intl'
+import { DeleteUserDialog } from './DeleteUserDialog'
 import {
   adminUsersPagination,
   adminUsersViewState,
+  deleteFailureReason,
   roleBlockedByUnverifiedEmail,
   roleLabel,
   roleMutationFeedback,
 } from './model'
 import {
   useAdminUsersQuery,
+  useDeleteAdminUserMutation,
+  useRequestUserEmailVerificationMutation,
   useUpdateAdminUserRoleMutation,
 } from './queries'
 import { RoleChangeDialog } from './RoleChangeDialog'
@@ -68,7 +72,10 @@ type PendingRoleChange = {
 type DirectoryRowsProps = {
   currentUser: UserDto
   isRoleChangePending: boolean
+  isSendingVerification: boolean
+  onDelete: (user: AdminUserSummary) => void
   onRoleChange: (user: AdminUserSummary, role: UserRole) => void
+  onSendVerification: (user: AdminUserSummary) => void
   users: ReadonlyArray<AdminUserSummary>
 }
 
@@ -84,6 +91,9 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [pendingRole, setPendingRole] = useState<PendingRoleChange | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<AdminUserSummary | null>(null)
+  const [deletedEmail, setDeletedEmail] = useState<string | null>(null)
+  const [verificationSentTo, setVerificationSentTo] = useState<string | null>(null)
   const fitsTable = useMediaQuery(tableViewportQuery)
   const usersQuery = useAdminUsersQuery({
     q: query || undefined,
@@ -91,6 +101,8 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
     pageSize: 20,
   })
   const roleMutation = useUpdateAdminUserRoleMutation()
+  const deleteMutation = useDeleteAdminUserMutation()
+  const verificationMutation = useRequestUserEmailVerificationMutation()
   const viewState = adminUsersViewState({
     isError: usersQuery.isError,
     isPending: usersQuery.isPending,
@@ -120,6 +132,30 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
     )
   }
 
+  const sendVerification = (user: AdminUserSummary) => {
+    setVerificationSentTo(null)
+    verificationMutation.mutate(user.id, { onSuccess: () => setVerificationSentTo(user.email) })
+  }
+
+  const requestDelete = (user: AdminUserSummary) => {
+    deleteMutation.reset()
+    setDeletedEmail(null)
+    setPendingDelete(user)
+  }
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return
+    const { email, id } = pendingDelete
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        setDeletedEmail(email)
+        setPendingDelete(null)
+        // The last person of a page is gone: step back, or the page would be empty.
+        if (page > 1 && usersQuery.data?.items.length === 1) setPage(page - 1)
+      },
+    })
+  }
+
   const summary = usersQuery.data
     ? `Страница ${usersQuery.data.page} из ${pagination?.totalPages ?? 1} · пользователей: ${usersQuery.data.total}${
         pagination?.wasBounded
@@ -140,6 +176,27 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
               {mutationFeedback.user.email}: теперь {roleLabel(mutationFeedback.user.role)}.
               Прежние сессии пользователя завершены.
             </AlertDescription>
+          </Alert>
+        )}
+
+        {verificationSentTo !== null && (
+          <Alert data-testid="user-verify-sent">
+            <AlertTitle>Письмо отправлено</AlertTitle>
+            <AlertDescription>
+              {verificationSentTo}: после перехода по ссылке из письма можно назначить роль хостес или администратора.
+            </AlertDescription>
+          </Alert>
+        )}
+        {verificationMutation.isError && (
+          <Alert variant="destructive">
+            <AlertTitle>Письмо не отправлено</AlertTitle>
+            <AlertDescription>Не удалось отправить письмо. Попробуйте ещё раз.</AlertDescription>
+          </Alert>
+        )}
+        {deletedEmail !== null && (
+          <Alert data-testid="user-delete-success">
+            <AlertTitle>Пользователь удалён</AlertTitle>
+            <AlertDescription>{deletedEmail}: аккаунт и его данные удалены.</AlertDescription>
           </Alert>
         )}
 
@@ -182,14 +239,20 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
               <UserTable
                 currentUser={currentUser}
                 isRoleChangePending={roleMutation.isPending}
+                isSendingVerification={verificationMutation.isPending}
+                onDelete={requestDelete}
                 onRoleChange={requestRoleChange}
+                onSendVerification={sendVerification}
                 users={usersQuery.data.items}
               />
             ) : (
               <UserList
                 currentUser={currentUser}
                 isRoleChangePending={roleMutation.isPending}
+                isSendingVerification={verificationMutation.isPending}
+                onDelete={requestDelete}
                 onRoleChange={requestRoleChange}
+                onSendVerification={sendVerification}
                 users={usersQuery.data.items}
               />
             )
@@ -207,6 +270,17 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
         onConfirm={confirmRoleChange}
         pendingChange={pendingRole}
       />
+
+      <DeleteUserDialog
+        failureReason={deleteMutation.isError ? deleteFailureReason(deleteMutation.error) : null}
+        isPending={deleteMutation.isPending}
+        onCancel={() => {
+          deleteMutation.reset()
+          setPendingDelete(null)
+        }}
+        onConfirm={confirmDelete}
+        user={pendingDelete}
+      />
     </>
   )
 }
@@ -214,7 +288,10 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
 function UserTable({
   currentUser,
   isRoleChangePending,
+  isSendingVerification,
+  onDelete,
   onRoleChange,
+  onSendVerification,
   users,
 }: DirectoryRowsProps) {
   return (
@@ -224,6 +301,11 @@ function UserTable({
           <TableHead>Пользователь</TableHead>
           <TableHead>Роль</TableHead>
           <TableHead>Создан</TableHead>
+          <TableHead>
+            <Typography as="span" variant="srOnly">
+              Действия
+            </Typography>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -237,7 +319,7 @@ function UserTable({
                 <Typography variant="caption" tone="muted">
                   {user.email}
                 </Typography>
-                <EmailVerifiedNote user={user} />
+                <EmailVerifiedNote disabled={isSendingVerification} onSend={onSendVerification} user={user} />
               </div>
             </TableCell>
             <TableCell>
@@ -252,6 +334,9 @@ function UserTable({
               <Typography as="span" className="tabular-nums" variant="bodySm">
                 {formatDate(user.createdAt)}
               </Typography>
+            </TableCell>
+            <TableCell>
+              <DeleteUserButton currentUser={currentUser} onDelete={onDelete} user={user} />
             </TableCell>
           </TableRow>
         ))}
@@ -268,7 +353,10 @@ function UserTable({
 function UserList({
   currentUser,
   isRoleChangePending,
+  isSendingVerification,
+  onDelete,
   onRoleChange,
+  onSendVerification,
   users,
 }: DirectoryRowsProps) {
   return (
@@ -278,8 +366,8 @@ function UserList({
       {users.map((user) => (
         <Item asChild key={user.id} variant="outline">
           <li data-testid="user-row">
-            <dl className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3">
-              <div className="col-span-2 grid min-w-0 border-b pb-3">
+            <dl className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3">
+              <div className="col-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b pb-3">
                 <Typography as="dt" variant="srOnly">
                   Пользователь
                 </Typography>
@@ -290,7 +378,13 @@ function UserList({
                   <Typography variant="caption" tone="muted" wrap="break">
                     {user.email}
                   </Typography>
-                  <EmailVerifiedNote user={user} />
+                  <EmailVerifiedNote disabled={isSendingVerification} onSend={onSendVerification} user={user} />
+                </dd>
+                <Typography as="dt" variant="srOnly">
+                  Действия
+                </Typography>
+                <dd>
+                  <DeleteUserButton currentUser={currentUser} onDelete={onDelete} user={user} />
                 </dd>
               </div>
               <div className="min-w-0">
@@ -306,7 +400,7 @@ function UserList({
                   />
                 </dd>
               </div>
-              <div className="grid justify-items-end">
+              <div className="grid justify-items-end text-right">
                 <Typography as="dt" variant="caption" tone="muted">
                   Создан
                 </Typography>
@@ -319,6 +413,31 @@ function UserList({
         </Item>
       ))}
     </ul>
+  )
+}
+
+/** An administrator cannot delete their own account (the server refuses too). */
+function DeleteUserButton({
+  currentUser,
+  onDelete,
+  user,
+}: {
+  currentUser: UserDto
+  onDelete: (user: AdminUserSummary) => void
+  user: AdminUserSummary
+}) {
+  return (
+    <Button
+      aria-label={`Удалить: ${user.email}`}
+      data-testid="user-delete"
+      disabled={user.id === currentUser.id}
+      onClick={() => onDelete(user)}
+      size="sm"
+      type="button"
+      variant="destructive"
+    >
+      Удалить
+    </Button>
   )
 }
 
@@ -390,14 +509,39 @@ function RoleSelect({
 
 const unverifiedSuffix = ' — нужна подтверждённая почта'
 
-/** Hostess and admin need a verified email; the note says why those roles are unavailable. */
-function EmailVerifiedNote({ user }: { user: AdminUserSummary }) {
+/**
+ * Hostess and admin need a verified email. Only the administrator sees this: for an unverified
+ * account they send the confirmation email from here, and the person opens the link.
+ */
+function EmailVerifiedNote({
+  disabled,
+  onSend,
+  user,
+}: {
+  disabled: boolean
+  onSend: (user: AdminUserSummary) => void
+  user: AdminUserSummary
+}) {
   return (
-    <Typography data-testid="user-email-verified" tone="muted" variant="caption">
-      {user.emailVerified
-        ? 'Почта подтверждена'
-        : 'Почта не подтверждена: роли хостес и администратора недоступны'}
-    </Typography>
+    <span className="flex flex-wrap items-center gap-x-2">
+      <Typography data-testid="user-email-verified" tone="muted" variant="caption">
+        {user.emailVerified ? 'Почта подтверждена' : 'Почта не подтверждена'}
+      </Typography>
+      {!user.emailVerified && (
+        <Button
+          aria-label={`Отправить письмо подтверждения: ${user.email}`}
+          className="h-auto p-0"
+          data-testid="user-verify-send"
+          disabled={disabled}
+          onClick={() => onSend(user)}
+          size="sm"
+          type="button"
+          variant="link"
+        >
+          Отправить письмо
+        </Button>
+      )}
+    </span>
   )
 }
 

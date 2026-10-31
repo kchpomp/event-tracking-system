@@ -2,9 +2,7 @@ FROM oven/bun:1.4.2 AS build
 
 WORKDIR /app
 
-# Copy the repository instead of enumerating workspace manifests. The master branch
-# intentionally has no mobile package, while the mobile branch does; this build must
-# remain valid for both repository shapes.
+# Copy the repository instead of enumerating workspace manifests.
 COPY . .
 
 RUN bun install --frozen-lockfile --filter @event-tracking-system/backend

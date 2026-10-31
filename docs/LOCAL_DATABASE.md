@@ -73,8 +73,6 @@ bun run dev:seed
 
 If the data matters, back it up first and get the user's approval to delete it.
 
-Switching from `mobile` to `master` needs the same reset: the extra `mobile` tables stay, `prisma migrate deploy` applies nothing, and `prisma migrate dev` reports drift. Switching from `master` to `mobile` needs no reset.
 
-A database that applied the old subscription migrations reports drift too. Those migrations are gone, and the subscription tables are now commented out ([IAP](IAP.md)). Reset a local database as above. Never reset a production database for this; drop the tables there with a migration.
 
 References: [Docker Compose](https://docs.docker.com/compose/), [PostgreSQL image](https://hub.docker.com/_/postgres).

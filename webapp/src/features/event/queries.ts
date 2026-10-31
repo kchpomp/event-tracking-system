@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/r
 import {
   HOSTESS_SEARCH_MIN,
   type ConnectRequest,
+  type CreateAvatarUploadRequest,
   type CreateIdeaRequest,
   type HostessAwardRequest,
   type HostessResolveRequest,
@@ -22,6 +23,8 @@ import {
   awardTeam,
   connectParticipant,
   createIdea,
+  deleteMyAvatar,
+  finalizeAvatarUpload,
   finalizePlannedPhotos,
   getAdminStations,
   getAdminTeams,
@@ -32,12 +35,14 @@ import {
   getHostessParticipant,
   getHostessTeams,
   getLeaderboard,
+  getMyAvatar,
   getPlannedParticipants,
   getRegistrationReference,
   getRegistrationStatus,
   importPlannedParticipants,
   makeHostess,
   removePlannedParticipant,
+  requestAvatarUpload,
   requestPlannedPhotoTickets,
   getStations,
   getTeamMembers,
@@ -55,6 +60,7 @@ export const eventQueryKeys = {
   all: [...sessionQueryKeys.all, 'event'] as const,
   badge: () => [...eventQueryKeys.all, 'badge'] as const,
   me: () => [...eventQueryKeys.all, 'me'] as const,
+  avatar: () => [...eventQueryKeys.all, 'avatar'] as const,
   stations: () => [...eventQueryKeys.all, 'stations'] as const,
   teamMembers: () => [...eventQueryKeys.all, 'team-members'] as const,
   schedule: () => [...eventQueryKeys.all, 'schedule'] as const,
@@ -357,6 +363,29 @@ export function usePlannedPhotoApi() {
     tickets: (input: PlannedPhotoTicketsRequest) => requestPlannedPhotoTickets(transport, input),
     finalize: (input: PlannedPhotoFinalizeRequest) => finalizePlannedPhotos(transport, input),
     refresh: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.planned() }),
+  }
+}
+
+/** Whether the participant has uploaded their own photo (the profile photo may also be the guest-list one). */
+export function useMyAvatarQuery() {
+  const { transport } = useAuth()
+  return useQuery(
+    queryOptions({
+      queryKey: eventQueryKeys.avatar(),
+      queryFn: ({ signal }) => getMyAvatar(transport, { signal }),
+    }),
+  )
+}
+
+/** The three steps of a photo upload, plus removal. `refresh` reloads every place a photo shows. */
+export function useAvatarApi() {
+  const { transport } = useAuth()
+  const queryClient = useQueryClient()
+  return {
+    ticket: (input: CreateAvatarUploadRequest) => requestAvatarUpload(transport, input),
+    finalize: (uploadId: string) => finalizeAvatarUpload(transport, uploadId),
+    remove: () => deleteMyAvatar(transport),
+    refresh: () => queryClient.invalidateQueries({ queryKey: eventQueryKeys.all }),
   }
 }
 

@@ -1,6 +1,5 @@
 import type {
   RegisterPayload,
-  SocialAuthProvider,
 } from '@event-tracking-system/contracts'
 
 import type { SessionMetadata } from '../domain/session'
@@ -25,16 +24,6 @@ export type AuthRepository = {
       metadata: SessionMetadata
     }
   }): Promise<{ user: AuthUserRecord; session: { id: string } }>
-  findUserByProviderSubject(
-    provider: SocialAuthProvider,
-    subject: string,
-  ): Promise<AuthUserRecord | null>
-  createSocialUser(input: {
-    displayName?: string
-    email: string
-    provider: SocialAuthProvider
-    subject: string
-  }): Promise<{ created: boolean; user: AuthUserRecord }>
   createSession(input: {
     authorizeUser(user: AuthUserRecord): boolean | Promise<boolean>
     userId: string
@@ -215,15 +204,6 @@ export type Clock = {
   now(): Date
 }
 
-export type SocialIdentity = {
-  subject: string
-  email?: string
-  displayName?: string
-}
-
-export type SocialIdentities = {
-  verify(provider: SocialAuthProvider, idToken: string): Promise<SocialIdentity>
-}
 
 export type LogoutCleanupStore = {
   removePushTokens(userId: string, expoPushTokens: string[]): Promise<void>

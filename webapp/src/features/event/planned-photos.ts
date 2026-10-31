@@ -1,6 +1,8 @@
 import { PLANNED_PHOTO_BATCH_MAX } from '@event-tracking-system/contracts'
 
-export const PHOTO_MAX_SIDE = 512
+// Every photo is stored as a 256 x 256 square. It is shown in a circle of at most 64 CSS px (88 px
+// on the venue screen), so that is sharp on a 3x phone and weighs about 20 KB as JPEG.
+export const PHOTO_SIDE = 256
 export const PHOTO_STREAMS = 4
 
 const IMAGE_EXTENSION = /\.(jpe?g|png|webp)$/i
@@ -42,12 +44,6 @@ export function chunk<T>(items: readonly T[], size = PLANNED_PHOTO_BATCH_MAX) {
   const batches: T[][] = []
   for (let index = 0; index < items.length; index += size) batches.push(items.slice(index, index + size))
   return batches
-}
-
-/** Fits the long side into `max`; never enlarges. */
-export function fitSize(width: number, height: number, max = PHOTO_MAX_SIDE) {
-  const scale = Math.min(1, max / Math.max(width, height))
-  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
 }
 
 /** Runs `task` over `items` with at most `limit` in flight; a task must not throw. */

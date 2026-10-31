@@ -1,6 +1,6 @@
 # Files and media
 
-Private storage for uploads and downloads. The user avatar is the reference implementation, and both clients can replace and delete it: `webapp/src/features/avatar`, `mobile/src/features/avatar`, `mobile/src/platform/uploads`, `backend/src/modules/uploads`, and `backend/src/storage`. Ask the file questions in [CHECKLIST](../CHECKLIST.md) before you build.
+Private storage for uploads and downloads. The user avatar is the reference implementation, and the client can replace and delete it: `webapp/src/features/avatar`, `backend/src/modules/uploads`, and `backend/src/storage`. Ask the file questions in [CHECKLIST](../CHECKLIST.md) before you build.
 
 ## Two drivers, one contract
 
@@ -53,19 +53,6 @@ The browser requests a ticket for a content type and exact size. The backend cre
 - Keys are `<namespace>/<yyyy>/<mm>/<uuid>`. PostgreSQL maps records to keys.
 - Reads use short-lived signed URLs.
 
-### Mobile transfer
-
-`mobile` follows the same contract. Only the byte transfer differs, in `mobile/src/platform/uploads`. `transfer.ts` is a pure protocol: it checks that the file size still matches the ticket, calls the sender, and reads the answer, where `412` means success. It knows nothing about avatars, endpoints, or images, so reuse it for other files.
-
-`UploadFileAccess` pairs measuring with sending. A size read another way may not match the signed ticket, and storage then answers `403`. `mobile/src/composition/upload-file-access.ts` picks the pair by `Platform.OS`:
-
-| Platform | Size | Transfer |
-| --- | --- | --- |
-| iOS and Android, `native-file-access.ts` | `File.size` from `expo-file-system` | `File.upload`, streamed from disk |
-| Web, `web-file-access.ts` | The blob behind the `blob:` URL | `fetch` with the blob as the body |
-
-On web, `expo-file-system` is a stub: its `File` has no size, and its upload returns status `0`. The picker and manipulator do work there, hence the separate web reader. The web `PUT` mirrors `webapp/src/features/avatar/upload.ts`, including `credentials: 'omit'`: the ticket carries the authority, and cookies only break the preflight.
-
 ## Deletion and recovery
 
 Replaced and removed objects are deleted after the response. A failed delete orphans the object, because its row is gone and `uploads:pending:cleanup` covers only unfinished uploads. Deleting a user also orphans the avatar file. Accept this only for small avatars. For other files, or before you add account deletion, delete files explicitly, keep keys longer than their records, and reconcile the bucket.
@@ -78,21 +65,11 @@ The window restores bytes, not ownership, so back up the database separately. Ne
 
 `browserUploadAllowedHeaders` in `backend/src/storage/config.ts` is the source list. The API adds `Authorization`, and `scripts/storage-local.mjs` applies the list to the local bucket. A bucket never needs `Authorization`, because a signed URL carries its own authority. Terraform sets the production rule: the webapp origin; `GET`, `PUT`, and `HEAD`; `Content-Type` and `If-None-Match`; and the exposed `ETag`. Keep both in sync.
 
-CORS applies in every browser, including Expo Web. A deployed Expo Web app needs its origin in the bucket rule too. Native iOS and Android apps do not use CORS.
+CORS applies in every browser.
 
 ## Showing a private file
 
 Download the file with a CORS `fetch` and show an object URL. Never put a signed URL in `<img src>`. The API sends `Cross-Origin-Resource-Policy: same-origin`, which blocks a no-cors image with the filesystem driver.
-
-In `mobile`, always build the image source with `avatarImageSource`. It joins the signed URL, a cache key, and a web-only header:
-
-- iOS and Android: `expo-image` loads the signed URL directly, because CORP is a browser rule.
-- Expo Web: the source adds `Accept`, so `expo-image` loads it with a CORS `fetch` and shows an object URL. This works with both drivers. `Accept` needs no preflight, and the default `CORS_ORIGINS` already lists the local Expo Web origins.
-- Each read signs a new URL. `avatarCacheKey` builds the cache key from `updatedAt` and `byteSize`, so a replaced photo never reuses the old entry. The native cache keeps the image across new URLs. Web ignores `cacheKey` and keeps the object URL until the component unmounts.
-
-A failed read means the app does not know whether a photo exists. The provider exposes that state and a reload, so it never offers a wrong action. An expired URL after a successful read only affects display: initials appear, and the actions stay correct. Nothing reloads the image by itself. If a product needs that, refetch when the app returns to the foreground. A retry on the image's own error can loop while storage fails.
-
-`cachePolicy="memory-disk"` keeps the private photo in the app sandbox after sign-out. Another account's cache key never matches, and the OS evicts the cache when space runs low. If the product must erase local data, for example on shared devices, call `Image.clearDiskCache()` at sign-out.
 
 ## Public files and CDN
 
@@ -102,7 +79,6 @@ The template has no public files. For public immutable files, add a separate pub
 
 The backend stores the bytes it receives, and `webapp` uploads originals. Browsers need a conversion step to show HEIC.
 
-`mobile` normalizes a photo before it requests a ticket: `expo-image-manipulator` scales the long edge to 512 px and saves a JPEG. This keeps phone photos under the 5 MB limit and lets browsers show iPhone photos. On web, the manipulator decodes through a canvas, and Chrome or Firefox may fail on HEIC. Then no upload starts, and the app asks for another photo; a phone can convert the same file. Normalizing never replaces the finalize check. `webapp` may still send HEIC, so keep the backend HEIC path.
 
 Create variants in the backend or a worker under stable keys, such as `images/<entity>/<id>/<variant>.webp`. For transforms by URL, put `imgproxy` in front of the bucket. Use Cloudinary or ImageKit only when the user chooses them.
 

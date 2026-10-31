@@ -59,7 +59,7 @@ export function EventDashboard() {
     <div className="grid gap-6">
       <Card>
         <CardContent className="grid gap-3">
-          <div className="flex items-center gap-3">
+          <Link className="flex items-center gap-3" data-testid="profile-link" to="/app/profile">
             <ProfileAvatar profile={profile} size="lg" />
             <div className="grid gap-1">
               <Typography as="h1" variant="h4">
@@ -69,7 +69,7 @@ export function EventDashboard() {
                 Ваш индекс влияния
               </Typography>
             </div>
-          </div>
+          </Link>
           <div className="flex items-baseline justify-between gap-3">
             <Typography
               as="p"
@@ -143,7 +143,6 @@ export function EventDashboard() {
           <Item asChild variant="outline">
             <Link data-testid="badge-card" to="/app/badge">
               <ActivityBody
-                description="Пройдите 3 активности и получите значок на мерч-точке"
                 done={false}
                 doneLabel=""
                 icon={<HugeiconsIcon aria-hidden className="size-5" icon={Award01Icon} strokeWidth={2} />}
@@ -186,7 +185,7 @@ function StationRow({ card }: { card: StationCard }) {
   const body = (
     <ActivityBody
       done={card.done}
-      doneLabel="Посещено"
+      doneLabel="Пройдено"
       icon={polymer ? <PolymerChain /> : <StationIcon name={card.name} />}
       name={card.name}
       right={pointsLabel(card.points)}

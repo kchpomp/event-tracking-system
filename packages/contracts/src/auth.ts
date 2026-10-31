@@ -3,11 +3,6 @@ import { z } from 'zod'
 import { PROFILE_FIELD_MAX } from './event'
 import { expoPushTokenSchema } from './notifications'
 
-const displayNameSchema = z
-  .union([z.string().trim().min(2).max(80), z.literal('')])
-  .optional()
-  .transform((value) => (value === '' || value === undefined ? undefined : value))
-
 export const emailSchema = z.string().trim().toLowerCase().email().max(254)
 
 export const passwordSchema = z
@@ -17,8 +12,6 @@ export const passwordSchema = z
 
 export const userRoleSchema = z.enum(['user', 'admin', 'hostess', 'screen'])
 
-// The user contract deliberately carries no subscription: billing is an optional capability,
-// and clients that need it read `GET /api/iap/entitlement` through their billing feature.
 export const userSchema = z.object({
   id: z.string(),
   email: emailSchema,
@@ -57,12 +50,6 @@ export const loginRequestSchema = z.object({
   password: passwordSchema,
 })
 
-export const socialAuthProviderSchema = z.enum(['apple', 'google'])
-export const socialAuthProviderParamsSchema = z.object({ provider: socialAuthProviderSchema })
-export const socialAuthRequestSchema = z.object({
-  idToken: z.string().trim().min(1).max(4096),
-  displayName: displayNameSchema,
-})
 
 export const passwordResetRequestSchema = z.object({
   email: emailSchema,
@@ -129,9 +116,6 @@ export type UserRole = z.infer<typeof userRoleSchema>
 export type RegisterRequest = z.input<typeof registerRequestSchema>
 export type RegisterPayload = z.output<typeof registerRequestSchema>
 export type LoginRequest = z.infer<typeof loginRequestSchema>
-export type SocialAuthProvider = z.infer<typeof socialAuthProviderSchema>
-export type SocialAuthRequest = z.input<typeof socialAuthRequestSchema>
-export type SocialAuthPayload = z.output<typeof socialAuthRequestSchema>
 export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>
 export type PasswordResetRequestResponse = z.infer<typeof passwordResetRequestResponseSchema>
 export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmRequestSchema>

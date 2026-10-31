@@ -2,6 +2,8 @@ import {
   adminDashboardResponseSchema,
   adminUsersQuerySchema,
   adminUsersResponseSchema,
+  deleteUserResponseSchema,
+  emailVerificationRequestResponseSchema,
   updateUserRoleRequestSchema,
   updateUserRoleResponseSchema,
   type AdminUsersQuery,
@@ -29,6 +31,21 @@ export function getAdminUsers(
   })
   if (query.q) search.set('q', query.q)
   return transport.request(`/api/admin/users?${search}`, adminUsersResponseSchema, options)
+}
+
+/** Queues the confirmation email for an account that is about to get the hostess or admin role. */
+export function requestAdminUserEmailVerification(transport: AuthenticatedTransport, userId: string) {
+  return transport.request(
+    `/api/admin/users/${encodeURIComponent(userId)}/email-verification`,
+    emailVerificationRequestResponseSchema,
+    { method: 'POST' },
+  )
+}
+
+export function deleteAdminUser(transport: AuthenticatedTransport, userId: string) {
+  return transport.request(`/api/admin/users/${encodeURIComponent(userId)}`, deleteUserResponseSchema, {
+    method: 'DELETE',
+  })
 }
 
 export function updateAdminUserRole(

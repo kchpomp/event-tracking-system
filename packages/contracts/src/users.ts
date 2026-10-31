@@ -81,6 +81,14 @@ export const updateUserRoleResponseSchema = z
   })
   .strict()
 
+/** An administrator deleted an account; its sessions, points, links, ideas and photo went with it. */
+export const deleteUserResponseSchema = z
+  .object({
+    deleted: z.literal(true),
+  })
+  .strict()
+
+export type DeleteUserResponse = z.infer<typeof deleteUserResponseSchema>
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>
 export type UpdateProfileResponse = z.infer<typeof updateProfileResponseSchema>
 export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>

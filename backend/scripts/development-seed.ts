@@ -5,7 +5,7 @@ import {
 } from '../src/modules/users/infrastructure/development-bootstrap'
 
 // The seed deliberately grants no entitlement: reaching the app must not depend on a
-// subscription, so products that never add billing still get a working demo login.
+// subscription, so the demo login always works.
 export async function bootstrapDevelopmentData(
   db: DbClient,
   accounts: DevelopmentSeedAccounts,

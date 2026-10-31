@@ -19,5 +19,4 @@ describe('runBackgroundJob', () => {
     }
   })
 
-  // The billing reconcile task lived here commented out; docs/IAP.md says what to switch on.
 })

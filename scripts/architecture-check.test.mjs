@@ -87,7 +87,6 @@ describe('public module and feature indexes', () => {
 
     expect(check([file('webapp/src/features/auth/provider.tsx', "import { usePlan } from '../billing'")])).toEqual([])
     expect(check([file('webapp/src/features/auth/provider.tsx', "import { usePlan } from '../billing/provider'")])[0]?.rule).toBe('client-feature-public-api')
-    expect(check([file('mobile/src/composition/api.ts', "import { AuthApi } from '@/features/auth/api'")])[0]?.rule).toBe('client-feature-public-api')
     expect(check([file('website/src/composition/api.ts', "import { AuthApi } from '@/features/auth/api'")])[0]?.rule).toBe('client-feature-public-api')
 
     expect(check([file('backend/src/app.ts', "import { auth } from './modules/auth'")])).toEqual([])
@@ -114,7 +113,6 @@ describe('dependency direction', () => {
   test('rejects feature dependency cycles even through public indexes', () => {
     for (const [client, apiType, feature] of [
       ['webapp', 'BillingApi', 'billing'],
-      ['mobile', 'NotificationsApi', 'notifications'],
     ]) {
       const violations = check([
         file(`${client}/src/features/auth/logout.ts`, `import type { ${apiType} } from '@/features/${feature}'`),

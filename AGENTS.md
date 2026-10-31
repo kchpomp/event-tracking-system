@@ -20,7 +20,6 @@
 | Infrastructure and releases | `infra`, `scripts/infra.mjs` | [DEPLOYMENT](docs/DEPLOYMENT.md) |
 | Product scope and capability registry | [CHECKLIST](CHECKLIST.md) | — |
 | Event (stations, QR, points, leaderboard) | `backend/src/modules/event`, `webapp/src/features/event` | [CHECKLIST](CHECKLIST.md) |
-| Mobile (Expo), deferred | `mobile` | [mobile/README](mobile/README.md) |
 
 Read the guide for an area before you change it. Read only the sections you need. Find code with `rg`; do not scan the repository.
 
@@ -29,12 +28,12 @@ Read the guide for an area before you change it. Read only the sections you need
 Run from the root. If `bun` is missing from `PATH`, prefix `PATH="/opt/homebrew/bin:$HOME/.bun/bin:$PATH"`.
 
 ```bash
-bun run typecheck:webapp        # fastest signal; also :backend, :website, :mobile
-bun run lint                    # webapp and mobile ESLint, UI rules included
+bun run typecheck:webapp        # fastest signal; also :backend, :website
+bun run lint                    # webapp ESLint, UI rules included
 bun run architecture:check      # after imports cross a boundary
 bun run test:backend:unit -- src/path.test.ts -t "name"
 bun run test:backend:integration -- src/path.integration.test.ts -t "name"   # Docker
-bun run test:webapp             # also test:website, test:contracts, test:mobile
+bun run test:webapp             # also test:website, test:contracts
 bun run e2e:webapp -- auth.spec.ts -g "name"                                  # Docker
 bun run screens -- -g "/app/profile"                                          # Docker
 bun run --cwd backend prisma:migrate   # after you edit backend/prisma/schema/
@@ -52,7 +51,7 @@ Run the full `bun run check` only for a release or a system-wide change.
 - Stay a monolith on PostgreSQL. Durable async work goes to the outbox, and its handlers must be safe to retry. Periodic work goes to `backend/src/jobs.ts`. Add a queue, cache, broker, or search engine only for a measured limit recorded in `CHECKLIST.md`.
 - One browser checkout: the signed-in `webapp` with the backend. `website` may only hand off an anonymous cart.
 - Change the database through `backend/prisma/schema/` and `prisma:migrate`. Write migration SQL by hand only on request. IDs are PostgreSQL `uuidv7()` with `@db.Uuid`. For schema or architecture changes, state compatibility, risk, and rollout order.
-- `CHECKLIST.md` defines product scope. A capability without a registry row is `absent`. Build or restore it only on request, then update its row. Existing code is not a request. Deferred applications get no features, setup, or tests.
+- `CHECKLIST.md` defines product scope. A capability without a registry row is `absent`. Build or restore it only on request, then update its row. Existing code is not a request.
 
 ## Workflow
 

@@ -6,7 +6,7 @@ export { LoginForm } from './components/LoginForm'
 export { splitTextBlocks } from './consent-text'
 export { RegisterForm } from './components/RegisterForm'
 export { ResetPasswordForm } from './components/ResetPasswordForm'
-export { EmailVerificationCard, VerifyEmail } from './components/EmailVerification'
+export { VerifyEmail } from './components/EmailVerification'
 export { errorId, hasErrors, toValidationErrors } from './components/form-validation'
 export {
   clearPasswordResetTokenHash,

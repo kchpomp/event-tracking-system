@@ -159,6 +159,30 @@ test('a participant registers, scores at stations, connects, shares an idea and 
     await expect(page.getByTestId('profile-firstName')).toHaveText('Мария')
     await expect(page.getByTestId('profile-city')).toHaveText('Нижневартовск')
     await expect(page.getByTestId('profile-email')).toHaveText(email)
+
+    // The name on the dashboard opens the profile, where the participant adds and removes a photo.
+    await page.goto('/app')
+    await page.getByTestId('profile-link').click()
+    await expect(page).toHaveURL(/\/app\/profile$/)
+    await page.getByTestId('avatar-input').setInputFiles({
+      name: 'me.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    })
+    // The picture itself is not checked in the page: the local storage answers with a
+    // same-origin-only policy, which Yandex Object Storage links do not have. The API shows it.
+    const photoOf = async () => {
+      const response = await api.get(`${backendUrl()}/api/event/me`, { headers: bearer(token) })
+      return ((await response.json()) as { profile: { photo: { url: string } | null } }).profile.photo
+    }
+    await expect(page.getByTestId('avatar-remove')).toBeVisible()
+    expect(await photoOf()).not.toBeNull()
+    await page.getByTestId('avatar-remove').click()
+    await expect(page.getByTestId('avatar-remove')).toBeHidden()
+    expect(await photoOf()).toBeNull()
   } finally {
     await api.dispose()
   }

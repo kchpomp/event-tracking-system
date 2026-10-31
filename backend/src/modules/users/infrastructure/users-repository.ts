@@ -13,10 +13,13 @@ import {
   type DbClient,
   userAuthorityTransitionTransactionOptions,
 } from '../../../db'
+import { enqueueTask } from '../../../outbox'
 import type {
   AdminDashboardReader,
   AdminUsersReader,
+  EmailVerificationRequester,
   ProfileWriter,
+  UserDeleter,
   UserRoleUpdater,
 } from '../application/ports'
 import { UsersFailure } from '../domain/errors'
@@ -34,6 +37,8 @@ type UsersRepository =
   & ProfileWriter
   & AdminDashboardReader
   & AdminUsersReader
+  & EmailVerificationRequester
+  & UserDeleter
   & UserRoleUpdater
 
 export function createPrismaUsersRepository(db: DbClient): UsersRepository {
@@ -80,6 +85,59 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
         total,
         hasNext: page < ADMIN_USERS_MAX_PAGE && page * pageSize < total,
       }
+    },
+
+    async requestEmailVerification({ targetUserId, now }) {
+      const target = await db.user.findUnique({
+        where: { id: targetUserId },
+        select: { emailVerifiedAt: true },
+      })
+      if (!target) throw new UsersFailure('not_found', 'User not found')
+      if (target.emailVerifiedAt) return
+      // The same task the account's own request would queue; its handler mints the link and sends
+      // it, and refuses a second link inside the cooldown, so repeated clicks do not repeat mail.
+      await enqueueTask(db, {
+        type: 'auth:email-verification',
+        dedupeKey: `${targetUserId}:${Math.floor(now.getTime() / 60_000)}`,
+        payload: { userId: targetUserId },
+        scheduledFor: now,
+      })
+    },
+
+    deleteUser(input) {
+      return db.$transaction(async (tx) => {
+        // The same locks and order as a role change, so a deletion never interleaves with a login,
+        // a push send, a scan or another role change of the same account.
+        await acquirePushTokenUserLock(tx, input.targetUserId)
+        await acquireUserRoleMutationLock(tx)
+        await acquireUserAuthenticationAuthorityLock(tx, input.targetUserId)
+        await acquireParticipantScoringLock(tx, input.targetUserId)
+
+        const actor = await tx.user.findUnique({
+          where: { id: input.actorUserId },
+          select: { id: true, role: true },
+        })
+        if (actor?.role !== 'admin') {
+          throw new UsersFailure('forbidden', 'Administrator access is required')
+        }
+        if (input.targetUserId === actor.id) {
+          throw new UsersFailure('role_conflict', 'You cannot delete your own account')
+        }
+        const target = await tx.user.findUnique({ where: { id: input.targetUserId }, select: { id: true } })
+        if (!target) {
+          throw new UsersFailure('not_found', 'User not found')
+        }
+
+        // Every table that points at the user cascades (sessions, tokens, points, visits, links,
+        // ideas, avatar rows) or clears the pointer (who awarded points). The stored photo files
+        // are not rows, so their keys go back to the caller to delete.
+        const avatars = await tx.userAvatar.findMany({
+          where: { userId: target.id },
+          select: { objectKey: true },
+        })
+        await tx.user.delete({ where: { id: target.id } })
+        return { avatarKeys: avatars.map((avatar) => avatar.objectKey) }
+      }, userAuthorityTransitionTransactionOptions)
     },
 
     updateRole(input) {

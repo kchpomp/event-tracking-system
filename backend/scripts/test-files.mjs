@@ -12,8 +12,8 @@ import { Glob } from 'bun'
  * unit runner useful without Docker or provider credentials. The root `bun run test` still needs
  * Docker because it intentionally includes the integration runner.
  *
- * A suite belonging to a capability that ships switched off - billing, for instance, whose tables
- * are commented out in the Prisma schema - marks itself `@parked-test` in its opening comment and
+ * A suite belonging to a capability that ships switched off - one whose route
+ * is not mounted - marks itself `@parked-test` in its opening comment and
  * is skipped by every runner until that line is removed. Parking is declared in the file it
  * affects rather than in a list here.
  */

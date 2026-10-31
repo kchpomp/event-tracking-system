@@ -31,16 +31,9 @@ model User {
   /// Set when the person opens their verification link. Staff roles require it.
   emailVerifiedAt DateTime?     @map("email_verified_at")
   role            UserRole      @default(user)
-  appleSubject    String?       @unique @map("apple_subject")
-  googleSubject   String?       @unique @map("google_subject")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
   sessions        AuthSession[]
-
-  // Uncomment together with prisma/schema/billing.prisma (docs/IAP.md step 1):
-  // subscriptionEntitlement SubscriptionEntitlement?
-  // appStoreTransactions    AppStoreTransaction[]
-  // googlePlaySubscriptions GooglePlaySubscriptionPurchase[]
 
   // Push delivery tables; remove together with prisma/schema/notifications.prisma.
   pushInstallations      PushInstallation[]

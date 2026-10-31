@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 
 import {
   adminUsersPagination,
+  deleteFailureReason,
   roleBlockedByUnverifiedEmail,
   roleChangeDeletesPoints,
   roleMutationFeedback,
@@ -20,6 +21,17 @@ test('admin pagination respects the reachable server window', () => {
     totalPages: 100,
     wasBounded: true,
   })
+})
+
+test('a refused deletion is explained in Russian, anything else stays generic', () => {
+  expect(deleteFailureReason(new ApiRequestError(404, 'NOT_FOUND', 'User not found'))).toContain('уже нет')
+  expect(deleteFailureReason(new ApiRequestError(409, 'CONFLICT', 'You cannot delete your own account'))).toContain(
+    'собственный',
+  )
+  expect(deleteFailureReason(new ApiRequestError(500, 'INTERNAL', 'raw'))).toBe(
+    'Не удалось удалить пользователя. Попробуйте ещё раз.',
+  )
+  expect(deleteFailureReason(new TypeError('offline'))).toContain('Не удалось')
 })
 
 test('every role but participant deletes points on a role change', () => {

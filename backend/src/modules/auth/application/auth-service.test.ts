@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 
-import type { AuthRepository, PasswordResetNotifier, SocialIdentity } from './ports'
+import type { AuthRepository, PasswordResetNotifier } from './ports'
 import { AuthService } from './auth-service'
 
 const user = {
@@ -284,73 +284,6 @@ test('an unknown address costs the same password work as a registered one', asyn
   // Without this the response time answers the question the 401 body refuses to answer.
   expect(verifiedAgainst).toHaveLength(1)
   expect(verifiedAgainst[0]).not.toBe(user.passwordHash)
-})
-
-// Sign in with Apple / Google ships switched off: its route is not mounted, so its integration
-// suites are parked (docs/SOCIAL_AUTH.md). These service cases keep the parked capability honest.
-const socialPayload = { idToken: 'token', displayName: undefined }
-
-/** A social sign-in whose provider vouches for `identity`; the repository is the test's own. */
-function socialService(
-  repository: Partial<AuthRepository>,
-  identity: SocialIdentity = { subject: 'provider-subject', email: 'social@example.com' },
-) {
-  return createService({
-    repository: { createSession: async () => ({ user, session: { id: 'session-1' } }), ...repository },
-    socialIdentities: { verify: async () => identity },
-  })
-}
-
-test('social auth signs a returning subject in without an email lookup', async () => {
-  // The subject is the identity; the provider's email may have changed since the first sign-in.
-  // The repository has no email lookup here, so reaching for one fails the test.
-  const service = socialService({ findUserByProviderSubject: async () => user })
-
-  await expect(service.socialAuth('google', socialPayload, {})).resolves.toMatchObject({
-    created: false,
-  })
-})
-
-test('social auth creates a social-only user when the subject is new', async () => {
-  const created: unknown[] = []
-  const service = socialService({
-    findUserByProviderSubject: async () => null,
-    findUserByEmail: async () => null,
-    createSocialUser: async (input) => {
-      created.push(input)
-      return { created: true, user: { ...user, email: input.email, passwordHash: null } }
-    },
-  })
-
-  await expect(service.socialAuth('apple', socialPayload, {})).resolves.toMatchObject({
-    created: true,
-  })
-  expect(created).toEqual([
-    { email: 'social@example.com', provider: 'apple', subject: 'provider-subject' },
-  ])
-})
-
-test('social auth refuses to take over an existing password account by email', async () => {
-  // No createSocialUser here: the refusal has to come before any account is written.
-  const service = socialService({
-    findUserByProviderSubject: async () => null,
-    findUserByEmail: async () => user,
-  })
-
-  await expect(service.socialAuth('google', socialPayload, {})).rejects.toMatchObject({
-    kind: 'social_email_already_exists',
-  })
-})
-
-test('social auth rejects a provider token that carries no email for a new subject', async () => {
-  const service = socialService(
-    { findUserByProviderSubject: async () => null },
-    { subject: 'apple-subject' },
-  )
-
-  await expect(service.socialAuth('apple', socialPayload, {})).rejects.toMatchObject({
-    kind: 'provider_email_required',
-  })
 })
 
 test('ten failed sign-ins lock the address until the window ends, even with the right password', async () => {

@@ -15,8 +15,6 @@ import {
   passwordResetRequestResponseSchema,
   passwordResetRequestSchema,
   registerRequestSchema,
-  socialAuthProviderParamsSchema,
-  socialAuthRequestSchema,
   tokenAuthResponseSchema,
   tokenLogoutRequestSchema,
   tokenRefreshRequestSchema,
@@ -44,7 +42,7 @@ const validUser = {
 } as const
 
 describe('auth contracts', () => {
-  test('normalizes registration, login, and social auth input', () => {
+  test('normalizes registration and login input', () => {
     expect(
       registerRequestSchema.parse({
         ...validRegistration,
@@ -55,12 +53,6 @@ describe('auth contracts', () => {
     expect(
       loginRequestSchema.parse({ email: ' USER@Example.COM ', password: 'password123' }),
     ).toEqual({ email: 'user@example.com', password: 'password123' })
-    expect(socialAuthProviderParamsSchema.parse({ provider: 'apple' })).toEqual({ provider: 'apple' })
-    expect(
-      socialAuthRequestSchema.parse({ idToken: ' provider-token ', displayName: ' Jane ' }),
-    ).toEqual({ idToken: 'provider-token', displayName: 'Jane' })
-    expect(() => socialAuthProviderParamsSchema.parse({ provider: 'facebook' })).toThrow()
-    expect(() => socialAuthRequestSchema.parse({ idToken: '' })).toThrow()
   })
 
   test('rejects invalid auth request payloads', () => {

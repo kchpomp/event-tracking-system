@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
+import { toSquareJpeg } from './avatar-photo'
 import { eventErrorMessage } from './errors'
-import { chunk, fitSize, matchPhotoFiles, PHOTO_MAX_SIDE, PHOTO_STREAMS, runPool } from './planned-photos'
+import { chunk, matchPhotoFiles, PHOTO_SIDE, PHOTO_STREAMS, runPool } from './planned-photos'
 import { usePlannedPhotoApi } from './queries'
 
 type Status = { state: 'working' | 'done' } | { state: 'error'; message: string }
@@ -18,22 +19,6 @@ const FINALIZE_ERROR = {
   not_uploaded: 'Файл не дошёл до хранилища.',
   rejected: 'Сервер не принял изображение.',
 } as const
-
-async function toJpeg(file: File) {
-  const bitmap = await createImageBitmap(file)
-  try {
-    const { width, height } = fitSize(bitmap.width, bitmap.height, PHOTO_MAX_SIDE)
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    canvas.getContext('2d')?.drawImage(bitmap, 0, 0, width, height)
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85))
-    if (!blob) throw new Error('empty')
-    return blob
-  } finally {
-    bitmap.close()
-  }
-}
 
 /** One batch: resize, tickets, PUT straight to storage, finalize. Reports each file by email. */
 async function sendBatch(
@@ -46,7 +31,7 @@ async function sendBatch(
   await runPool(batch, PHOTO_STREAMS, async ({ email, file }) => {
     set(email, { state: 'working' })
     try {
-      blobs.set(email, await toJpeg(file))
+      blobs.set(email, await toSquareJpeg(file))
     } catch {
       fail(email, 'Не удалось прочитать изображение.')
     }
@@ -142,7 +127,7 @@ export function PlannedPhotoUpload({ items }: { items: readonly PlannedParticipa
         </Typography>
         <Typography tone="muted" variant="bodySm">
           Имя файла без расширения — адрес электронной почты: anna@example.com.jpg. Форматы JPEG, PNG,
-          WebP. Перед отправкой каждое фото уменьшается до {PHOTO_MAX_SIDE} px. Новое фото заменяет старое.
+          WebP. Перед отправкой каждое фото обрезается до квадрата {PHOTO_SIDE}×{PHOTO_SIDE} px. Новое фото заменяет старое.
         </Typography>
         <div className="grid gap-2 sm:grid-cols-2">
           <Input

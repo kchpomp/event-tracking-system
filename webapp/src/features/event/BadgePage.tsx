@@ -76,7 +76,7 @@ export function BadgePage() {
     return <LoadingState />
   }
 
-  const { activities, completed, required } = badge.data
+  const { activities, completed } = badge.data
 
   return (
     <div className="grid gap-6">
@@ -89,7 +89,7 @@ export function BadgePage() {
           <Typography variant="bodySm">{BADGE_COPY.description}</Typography>
         </CardContent>
       </Card>
-      <StatCard label="Активностей" value={`Пройдено ${completed} из ${required}`} />
+      <StatCard label="Активностей" value={`Пройдено ${completed}`} />
       {activities.length > 0 && (
         <ItemGroup className="gap-2" data-testid="badge-activities">
           {activities.map((activity) => (

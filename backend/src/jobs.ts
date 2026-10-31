@@ -26,12 +26,6 @@ import type { BackendRuntime } from './runtime'
  */
 export type BackgroundJob = (runtime: BackendRuntime, now: Date) => Promise<void>
 
-// Uncomment with the billing job below (docs/IAP.md). Import it inside the job body, never at the
-// top of this file: a top-level import pulls the Apple and Google SDKs into every background run.
-//
-// type GooglePlayReconcileResult = Awaited<
-//   ReturnType<Awaited<ReturnType<typeof loadBillingModule>>['reconcileGooglePlayBatch']>
-// >
 
 export const backgroundJobs = {
   noop: async () => {
@@ -47,12 +41,6 @@ export const backgroundJobs = {
     const receipts = await notifications.checkReceipts()
     console.log('Job notifications:process completed.', { outbox, receipts })
   },
-  // Uncomment together with the billing module (docs/IAP.md):
-  // 'billing:google-play:reconcile': async (runtime, now) => {
-  //   const result = await reconcileGooglePlayPurchases(runtime, now)
-  //   console.log('Job billing:google-play:reconcile completed.', result)
-  //   assertGooglePlayReconcileSucceeded(result)
-  // },
   'auth:sessions:cleanup': async (runtime, now) => {
     const { passwordResetTokensDeleted, rateLimitWindowsDeleted, sessionsDeleted } =
       await cleanupAuthState(runtime, now)
@@ -127,18 +115,12 @@ export const backgroundJobs = {
     const terminalNotificationOutboxesRedacted = await (
       await loadNotificationsModule(runtime)
     ).redactTerminalData()
-    // Uncomment together with the billing module so maintenance also reconciles Google Play:
-    // const googlePlay = runtime.env.GOOGLE_PLAY_PACKAGE_NAME
-    //   ? await reconcileGooglePlayPurchases(runtime, now)
-    //   : null
     console.log('Job maintenance:process completed.', {
       authSessionsDeleted: sessionsDeleted,
-      // googlePlay,
       passwordResetTokensDeleted,
       rateLimitWindowsDeleted,
       terminalNotificationOutboxesRedacted,
     })
-    // if (googlePlay) assertGooglePlayReconcileSucceeded(googlePlay)
   },
   'outbox:drain': async (runtime, now) => {
     const { drainOptionsFromEnv, drainTaskOutbox } = await import('./outbox')
@@ -159,36 +141,6 @@ async function loadNotificationsModule({ env, prisma }: BackendRuntime) {
   return createNotificationsModule({ db: prisma, env })
 }
 
-// async function loadBillingModule({ env, prisma }: BackendRuntime) {
-//   const { createBillingModule } = await import('./modules/billing')
-//   return createBillingModule({ db: prisma, env })
-// }
-//
-// async function reconcileGooglePlayPurchases(runtime: BackendRuntime, now: Date) {
-//   const billing = await loadBillingModule(runtime)
-//   const result = await billing.reconcileGooglePlayBatch({
-//     before: new Date(now.getTime() - 15 * 60 * 1000),
-//     deadline: new Date(now.getTime() + 50 * 1000),
-//     limit: 100,
-//   })
-//   return {
-//     ...result,
-//     backlogOldestAgeSeconds: result.backlogOldestDueAt
-//       ? Math.max(
-//           0,
-//           Math.floor((now.getTime() - result.backlogOldestDueAt.getTime()) / 1_000),
-//         )
-//       : null,
-//   }
-// }
-//
-// function assertGooglePlayReconcileSucceeded(result: GooglePlayReconcileResult) {
-//   if (result.failed > 0) {
-//     throw new Error(
-//       `Google Play reconcile failed for ${result.failed} of ${result.attempted} attempted purchases`,
-//     )
-//   }
-// }
 
 async function cleanupAuthState({ env, prisma }: BackendRuntime, now: Date) {
   const dayMs = 24 * 60 * 60 * 1000

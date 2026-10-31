@@ -4,8 +4,6 @@ import type {
   PasswordResetConfirmRequest,
   PasswordResetRequest,
   RegisterPayload,
-  SocialAuthPayload,
-  SocialAuthProvider,
 } from '@event-tracking-system/contracts'
 
 import { AuthFailure } from '../domain/errors'
@@ -25,7 +23,6 @@ import {
   type PasswordResetTokens,
   type Passwords,
   type RefreshTokens,
-  type SocialIdentities,
 } from './ports'
 
 type AuthServiceDependencies = {
@@ -43,7 +40,6 @@ type AuthServiceDependencies = {
   sessionAbsoluteTtlDays: number
   refreshTokens: RefreshTokens
   repository: AuthRepository
-  socialIdentities?: SocialIdentities
 }
 
 export class AuthService {
@@ -147,46 +143,6 @@ export class AuthService {
     }
   }
 
-  async socialAuth(
-    provider: SocialAuthProvider,
-    input: SocialAuthPayload,
-    metadata: SessionMetadata,
-  ) {
-    if (!this.dependencies.socialIdentities) {
-      throw new AuthFailure(
-        'provider_not_configured',
-        `${providerDisplayName(provider)} Sign-In is not configured`,
-      )
-    }
-
-    const identity = await this.dependencies.socialIdentities.verify(provider, input.idToken)
-    const existingBySubject = await this.dependencies.repository.findUserByProviderSubject(
-      provider,
-      identity.subject,
-    )
-    if (existingBySubject) {
-      return { ...(await this.issueSession(existingBySubject, metadata)), created: false }
-    }
-
-    const email = identity.email?.trim().toLowerCase()
-    if (!email) {
-      throw new AuthFailure(
-        'provider_email_required',
-        `${providerDisplayName(provider)} did not provide an email address`,
-      )
-    }
-    if (await this.dependencies.repository.findUserByEmail(email)) {
-      throw new AuthFailure('social_email_already_exists', 'An account with this email already exists')
-    }
-
-    const result = await this.dependencies.repository.createSocialUser({
-      displayName: input.displayName ?? identity.displayName,
-      email,
-      provider,
-      subject: identity.subject,
-    })
-    return { ...(await this.issueSession(result.user, metadata)), created: result.created }
-  }
 
   async requestPasswordReset(input: PasswordResetRequest) {
     const { passwordResetNotifier, passwordResetTasks } = this.dependencies
@@ -535,6 +491,3 @@ export class AuthService {
   }
 }
 
-function providerDisplayName(provider: SocialAuthProvider) {
-  return provider === 'apple' ? 'Apple' : 'Google'
-}

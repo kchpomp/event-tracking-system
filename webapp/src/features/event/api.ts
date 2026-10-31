@@ -1,6 +1,9 @@
 import {
   adminStationsResponseSchema,
   adminTeamSchema,
+  avatarResponseSchema,
+  createAvatarUploadRequestSchema,
+  createAvatarUploadResponseSchema,
   adminTeamsResponseSchema,
   connectRequestSchema,
   connectResponseSchema,
@@ -42,6 +45,7 @@ import {
   updateLiveResponseSchema,
   updateTeamScheduleRequestSchema,
   type ConnectRequest,
+  type CreateAvatarUploadRequest,
   type CreateIdeaRequest,
   type HostessAwardRequest,
   type HostessResolveRequest,
@@ -122,6 +126,28 @@ export function awardTeam(transport: AuthenticatedTransport, input: HostessTeamA
     method: 'POST',
     body: hostessTeamAwardRequestSchema.parse(input),
   })
+}
+
+/** The participant's own photo: a ticket, a PUT straight to storage, then finalize. */
+export function requestAvatarUpload(transport: AuthenticatedTransport, input: CreateAvatarUploadRequest) {
+  return transport.request('/api/uploads/avatar', createAvatarUploadResponseSchema, {
+    method: 'POST',
+    body: createAvatarUploadRequestSchema.parse(input),
+  })
+}
+
+export function finalizeAvatarUpload(transport: AuthenticatedTransport, uploadId: string) {
+  return transport.request(`/api/uploads/avatar/${encodeURIComponent(uploadId)}/finalize`, avatarResponseSchema, {
+    method: 'POST',
+  })
+}
+
+export function getMyAvatar(transport: AuthenticatedTransport, options: ReadOptions = {}) {
+  return transport.request('/api/uploads/avatar', avatarResponseSchema, options)
+}
+
+export function deleteMyAvatar(transport: AuthenticatedTransport) {
+  return transport.request('/api/uploads/avatar', avatarResponseSchema, { method: 'DELETE' })
 }
 
 export function scanStation(transport: AuthenticatedTransport, input: ScanRequest) {

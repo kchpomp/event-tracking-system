@@ -10,7 +10,9 @@ import type {
   AdminDashboardReader,
   AdminUsersReader,
   Clock,
+  EmailVerificationRequester,
   ProfileWriter,
+  UserDeleter,
   UserRecord,
   UserRoleUpdater,
 } from './ports'
@@ -19,7 +21,11 @@ type UsersServiceDependencies = {
   adminDashboardReader: AdminDashboardReader
   adminUsersReader: AdminUsersReader
   clock: Clock
+  /** Removes a stored photo after the response: a storage hiccup must not undo a committed deletion. */
+  deferDelete: (objectKey: string) => void
+  emailVerificationRequester: EmailVerificationRequester
   profileWriter: ProfileWriter
+  userDeleter: UserDeleter
   userRoleUpdater: UserRoleUpdater
 }
 
@@ -57,6 +63,24 @@ export class UsersService {
         now: this.dependencies.clock.now(),
       }),
     }
+  }
+
+  /** An administrator asks for the confirmation email of an account about to get a staff role. */
+  async requestEmailVerification(targetUserId: string) {
+    await this.dependencies.emailVerificationRequester.requestEmailVerification({
+      targetUserId,
+      now: this.dependencies.clock.now(),
+    })
+    return { accepted: true as const }
+  }
+
+  async deleteUser(principal: AuthenticatedPrincipal, targetUserId: string) {
+    const { avatarKeys } = await this.dependencies.userDeleter.deleteUser({
+      actorUserId: principal.id,
+      targetUserId,
+    })
+    for (const objectKey of avatarKeys) this.dependencies.deferDelete(objectKey)
+    return { deleted: true as const }
   }
 
   private userDto(user: UserRecord): UserDto {

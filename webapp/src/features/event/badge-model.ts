@@ -53,5 +53,12 @@ export function badgeStatusText(status: Pick<BadgeStatus, 'completed' | 'eligibl
   const kind = badgeState(status)
   if (kind === 'issued') return 'Значок получен'
   if (kind === 'eligible') return 'Можно получить значок: покажите QR-код куратору на мерч-точке'
-  return `Значок пока недоступен: пройдите ещё ${Math.max(status.required - status.completed, 0)} из ${status.required} активностей`
+  return `Значок пока недоступен: пройдите ещё ${activitiesWord(Math.max(status.required - status.completed, 0))}`
+}
+
+const ACTIVITY_WORD = { one: 'активность', few: 'активности', many: 'активностей', other: 'активностей', zero: 'активностей', two: 'активности' }
+
+/** "1 активность", "2 активности", "5 активностей". */
+function activitiesWord(count: number) {
+  return `${count} ${ACTIVITY_WORD[BALL_PLURAL.select(count)]}`
 }
