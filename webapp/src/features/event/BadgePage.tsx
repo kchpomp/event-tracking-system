@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { Item, ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item'
-import { badgeJustIssued, badgeStatusText } from './badge-model'
+import { badgeChecklist, badgeJustIssued, badgeStatusText } from './badge-model'
 import { BADGE_COPY } from './content'
 import { ActivityHead, LoadErrorState, LoadingState, MyQr, StatCard } from './parts'
 import { eventQueryKeys, useBadgeQuery, useEventMeQuery } from './queries'
@@ -90,20 +90,22 @@ export function BadgePage() {
         </CardContent>
       </Card>
       <StatCard label="Активностей" value={`Пройдено ${completed}`} />
-      {activities.length > 0 && (
-        <ItemGroup className="gap-2" data-testid="badge-activities">
-          {activities.map((activity) => (
-            <Item key={activity.name} variant="outline">
-              <ItemContent>
-                <ItemTitle>
+      <ItemGroup className="gap-2" data-testid="badge-activities">
+        {badgeChecklist(activities).map((activity) => (
+          <Item data-done={activity.done} key={activity.name} variant="outline">
+            <ItemContent>
+              <ItemTitle className={activity.done ? undefined : 'text-muted-foreground'}>
+                {activity.done ? (
                   <HugeiconsIcon aria-hidden className="size-4 text-primary" icon={Tick02Icon} strokeWidth={2.5} />
-                  {activity.name}
-                </ItemTitle>
-              </ItemContent>
-            </Item>
-          ))}
-        </ItemGroup>
-      )}
+                ) : (
+                  <span aria-hidden className="size-4 rounded-full border" />
+                )}
+                {activity.name}
+              </ItemTitle>
+            </ItemContent>
+          </Item>
+        ))}
+      </ItemGroup>
       <Typography data-testid="badge-status" variant="emphasis">
         {badgeStatusText(badge.data)}
       </Typography>

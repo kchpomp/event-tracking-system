@@ -272,7 +272,7 @@ export function ScreenWorkspaceLayout() {
 }
 
 export function ScreenPage() {
-  return <ScreenMenu onLogout={useAuth().logout} />
+  return <ScreenMenu onLogout={useDisplayLogout()} />
 }
 
 export function ScreenNetworkPage() {
@@ -338,14 +338,29 @@ function WorkspaceRoute({ role }: { role: UserRole }) {
  * stays mounted when the session is lost, so the display keeps its last picture (the screen
  * marks it) instead of jumping to the sign-in form; signing in again in any tab resumes it.
  */
+/**
+ * Signing out of the display account must leave the screen. The venue route keeps the last picture
+ * when a session is merely lost, so after a sign-out the person asked for it goes to the form itself.
+ */
+function useDisplayLogout() {
+  const { logout } = useAuth()
+  const router = useRouter()
+  return async () => {
+    await logout()
+    router.history.replace('/login')
+  }
+}
+
 function VenueScreenRoute({ role }: { role: 'admin' | 'screen' }) {
   const auth = useAuth()
   const location = useLocation()
   const allowed = auth.user?.role === role
   const [shown, setShown] = useState(false)
+  const displayLogout = useDisplayLogout()
+  const logout = role === 'screen' ? displayLogout : null
   if (allowed && !shown) setShown(true)
 
-  if (shown && (allowed || !auth.user)) return <ScreenFrame logout={role === 'screen' ? auth.logout : null} role={role} />
+  if (shown && (allowed || !auth.user)) return <ScreenFrame logout={logout} role={role} />
   if (auth.isBootstrapping) return <SessionLoadingSection />
   if (auth.sessionError && !auth.user) {
     return <SessionErrorSection retry={auth.retrySession} />
@@ -355,7 +370,7 @@ function VenueScreenRoute({ role }: { role: 'admin' | 'screen' }) {
     return <HrefRedirect href={`/login?returnTo=${encodeURIComponent(returnTo)}`} />
   }
   if (!allowed) return <HrefRedirect href={homePathForRole(auth.user.role)} />
-  return <ScreenFrame logout={role === 'screen' ? auth.logout : null} role={role} />
+  return <ScreenFrame logout={logout} role={role} />
 }
 
 function ScreenFrame({ role, logout }: { role: 'admin' | 'screen'; logout: (() => Promise<void>) | null }) {

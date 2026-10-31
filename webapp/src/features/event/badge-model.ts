@@ -62,3 +62,23 @@ const ACTIVITY_WORD = { one: 'активность', few: 'активности'
 function activitiesWord(count: number) {
   return `${count} ${ACTIVITY_WORD[BALL_PLURAL.select(count)]}`
 }
+
+/** The activities that count towards the badge, in the order of the forum programme. */
+export const BADGE_ACTIVITIES = [
+  'Точка соединения',
+  'Диффузия',
+  'Колба идей',
+  'Полимер решений',
+  'Люди формулы будущего',
+  'Воркшоп 1',
+  'Воркшоп 2',
+  'Воркшоп 3',
+] as const
+
+/** The full list with a done flag; a completed activity outside the list (an extra station) is kept at the end. */
+export function badgeChecklist(completed: readonly { name: string }[]) {
+  const done = new Set(completed.map((activity) => activity.name))
+  const listed: string[] = [...BADGE_ACTIVITIES]
+  const extra = [...done].filter((name) => !listed.includes(name))
+  return [...listed, ...extra].map((name) => ({ name, done: done.has(name) }))
+}

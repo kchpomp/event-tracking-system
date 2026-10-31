@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test'
 
 import {
+  BADGE_ACTIVITIES,
+  badgeChecklist,
   badgeIssuedMessage,
   badgeJustIssued,
   badgeState,
@@ -60,4 +62,12 @@ test('participant status text', () => {
 test('badge 409 messages come from the server, other errors stay friendly', () => {
   expect(badgeErrorMessage(new ApiRequestError(409, 'BADGE_ALREADY_ISSUED', 'Значок уже выдан.'))).toBe('Значок уже выдан.')
   expect(badgeErrorMessage(new ApiRequestError(409, 'EVENT_NOT_ACTIVE', 'raw'))).toBe('Мероприятие сейчас не проходит.')
+})
+
+test('the badge checklist shows every activity, marks the done ones and keeps an extra station', () => {
+  const list = badgeChecklist([{ name: 'Диффузия' }, { name: 'Воркшоп 2' }, { name: 'Мерч-станция' }])
+
+  expect(list.map((item) => item.name)).toEqual([...BADGE_ACTIVITIES, 'Мерч-станция'])
+  expect(list.filter((item) => item.done).map((item) => item.name)).toEqual(['Диффузия', 'Воркшоп 2', 'Мерч-станция'])
+  expect(badgeChecklist([]).every((item) => !item.done)).toBe(true)
 })
